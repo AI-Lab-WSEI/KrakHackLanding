@@ -28,6 +28,12 @@ const sliderColors = [
   "var(--electric-blue)",
 ];
 
+// Define a type for parallax element
+interface ParallaxElement {
+  el: HTMLDivElement | null;
+  speed: number;
+}
+
 export default function Home() {
   // Refs for parallax elements
   const heroSparkleRef1 = useRef<HTMLDivElement>(null);
@@ -38,9 +44,17 @@ export default function Home() {
   const registrationSparkleRef1 = useRef<HTMLDivElement>(null);
   const registrationSparkleRef2 = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLDivElement>(null);
-
+  const mapBackgroundRef = useRef<HTMLDivElement>(null);
+  
+  // Collection of elements for dynamic parallax
+  const parallaxElements = useRef<ParallaxElement[]>([]);
+  
+  // Get reference to lenis for use in component
+  const lenis = useLenis();
+  
   // Parallax effect using useLenis
-  useLenis(({ scroll }) => {
+  useLenis((params: { scroll: number }) => {
+    const { scroll } = params;
     // Apply parallax effect (adjust multiplier for different speeds)
     const applyParallax = (ref: React.RefObject<HTMLDivElement | null>, multiplier: number) => {
       if (ref.current) {
@@ -48,6 +62,7 @@ export default function Home() {
       }
     };
 
+    // Apply parallax to traditional refs
     applyParallax(heroSparkleRef1, 0.2);
     applyParallax(heroSparkleRef2, -0.15);
     applyParallax(challengeSparkleRef1, 0.1);
@@ -55,7 +70,15 @@ export default function Home() {
     applyParallax(registrationSparkleRef1, 0.05);
     applyParallax(registrationSparkleRef2, -0.08);
     applyParallax(heroSliderRef, 0.25);
-    applyParallax(posterRef, 0.35);
+    applyParallax(posterRef, -0.1);
+    applyParallax(mapBackgroundRef, 0.2);
+    
+    // Apply parallax to dynamic elements
+    parallaxElements.current.forEach(item => {
+      if (item.el) {
+        item.el.style.transform = `translateY(${scroll * item.speed}px)`;
+      }
+    });
   });
 
   // Function to scroll to a specific section
@@ -177,64 +200,77 @@ export default function Home() {
       </section>
 
       {/* --- Wyzwania Section --- */}
-      <section id="wyzwania" className={`${pageStyles.section} ${pageStyles.blackBg}`}>
+      <section id="wyzwania" className={pageStyles.section + " " + pageStyles.blackBg}>
         <div className={pageStyles.separatorCyan}></div>
-        <h2 className={pageStyles.sectionHeading}>PODEJMIJ WYZWANIE</h2>
-        <div className={pageStyles.challengeContainer}>
-          {/* Block 1: Tramwaje */}
-          <div className={pageStyles.challengeBlock}>
-             <div className={pageStyles.challengeBackgroundMap}>
-               <Image 
-                 src="/assets/map-track-background.png"
-                 alt="Krakow Routes Map"
-                 fill
-                 style={{ objectFit: 'cover', opacity: 0.1 }}
-               />
-             </div>
-             <div className={pageStyles.challengeIcon}>
+        
+          <div className={pageStyles.challengeBackgroundMap} ref={mapBackgroundRef}>
+            <Image 
+              src="/assets/map-background.png"
+              alt="Krakow Map Background"
+              fill
+              style={{ opacity: 0.7, filter: 'blur(2px)' }}
+            />
+          </div>
+        
+        <div className={pageStyles.sectionContent}>
+          <h2 className={pageStyles.challengeMainHeading}>PODEJMIJ WYZWANIE</h2>
+          
+          <div className={pageStyles.challengeContainer}>
+            {/* Block 1: Tramwaje */}
+            <div className={pageStyles.challengeBlock}>
+              <div className={pageStyles.challengeIcon}>
                 <FaTrainSubway size={60} color="#00e5ff" />
-             </div>
-             <h3 className={pageStyles.challengeHeading}>Wyzwanie 1: Zoptymalizuj Krakowską Sieć Tramwajową</h3>
-             <p className={pageStyles.paragraphSmall}>
-               Na czym polega wyzwanie? Wyobraź sobie Kraków z jeszcze płynniejszą komunikacją miejską! Twoim zadaniem będzie analiza danych o ruchu tramwajowym i zaproponowanie optymalizacji tras lub rozkładów jazdy, aby zminimalizować czas podróży i zapewnić jak najlepsze pokrycie potrzeb mieszkańców. Dlaczego warto? Rozwiń kluczowe umiejętności w analizie danych przestrzennych i optymalizacji, pracując nad realnym problemem miejskim i poczuj satysfakcję z tworzenia rozwiązań dla społeczności!
-             </p>
-             <div className={pageStyles.tagContainer}>
+              </div>
+              <h3 className={pageStyles.challengeHeading}>Wyzwanie 1: Zoptymalizuj Krakowską Sieć Tramwajową</h3>
+              <p className={pageStyles.paragraphSmall}>
+                Na czym polega wyzwanie? Wyobraź sobie Kraków z jeszcze płynniejszą komunikacją miejską! Twoim zadaniem będzie analiza danych o ruchu tramwajowym i zaproponowanie optymalizacji tras lub rozkładów jazdy, aby zminimalizować czas podróży i zapewnić jak najlepsze pokrycie potrzeb mieszkańców. Dlaczego warto? Rozwiń kluczowe umiejętności w analizie danych przestrzennych i optymalizacji, pracując nad realnym problemem miejskim i poczuj satysfakcję z tworzenia rozwiązań dla społeczności!
+              </p>
+              <div className={pageStyles.tagContainer}>
                 <span className={`${pageStyles.tag} ${pageStyles.tagCyan}`}>Python</span>
                 <span className={`${pageStyles.tag} ${pageStyles.tagCyan}`}>GeoPandas</span>
                 <span className={`${pageStyles.tag} ${pageStyles.tagCyan}`}>Optymalizacja</span>
                 <span className={`${pageStyles.tag} ${pageStyles.tagCyan}`}>Dane Miejskie</span>
-             </div>
-          </div>
-          {/* Block 2: Asystent Kulturalny */}
-           <div className={pageStyles.challengeBlock}>
-             <div className={pageStyles.challengeBackgroundMap}>
-               <Image 
-                 src="/assets/map-background.png"
-                 alt="Krakow Map Background"
-                 fill
-                 style={{ objectFit: 'cover', opacity: 0.1 }}
-               />
-             </div>
-             <div className={pageStyles.challengeIcon}>
+              </div>
+            </div>
+            
+            {/* Block 2: Asystent Kulturalny */}
+            <div className={pageStyles.challengeBlock}>
+              <div className={pageStyles.challengeIcon}>
                 <FaComments size={60} color="#ff00ff" />
-             </div>
-             <h3 className={pageStyles.challengeHeading}>Wyzwanie 2: Zbuduj Inteligentnego Asystenta Kulturalnego Krakowa</h3>
-             <p className={pageStyles.paragraphSmall}>
-               Na czym polega wyzwanie? Koncerty, wystawy, spektakle – Kraków tętni życiem kulturalnym! Stwórz inteligentnego chatbota lub system rekomendacji, który pomoże mieszkańcom i turystom odkrywać najciekawsze wydarzenia, dostarczając spersonalizowane propozycje dopasowane do jego zainteresowań. Dlaczego warto? Zanurz się w NLP i systemach rekomendacyjnych, ucząc się jak przetwarzać tekst, budować modele i tworzyć angażujące interfejsy. To szansa na zbudowanie kompletnego projektu AI – od pozyskania danych po interfejs użytkownika.
-             </p>
-             <div className={pageStyles.tagContainer}>
-               <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>Python</span>
-               <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>NLP</span>
-               <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>Web Scraping</span>
-               <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>Rekomendacje</span>
-             </div>
-           </div>
+              </div>
+              <h3 className={pageStyles.challengeHeading}>Wyzwanie 2: Zbuduj Inteligentnego Asystenta Kulturalnego Krakowa</h3>
+              <p className={pageStyles.paragraphSmall}>
+                Na czym polega wyzwanie? Koncerty, wystawy, spektakle – Kraków tętni życiem kulturalnym! Stwórz inteligentnego chatbota lub system rekomendacji, który pomoże mieszkańcom i turystom odkrywać najciekawsze wydarzenia, dostarczając spersonalizowane propozycje dopasowane do jego zainteresowań. Dlaczego warto? Zanurz się w NLP i systemach rekomendacyjnych, ucząc się jak przetwarzać tekst, budować modele i tworzyć angażujące interfejsy. To szansa na zbudowanie kompletnego projektu AI – od pozyskania danych po interfejs użytkownika.
+              </p>
+              <div className={pageStyles.tagContainer}>
+                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>Python</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>NLP</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>Web Scraping</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>Rekomendacje</span>
+              </div>
+            </div>
+            
+          </div>
         </div>
-        <div ref={challengeSparkleRef1} className={`${pageStyles.sparkle} ${pageStyles.challengeSparkle1}`}>
-            <Image src="/assets/stars@0.1x.png" alt="Sparkle" width={20} height={20} />
+        
+        {/* Parallax Sparkles */}
+        <div
+          className={`${pageStyles.sparkle} ${pageStyles.challengeSparkle1}`}
+          ref={(el: HTMLDivElement | null) => {
+            if (el) parallaxElements.current.push({ el, speed: 0.2 });
+            return undefined;
+          }}
+        >
+          <Image src="/assets/sparkle-blue.svg" alt="Sparkle" width={120} height={120} />
         </div>
-        <div ref={challengeSparkleRef2} className={`${pageStyles.sparkle} ${pageStyles.challengeSparkle2}`}>
-            <Image src="/assets/stars@0.1x.png" alt="Sparkle" width={18} height={18} />
+        <div
+          className={`${pageStyles.sparkle} ${pageStyles.challengeSparkle2}`}
+          ref={(el: HTMLDivElement | null) => {
+            if (el) parallaxElements.current.push({ el, speed: -0.3 });
+            return undefined;
+          }}
+        >
+          <Image src="/assets/sparkle-magenta.svg" alt="Sparkle" width={100} height={100} />
         </div>
       </section>
 

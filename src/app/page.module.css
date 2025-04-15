@@ -76,7 +76,7 @@
 .section {
   padding: 6rem 2rem; /* Generous padding */
   min-height: 60vh; /* Ensure sections have some height */
-  position: relative; /* Needed for absolute positioned children like separators/sparkles */
+  position: relative; /* Remains relative */
   overflow: hidden; /* Prevent parallax elements from spilling */
 }
 
@@ -89,6 +89,15 @@
 }
 
 .sectionHeading {
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 3rem;
+  color: var(--white) !important; /* Force white color */
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.challengeMainHeading {
   font-size: 2.5rem;
   font-weight: 700;
   text-align: center;
@@ -273,41 +282,52 @@
 
 /* --- Wyzwania Section --- */
 .challengeContainer {
-  display: flex;
-  gap: 3rem;
-  max-width: 1100px;
+  display: flex; /* Enable Flexbox */
+  gap: 2rem;
+  max-width: 1200px;
   margin: 0 auto;
-  flex-wrap: wrap; /* Allow stacking on smaller screens */
-  justify-content: center;
+  align-items: stretch; /* Make items stretch to container height */
 }
 
 .challengeBlock {
-  flex: 1; /* Try to take equal space */
-  min-width: 300px; /* Minimum width before wrapping */
-  max-width: 500px;
+  flex: 1; /* Allow blocks to grow/shrink equally */
+  display: flex; /* Use flex inside the block too */
+  flex-direction: column; /* Stack content vertically */
+  background-color: rgba(20, 20, 30, 0.8);
   padding: 2rem;
-  background-color: var(--dark-grey); /* Slightly lighter than section bg */
   border-radius: 8px;
-  position: relative; /* For background map */
-  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  position: relative; /* For background map positioning */
+  overflow: hidden; /* Hide overflowing background */
+}
+
+/* Ensure paragraph takes available space but pushes tags down */
+.challengeBlock p.paragraphSmall {
+  flex-grow: 1; /* Allow paragraph to take up remaining space */
 }
 
 .challengeBackgroundMap {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('/assets/artboard-6-map-white.svg'); /* Placeholder */
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
-  opacity: 0.05; /* Very subtle map within block */
-  z-index: 0;
+  position: absolute !important;
+  top: -400px !important; /* User adjusted value */
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  filter: blur(2px) !important;
+  opacity: 0.7 !important;
+  z-index: 0 !important; /* Changed from -1 to 0 */
+  pointer-events: none !important; /* Don't capture clicks */
+  background-image: url('/assets/artboard-6-map-white.svg') !important; /* Added map image */
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: cover !important;
 }
 
 .challengeIcon, .challengeHeading, .challengeBlock .paragraphSmall, .tagContainer {
- position: relative; z-index: 1; /* Ensure content is above map */
+ position: relative !important; 
+ z-index: 20 !important; /* Higher than container for nested stacking */
+ opacity: 1 !important;
+ visibility: visible !important;
 }
 
 .challengeIcon {
@@ -618,11 +638,13 @@
 /* Media Queries for Responsiveness (Example) */
 @media (max-width: 768px) {
   .section {
-    padding: 4rem 1rem;
+    padding: 3rem 1rem;
   }
 
   .sectionHeading {
+    z-index: 100;
     font-size: 2rem;
+    opacity: 1;
   }
 
   .navbarLinks {
@@ -744,4 +766,175 @@
 
 .bulletItem span {
   font-weight: 600;
+}
+
+/* NEW CLEAN WYZWANIA SECTION STYLES */
+/* --------------------------------- */
+
+/* Main Wyzwania section container - establish stacking context */
+#wyzwania {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background map - absolutely positioned in the section */
+#wyzwania .backgroundMapWrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 150%; /* Extra height for parallax effect */
+  z-index: 1;
+  pointer-events: none;
+}
+
+#wyzwania .challengeBackgroundMap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/assets/artboard-6-map-white.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  filter: blur(2px);
+  opacity: 0.7;
+}
+
+/* Separator line at the top */
+#wyzwania .separatorCyan {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--bright-cyan);
+  z-index: 2;
+}
+
+/* Main content container */
+#wyzwania .sectionContent {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Section heading */
+#wyzwania .challengeMainHeading {
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 3rem;
+  color: var(--white);
+  text-shadow: 0 0 10px rgba(0, 0, 255, 0.5);
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  display: inline-block;
+  z-index: 15;
+  position: relative;
+}
+
+/* Challenge container - holds the 3 challenge blocks */
+#wyzwania .challengeContainer {
+  display: flex;
+  gap: 2rem;
+  width: 100%;
+  position: relative;
+  z-index: 15;
+}
+
+/* Individual challenge blocks */
+#wyzwania .challengeBlock {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: rgba(20, 20, 30, 0.8);
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Challenge block elements */
+#wyzwania .challengeIcon {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+#wyzwania .challengeHeading {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: center;
+  color: var(--white);
+}
+
+#wyzwania .challengeBlock .paragraphSmall {
+  flex-grow: 1;
+  margin-bottom: 1.5rem;
+}
+
+/* Tags container */
+#wyzwania .tagContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: auto;
+  justify-content: center;
+}
+
+#wyzwania .tag {
+  background-color: var(--light-grey);
+  padding: 0.3rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+#wyzwania .tagCyan { 
+  color: var(--bright-cyan); 
+  border: 1px solid var(--bright-cyan);
+}
+
+#wyzwania .tagMagenta { 
+  color: var(--vibrant-magenta); 
+  border: 1px solid var(--vibrant-magenta);
+}
+
+/* Sparkle elements */
+#wyzwania .sparkle {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+}
+
+#wyzwania .challengeSparkle1 { 
+  bottom: 10%; 
+  left: 5%; 
+}
+
+#wyzwania .challengeSparkle2 { 
+  top: 15%; 
+  right: 1%; 
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  #wyzwania .challengeContainer {
+    flex-direction: column;
+    gap: 2rem;
+  }
+  
+  #wyzwania .challengeMainHeading {
+    font-size: 2rem;
+  }
 } 
