@@ -1,0 +1,35 @@
+.sliderBackground {
+  position: absolute;
+  top: 20%; /* Adjust vertical position */
+  right: -15%; /* Adjust horizontal position */
+  width: 45%; /* Roughly 20-25% of hero, adjust as needed */
+  max-width: 450px;
+  padding: 1.5rem; /* Padding inside the background */
+  border-radius: 10px;
+  background-color: rgba(112, 112, 112, 0.088); /* Dark semi-transparent */
+  backdrop-filter: blur(10px); /* Blur effect */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* Drop shadow */
+  z-index: 4; /* Below slider text but above main background */
+}
+
+.sliderContainer {
+  position: relative; /* Position relative to the background */
+  width: 100%; /* Take full width of background container */
+  height: 280px; /* Adjust height to fit text comfortably */
+  display: flex;
+  justify-content: center; /* Center text block */
+  align-items: center; /* Center text block */
+  overflow: hidden; 
+  text-align: left; /* Center text itself */
+  z-index: 5; /* Above the background blur */
+}
+
+.sliderText {
+  position: absolute; /* Keep absolute for animation */
+  font-size: 1rem; /* Adjusted size */
+  font-weight: 500;
+  opacity: 0.9; /* Slightly more opaque */
+  line-height: 1.5;
+  width: 90%; /* Max width within container */
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9); /* Adjust shadow */
+} 

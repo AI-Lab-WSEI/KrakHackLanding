@@ -207,17 +207,42 @@
 /* --- Sparkle/Parallax Styles --- */
 .sparkle {
   position: absolute;
-  z-index: 5; /* Above background, potentially below content */
-  pointer-events: none; /* So they don't interfere */
+  z-index: 3; /* Above background, below slider bg */
+  pointer-events: none; /* Don't interfere with clicks */
 }
 
-/* Adjust positions based on visual design */
-.heroSparkle1 { top: -5%; left: -5%; }
-.heroSparkle2 { top: 20%; right: -10%; }
+.sparkle img {
+}
+
+/* New positions for larger sparkles */
+.heroSparkle1Large { 
+  top: 7%; 
+  left: -25%; 
+}
+.heroSparkle2Large { 
+  top: -7%; 
+  right: -15%; 
+  z-index: 10;
+}
+
+/* CTA Button Container */
+.ctaContainer {
+  width: 100%;
+  text-align: center; /* Center the button */
+  position: relative; /* Ensure it's positioned within heroContent */
+  z-index: 6; /* Above slider background */
+}
+
+/* Keep existing sparkle positions for other sections */
 .challengeSparkle1 { bottom: 10%; left: 5%; }
-.challengeSparkle2 { top: 15%; right: 8%; }
+.challengeSparkle2 { top: 15%; right: 1%; }
 .registrationSparkle1 { top: 85%; left: 20%; }
 .registrationSparkle2 { top: 20%; right: 25%; }
+
+/* Remove old small sparkle positions if they exist */
+.heroSparkle1, .heroSparkle2 { /* Remove if unused */
+  /* display: none; Optional: hide if classes still exist elsewhere */
+}
 
 /* --- O Hackathonie Section --- */
 .bulletGrid {
