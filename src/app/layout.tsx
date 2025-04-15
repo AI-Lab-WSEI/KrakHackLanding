@@ -1,9 +1,9 @@
 'use client';
 
 import { Suspense } from 'react';
-import { Lenis } from '@studio-freight/react-lenis';
 import type { Metadata } from "next";
 import "./globals.css"; // Ensure globals are imported
+import SmoothScroller from '@/components/SmoothScroller';
 
 export default function RootLayout({
   children,
@@ -21,9 +21,9 @@ export default function RootLayout({
       {/* Remove inline style, rely on globals.css */}
       <body> 
         <Suspense fallback={null}>
-          <Lenis root options={{ lerp: 0.1, duration: 1.5, smoothWheel: true }}>
-            {children as any}
-          </Lenis>
+          <SmoothScroller options={{ duration: 1.5, smoothWheel: true }}>
+            {children}
+          </SmoothScroller>
         </Suspense>
       </body>
     </html>

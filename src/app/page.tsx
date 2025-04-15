@@ -2,7 +2,6 @@
 
 import { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { useLenis } from '@studio-freight/react-lenis';
 import pageStyles from './page.module.css';
 import sliderStyles from '../components/TextSlider.module.css';
 // Import GSAP
@@ -18,6 +17,7 @@ import ParallaxBackground from '../components/ParallaxBackground';
 import TextSlider from '../components/TextSlider'; // Import the slider
 // Import GSAP with dynamic imports
 import { useGSAP } from '../hooks/useGSAP'; // We'll create this hook
+import { useLenis } from '../hooks/useSmoothScroll'; // Import our custom useLenis hook
 
 // Register ScrollTrigger plugin
 if (typeof window !== 'undefined') {

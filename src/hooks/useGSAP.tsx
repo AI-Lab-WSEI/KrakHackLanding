@@ -259,7 +259,7 @@ export function useGSAP(isClient: boolean, refs: AnimationRefs) {
               stagger: 0.2,
               duration: 0.6,
               delay: 0.3,
-              ease: "elastic.out(1, 0.5)",
+              ease: "power2.out",
               scrollTrigger: {
                 trigger: section.ref.current,
                 start: "top 70%",

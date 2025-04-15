@@ -2,11 +2,29 @@
 
 import { useEffect, useRef, useState, ReactNode } from 'react';
 
-type ScrollCallback = (params: { scroll: number; limit: number; velocity: number; direction: string; progress: number }) => void;
+interface LenisScrollEvent {
+  scroll: number;
+  limit: number;
+  velocity: number;
+  direction: number | null;
+  progress: number;
+}
+
+type ScrollCallback = (event: LenisScrollEvent) => void;
+
+interface LenisOptions {
+  duration?: number;
+  easing?: (t: number) => number;
+  touchMultiplier?: number;
+  wheelMultiplier?: number;
+  smoothWheel?: boolean;
+  syncTouch?: boolean;
+  syncTouchLerp?: number;
+}
 
 /**
  * A custom hook that provides Lenis smooth scrolling functionality
- * Compatible with React 19 while maintaining all existing functionality
+ * Using only the standard Lenis package
  */
 export function useSmoothScroll(callback?: ScrollCallback) {
   const [lenis, setLenis] = useState<any>(null);
@@ -16,41 +34,25 @@ export function useSmoothScroll(callback?: ScrollCallback) {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+    
+    if (typeof window === 'undefined') return;
 
     // Dynamically import Lenis to avoid SSR issues
     const importLenis = async () => {
       try {
-        // Try the new package name first
         const lenisModule = await import('lenis');
-        // Initialize with the new package format
         const LenisClass = lenisModule.default;
         const instance = new LenisClass({
           duration: 1.2,
           easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-        //   smooth: true,
-        //   smoothTouch: false,
           touchMultiplier: 2,
+          smoothWheel: true,
         });
         setLenis(instance);
         return instance;
       } catch (error) {
-        // Fallback to the old package if new one fails
-        try {
-          const oldLenisModule = await import('@studio-freight/lenis');
-          const OldLenisClass = oldLenisModule.default;
-          const instance = new OldLenisClass({
-            duration: 1.2,
-            easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            // smooth: true,
-            // smoothTouch: false,
-            touchMultiplier: 2,
-          });
-          setLenis(instance);
-          return instance;
-        } catch (oldError) {
-          console.error('Failed to import Lenis:', oldError);
-          return null;
-        }
+        console.error('Failed to import Lenis:', error);
+        return null;
       }
     };
 
@@ -94,7 +96,7 @@ export function useSmoothScroll(callback?: ScrollCallback) {
 }
 
 /**
- * A drop-in replacement for the useLenis hook that works with React 19
+ * A drop-in replacement for the useLenis hook
  */
 export function useLenis(callback?: ScrollCallback) {
   return useSmoothScroll(callback);
@@ -103,96 +105,62 @@ export function useLenis(callback?: ScrollCallback) {
 /**
  * A wrapper component that implements Lenis smooth scrolling
  */
-interface ReactLenisProps {
+interface SmoothScrollerProps {
   children: ReactNode;
-  root?: boolean;
-  options?: Record<string, any>;
+  options?: LenisOptions;
 }
 
-export function ReactLenis({ children, options = {} }: ReactLenisProps) {
+export function SmoothScroller({ children, options = {} }: SmoothScrollerProps) {
+  const [lenis, setLenis] = useState<any>(null);
   const requestRef = useRef<number | null>(null);
-  const lenisRef = useRef<any>(null);
+  const initialized = useRef(false);
 
   useEffect(() => {
-    // Dynamically import Lenis
-    const importLenis = async () => {
+    if (initialized.current || typeof window === 'undefined') return;
+    initialized.current = true;
+
+    const initLenis = async () => {
       try {
-        // Try the new package name first
         const lenisModule = await import('lenis');
-        // Initialize with the new package format
         const LenisClass = lenisModule.default;
-        return new LenisClass({
-          ...options,
-          duration: options.duration || 1.2,
-          easing: options.easing || ((t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t))),
-          smooth: options.smooth !== undefined ? options.smooth : true,
-          smoothTouch: options.smoothTouch !== undefined ? options.smoothTouch : false,
+        
+        const defaultOptions = {
+          duration: 1.2,
+          easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+          touchMultiplier: 2,
+          smoothWheel: true,
+        };
+        
+        const instance = new LenisClass({
+          ...defaultOptions,
+          ...options
         });
-      } catch (error) {
-        // Fallback to the old package
-        try {
-          const oldLenisModule = await import('@studio-freight/lenis');
-          const OldLenisClass = oldLenisModule.default;
-          return new OldLenisClass({
-            ...options,
-            duration: options.duration || 1.2,
-            easing: options.easing || ((t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t))),
-            smooth: options.smooth !== undefined ? options.smooth : true,
-            smoothTouch: options.smoothTouch !== undefined ? options.smoothTouch : false,
-          });
-        } catch (oldError) {
-          console.error('Failed to import Lenis:', oldError);
-          return null;
+        
+        setLenis(instance);
+        
+        // Set up the animation loop
+        function raf(time: number) {
+          instance.raf(time);
+          requestRef.current = requestAnimationFrame(raf);
         }
+        requestRef.current = requestAnimationFrame(raf);
+      } catch (error) {
+        console.error('Failed to initialize Lenis:', error);
       }
     };
 
-    importLenis().then((lenisInstance) => {
-      if (!lenisInstance) return;
-      
-      lenisRef.current = lenisInstance;
-
-      // Set up the animation loop
-      function raf(time: number) {
-        lenisInstance.raf(time);
-        requestRef.current = requestAnimationFrame(raf);
-      }
-      requestRef.current = requestAnimationFrame(raf);
-    });
+    initLenis();
 
     return () => {
-      // Cleanup
       if (requestRef.current !== null) {
         cancelAnimationFrame(requestRef.current);
         requestRef.current = null;
       }
-      if (lenisRef.current) {
-        lenisRef.current.destroy();
-        lenisRef.current = null;
+      if (lenis) {
+        lenis.destroy();
       }
     };
   }, [options]);
 
   return <>{children}</>;
 }
-
-useEffect(() => {
-  if (typeof window === 'undefined') return;
-  
-  if (callback && lenisInstance) {
-    lenisInstance.on('scroll', callback);
-  }
-
-  return () => {
-    if (callback && lenisInstance) {
-      lenisInstance.off('scroll', callback);
-    }
-  };
-}, [callback, lenisInstance]);
-
-return {
-  scrollTo: (target: any, options?: any) => {
-    lenisInstance!.scrollTo(target, options);
-  },
-  lenis: lenisInstance,
-}; 

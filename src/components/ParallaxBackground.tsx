@@ -1,8 +1,8 @@
 'use client';
 
 import { useRef } from 'react';
-import { useLenis } from '@studio-freight/react-lenis';
 import Image from 'next/image';
+import { useLenis } from '@/hooks/useSmoothScroll';
 
 type ParallaxBackgroundProps = {
   imageSrc: string; // Required for this simpler version
