@@ -49,6 +49,15 @@ interface ParallaxElement {
 export default function Home() {
   // State to track client-side rendering
   const [isClient, setIsClient] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 900);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Add state for mobile menu
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -257,12 +266,17 @@ export default function Home() {
           </div>
           
           {/* Parallax Sparkles - Larger and repositioned */}
+          {!isMobile && (
           <div ref={heroSparkleRef1} className={`${pageStyles.sparkle} ${pageStyles.heroSparkle1Large}`}>
             <Image src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/stars_0.1x_fy3net.jpg?_s=public-apps" alt="Sparkle" width={150} height={150} /> 
           </div>
+          )}
+          {!isMobile && (
           <div ref={heroSparkleRef2} className={`${pageStyles.sparkle} ${pageStyles.heroSparkle2Large}`}>
             <Image src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733654/talks-1_0.1x_lnuvpd.jpg?_s=public-apps" alt="Talks" width={180} height={180} /> 
           </div>
+          )}
+          
 
           {/* CTA Button - Centered relative to hero content */} 
           <div className={pageStyles.ctaContainer}> 
