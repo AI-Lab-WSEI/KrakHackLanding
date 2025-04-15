@@ -5,6 +5,9 @@ import Image from 'next/image';
 import { useLenis } from '@studio-freight/react-lenis';
 import pageStyles from './page.module.css';
 import sliderStyles from '../components/TextSlider.module.css';
+// Import GSAP
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 // Import React Icons
 import { FaBrain, FaDatabase, FaCode, FaChartLine, FaUsers, FaTrophy } from 'react-icons/fa';
 import { FaMapLocationDot, FaTrainSubway, FaComments } from 'react-icons/fa6';
@@ -13,6 +16,11 @@ import timelineEvents from '../data/timelineEvents.json';
 // Import parallax background component
 import ParallaxBackground from '../components/ParallaxBackground';
 import TextSlider from '../components/TextSlider'; // Import the slider
+
+// Register ScrollTrigger plugin
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 const sliderSentences = [
   "Dołącz do AI Krak Hack – hackathonu, gdzie Twoje umiejętności w dziedzinie sztucznej inteligencji przełożą się na realne rozwiązania dla Krakowa!",
@@ -49,8 +57,378 @@ export default function Home() {
   // Collection of elements for dynamic parallax
   const parallaxElements = useRef<ParallaxElement[]>([]);
   
+  // Refs for GSAP animations
+  const navbarRef = useRef<HTMLDivElement>(null);
+  const heroSectionRef = useRef<HTMLElement>(null);
+  const hackathonSectionRef = useRef<HTMLElement>(null);
+  const wyzwaniaSectionRef = useRef<HTMLElement>(null);
+  const oNasSectionRef = useRef<HTMLElement>(null);
+  const harmonogramSectionRef = useRef<HTMLElement>(null);
+  const nagrodyPartnerzyRef = useRef<HTMLElement>(null);
+  const rejestracjaSectionRef = useRef<HTMLElement>(null);
+  const footerRef = useRef<HTMLElement>(null);
+  
   // Get reference to lenis for use in component
   const lenis = useLenis();
+  
+  // Init animations
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Performance optimizations
+    gsap.config({
+      autoSleep: 60,
+      force3D: true,
+      nullTargetWarn: false,
+    });
+    
+    // Global defaults
+    gsap.defaults({
+      ease: "power3.out",
+      duration: 0.8,
+    });
+    
+    // Create a timeline for initial animations
+    const masterTl = gsap.timeline({
+      defaults: {
+        ease: "power3.out",
+        duration: 0.8,
+      }
+    });
+    
+    // Navbar animation
+    if (navbarRef.current) {
+      masterTl.fromTo(navbarRef.current, 
+        { y: -100, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.6 },
+        0
+      );
+      
+      // Navbar links stagger
+      masterTl.fromTo(
+        ".navLink",
+        { y: -20, opacity: 0 },
+        { y: 0, opacity: 1, stagger: 0.1, duration: 0.4 },
+        0.3
+      );
+    }
+    
+    // Hero section animation
+    if (heroSectionRef.current) {
+      // Background
+      masterTl.fromTo(
+        ".heroBackground",
+        { opacity: 0 },
+        { opacity: 1, duration: 1.2 },
+        0.2
+      );
+      
+      // Hero content
+      masterTl.fromTo(
+        [heroSliderRef.current, posterRef.current],
+        { y: 50, opacity: 0 },
+        { y: 0, opacity: 1, stagger: 0.2 },
+        0.4
+      );
+      
+      // Sparkles
+      masterTl.fromTo(
+        [heroSparkleRef1.current, heroSparkleRef2.current],
+        { scale: 0, opacity: 0 },
+        { scale: 1, opacity: 1, stagger: 0.3, duration: 1 },
+        0.8
+      );
+      
+      // CTA button
+      masterTl.fromTo(
+        ".ctaButton",
+        { scale: 0.8, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.5 },
+        1.2
+      );
+    }
+    
+    // Section animations on scroll
+    const sections = [
+      { ref: hackathonSectionRef, selector: "#o-hackathonie" },
+      { ref: wyzwaniaSectionRef, selector: "#wyzwania" },
+      { ref: oNasSectionRef, selector: "#o-nas" },
+      { ref: harmonogramSectionRef, selector: "#harmonogram" },
+      { ref: nagrodyPartnerzyRef, selector: "#nagrody-partnerzy" },
+      { ref: rejestracjaSectionRef, selector: "#rejestracja" },
+    ];
+    
+    sections.forEach(section => {
+      if (!section.ref.current) return;
+      
+      // Section heading animation
+      gsap.fromTo(
+        `${section.selector} .sectionHeading, ${section.selector} .sectionHeadingAlt, ${section.selector} .challengeMainHeading`,
+        { y: 50, opacity: 0 },
+        { 
+          y: 0, 
+          opacity: 1, 
+          duration: 0.7,
+          scrollTrigger: {
+            trigger: section.ref.current,
+            start: "top 80%",
+            toggleActions: "play none none none"
+          }
+        }
+      );
+      
+      // Separator animation
+      gsap.fromTo(
+        `${section.selector} .separatorCyan, ${section.selector} .separatorMagenta, ${section.selector} .separatorBlue`,
+        { width: 0 },
+        { 
+          width: "100%", 
+          duration: 1,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: section.ref.current,
+            start: "top 85%",
+            toggleActions: "play none none none"
+          }
+        }
+      );
+      
+      // Content animations based on section type
+      if (section.selector === "#o-hackathonie") {
+        // Bullet points
+        gsap.fromTo(
+          `${section.selector} .bulletItem`,
+          { y: 30, opacity: 0 },
+          { 
+            y: 0, 
+            opacity: 1, 
+            stagger: 0.1,
+            duration: 0.5,
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 75%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+        
+        // Add text reveal animation for paragraphs
+        const paragraphs = document.querySelectorAll(`${section.selector} .paragraph`);
+        paragraphs.forEach(paragraph => {
+          // Create a clip-path reveal animation
+          gsap.fromTo(
+            paragraph,
+            { 
+              clipPath: "polygon(0 0, 0 0, 0 100%, 0 100%)",
+              opacity: 0.3
+            },
+            { 
+              clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%)",
+              opacity: 1,
+              duration: 1.2,
+              ease: "power4.inOut",
+              scrollTrigger: {
+                trigger: paragraph,
+                start: "top 85%",
+                toggleActions: "play none none none"
+              }
+            }
+          );
+        });
+      }
+      
+      if (section.selector === "#wyzwania") {
+        // Animate the background map first
+        gsap.fromTo(
+          `${section.selector} .mapBackground img`,
+          { opacity: 0 },
+          { 
+            opacity: 0.7, 
+            duration: 1.5,
+            ease: "power2.inOut",
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 80%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+        
+        // Challenge blocks - staggered appearance with a more dramatic effect
+        gsap.fromTo(
+          `${section.selector} .challenge-block`,
+          { y: 80, opacity: 0, scale: 0.9 },
+          { 
+            y: 0, 
+            opacity: 1,
+            scale: 1, 
+            stagger: 0.2,
+            duration: 0.8,
+            ease: "back.out(1.2)",
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 70%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+        
+        // Challenge icons with bounce effect
+        gsap.fromTo(
+          `${section.selector} .challenge-icon`,
+          { y: -30, opacity: 0, scale: 0.5 },
+          { 
+            y: 0, 
+            opacity: 1,
+            scale: 1, 
+            stagger: 0.2,
+            duration: 0.6,
+            delay: 0.3,
+            ease: "elastic.out(1, 0.5)",
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 70%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+        
+        // Challenge headings with fade effect
+        gsap.fromTo(
+          `${section.selector} .challenge-heading`,
+          { y: -20, opacity: 0 },
+          { 
+            y: 0, 
+            opacity: 1, 
+            stagger: 0.2,
+            delay: 0.5,
+            duration: 0.5,
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 70%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+        
+        // Challenge text paragraphs with fade effect
+        gsap.fromTo(
+          `${section.selector} .challenge-text`,
+          { opacity: 0 },
+          { 
+            opacity: 1, 
+            stagger: 0.2,
+            delay: 0.6,
+            duration: 0.7,
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 70%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+        
+        // Tags with pop effect
+        gsap.fromTo(
+          `${section.selector} .challenge-tag`,
+          { scale: 0, opacity: 0 },
+          { 
+            scale: 1, 
+            opacity: 1, 
+            stagger: 0.03,
+            delay: 0.8,
+            duration: 0.4,
+            ease: "back.out(3)",
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 70%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+        
+        // Sparkle elements with custom animation
+        gsap.fromTo(
+          `${section.selector} .sparkle`,
+          { scale: 0, opacity: 0, rotation: -45 },
+          { 
+            scale: 1, 
+            opacity: 1, 
+            rotation: 0,
+            stagger: 0.3,
+            duration: 1,
+            ease: "elastic.out(1, 0.3)",
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 70%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+      }
+      
+      if (section.selector === "#harmonogram") {
+        // Timeline items
+        gsap.fromTo(
+          `${section.selector} .timelineItem`,
+          { x: -50, opacity: 0 },
+          { 
+            x: 0, 
+            opacity: 1, 
+            stagger: 0.15,
+            duration: 0.6,
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 75%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+      }
+      
+      if (section.selector === "#nagrody-partnerzy") {
+        // Awards and partners
+        gsap.fromTo(
+          `${section.selector} .awardItem, ${section.selector} .partnerPlaceholder`,
+          { y: 30, opacity: 0 },
+          { 
+            y: 0, 
+            opacity: 1, 
+            stagger: 0.15,
+            duration: 0.5,
+            scrollTrigger: {
+              trigger: section.ref.current,
+              start: "top 75%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+      }
+    });
+    
+    // Footer animation
+    if (footerRef.current) {
+      gsap.fromTo(
+        footerRef.current,
+        { y: 20, opacity: 0 },
+        { 
+          y: 0, 
+          opacity: 1, 
+          duration: 0.5,
+          scrollTrigger: {
+            trigger: footerRef.current,
+            start: "top 95%",
+            toggleActions: "play none none none"
+          }
+        }
+      );
+    }
+    
+    // Clean up ScrollTrigger on component unmount
+    return () => {
+      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+    };
+  }, []);
   
   // Parallax effect using useLenis
   useLenis((params: { scroll: number }) => {
@@ -89,10 +467,44 @@ export default function Home() {
     }
   };
 
+  // Navbar scroll effect
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navbarRef.current) return;
+    
+    // Create a dynamic navbar behavior
+    const navbarAnimation = gsap.to(navbarRef.current, {
+      backgroundColor: 'rgba(10, 10, 15, 0.95)',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+      height: '68px',
+      paddingTop: '5px',
+      paddingBottom: '5px',
+      duration: 0.3,
+      paused: true,
+      ease: "power2.out"
+    });
+    
+    // Function to handle scroll
+    const handleScroll = () => {
+      if (window.scrollY > 80) {
+        navbarAnimation.play();
+      } else {
+        navbarAnimation.reverse();
+      }
+    };
+    
+    // Add scroll listener
+    window.addEventListener('scroll', handleScroll);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
   return (
     <div className={pageStyles.pageWrapper}>
       {/* --- Sticky Navbar --- */}
-      <nav className={pageStyles.navbar}>
+      <nav className={pageStyles.navbar} ref={navbarRef}>
         <div className={pageStyles.navbarContent}>
           <Image
             src="/assets/krak-hack-text.png"
@@ -102,25 +514,27 @@ export default function Home() {
             className={pageStyles.navbarLogo}
           />
           <div className={pageStyles.navbarLinks}>
-            <button onClick={() => scrollToSection('o-hackathonie')}>O Hackathonie</button>
-            <button onClick={() => scrollToSection('wyzwania')}>Wyzwania</button>
-            <button onClick={() => scrollToSection('o-nas')}>O Nas</button>
-            <button onClick={() => scrollToSection('harmonogram')}>Harmonogram</button>
-            <button onClick={() => scrollToSection('rejestracja')}>Rejestracja</button>
+            <button className="navLink" onClick={() => scrollToSection('o-hackathonie')}>O Hackathonie</button>
+            <button className="navLink" onClick={() => scrollToSection('wyzwania')}>Wyzwania</button>
+            <button className="navLink" onClick={() => scrollToSection('o-nas')}>O Nas</button>
+            <button className="navLink" onClick={() => scrollToSection('harmonogram')}>Harmonogram</button>
+            <button className="navLink" onClick={() => scrollToSection('rejestracja')}>Rejestracja</button>
           </div>
         </div>
       </nav>
 
       {/* --- Hero Section --- */}
-      <header id="hero" className={pageStyles.heroSection}>
+      <header id="hero" className={pageStyles.heroSection} ref={heroSectionRef}>
         {/* Use Image Background with Parallax */}
-        <ParallaxBackground 
-          imageSrc="/assets/map-track-background.png" 
-          alt="Krakow Map Background" 
-          verticalSpeed={0.1}
-          opacity={0.35}
-          blurAmount={0.4}
-        />
+        <div className="heroBackground">
+          <ParallaxBackground 
+            imageSrc="/assets/map-track-background.png" 
+            alt="Krakow Map Background" 
+            verticalSpeed={0.1}
+            opacity={0.35}
+            blurAmount={0.4}
+          />
+        </div>
         
         <div className={pageStyles.heroContent}>
           {/* Slider with Background */}
@@ -162,7 +576,7 @@ export default function Home() {
       </header>
 
       {/* --- O Hackathonie Section --- */}
-      <section id="o-hackathonie" className={`${pageStyles.section} ${pageStyles.darkGreyBg}`}>
+      <section id="o-hackathonie" className={`${pageStyles.section} ${pageStyles.darkGreyBg}`} ref={hackathonSectionRef}>
         <div className={pageStyles.separatorMagenta}></div>
         <div className={pageStyles.sectionContent}>
           <h2 className={pageStyles.sectionHeading}>CZYM JEST AI KRAK HACK?</h2>
@@ -200,53 +614,55 @@ export default function Home() {
       </section>
 
       {/* --- Wyzwania Section --- */}
-      <section id="wyzwania" className={pageStyles.section + " " + pageStyles.blackBg}>
+      <section id="wyzwania" className={pageStyles.section + " " + pageStyles.blackBg} ref={wyzwaniaSectionRef}>
         <div className={pageStyles.separatorCyan}></div>
         
+        <div className="mapBackground">
           <div className={pageStyles.challengeBackgroundMap} ref={mapBackgroundRef}>
             <Image 
               src="/assets/map-background.png"
               alt="Krakow Map Background"
               fill
-              style={{ opacity: 0.7, filter: 'blur(2px)' }}
+              style={{ opacity: 0, filter: 'blur(2px)' }} // Start with opacity 0 for animation
             />
           </div>
+        </div>
         
         <div className={pageStyles.sectionContent}>
           <h2 className={pageStyles.challengeMainHeading}>PODEJMIJ WYZWANIE</h2>
           
           <div className={pageStyles.challengeContainer}>
             {/* Block 1: Tramwaje */}
-            <div className={pageStyles.challengeBlock}>
-              <div className={pageStyles.challengeIcon}>
+            <div className={pageStyles.challengeBlock + " challenge-block"}>
+              <div className={pageStyles.challengeIcon + " challenge-icon"}>
                 <FaTrainSubway size={60} color="#00e5ff" />
               </div>
-              <h3 className={pageStyles.challengeHeading}>Wyzwanie 1: Zoptymalizuj Krakowską Sieć Tramwajową</h3>
-              <p className={pageStyles.paragraphSmall}>
+              <h3 className={pageStyles.challengeHeading + " challenge-heading"}>Wyzwanie 1: Zoptymalizuj Krakowską Sieć Tramwajową</h3>
+              <p className={pageStyles.paragraphSmall + " challenge-text"}>
                 Na czym polega wyzwanie? Wyobraź sobie Kraków z jeszcze płynniejszą komunikacją miejską! Twoim zadaniem będzie analiza danych o ruchu tramwajowym i zaproponowanie optymalizacji tras lub rozkładów jazdy, aby zminimalizować czas podróży i zapewnić jak najlepsze pokrycie potrzeb mieszkańców. Dlaczego warto? Rozwiń kluczowe umiejętności w analizie danych przestrzennych i optymalizacji, pracując nad realnym problemem miejskim i poczuj satysfakcję z tworzenia rozwiązań dla społeczności!
               </p>
               <div className={pageStyles.tagContainer}>
-                <span className={`${pageStyles.tag} ${pageStyles.tagCyan}`}>Python</span>
-                <span className={`${pageStyles.tag} ${pageStyles.tagCyan}`}>GeoPandas</span>
-                <span className={`${pageStyles.tag} ${pageStyles.tagCyan}`}>Optymalizacja</span>
-                <span className={`${pageStyles.tag} ${pageStyles.tagCyan}`}>Dane Miejskie</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagCyan} challenge-tag`}>Python</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagCyan} challenge-tag`}>GeoPandas</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagCyan} challenge-tag`}>Optymalizacja</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagCyan} challenge-tag`}>Dane Miejskie</span>
               </div>
             </div>
             
             {/* Block 2: Asystent Kulturalny */}
-            <div className={pageStyles.challengeBlock}>
-              <div className={pageStyles.challengeIcon}>
+            <div className={pageStyles.challengeBlock + " challenge-block"}>
+              <div className={pageStyles.challengeIcon + " challenge-icon"}>
                 <FaComments size={60} color="#ff00ff" />
               </div>
-              <h3 className={pageStyles.challengeHeading}>Wyzwanie 2: Zbuduj Inteligentnego Asystenta Kulturalnego Krakowa</h3>
-              <p className={pageStyles.paragraphSmall}>
+              <h3 className={pageStyles.challengeHeading + " challenge-heading"}>Wyzwanie 2: Zbuduj Inteligentnego Asystenta Kulturalnego Krakowa</h3>
+              <p className={pageStyles.paragraphSmall + " challenge-text"}>
                 Na czym polega wyzwanie? Koncerty, wystawy, spektakle – Kraków tętni życiem kulturalnym! Stwórz inteligentnego chatbota lub system rekomendacji, który pomoże mieszkańcom i turystom odkrywać najciekawsze wydarzenia, dostarczając spersonalizowane propozycje dopasowane do jego zainteresowań. Dlaczego warto? Zanurz się w NLP i systemach rekomendacyjnych, ucząc się jak przetwarzać tekst, budować modele i tworzyć angażujące interfejsy. To szansa na zbudowanie kompletnego projektu AI – od pozyskania danych po interfejs użytkownika.
               </p>
               <div className={pageStyles.tagContainer}>
-                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>Python</span>
-                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>NLP</span>
-                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>Web Scraping</span>
-                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta}`}>Rekomendacje</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta} challenge-tag`}>Python</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta} challenge-tag`}>NLP</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta} challenge-tag`}>Web Scraping</span>
+                <span className={`${pageStyles.tag} ${pageStyles.tagMagenta} challenge-tag`}>Rekomendacje</span>
               </div>
             </div>
             
@@ -275,7 +691,7 @@ export default function Home() {
       </section>
 
       {/* --- O Nas Section --- */}
-      <section id="o-nas" className={`${pageStyles.section} ${pageStyles.darkGreyBg}`}>
+      <section id="o-nas" className={`${pageStyles.section} ${pageStyles.darkGreyBg}`} ref={oNasSectionRef}>
         <div className={pageStyles.separatorBlue}></div>
         <div className={pageStyles.oNasContainer}>
             <div className={pageStyles.oNasLeft}>
@@ -304,7 +720,7 @@ export default function Home() {
       </section>
 
       {/* --- Harmonogram Section --- */}
-      <section id="harmonogram" className={`${pageStyles.section} ${pageStyles.blackBg}`}>
+      <section id="harmonogram" className={`${pageStyles.section} ${pageStyles.blackBg}`} ref={harmonogramSectionRef}>
         <div className={pageStyles.separatorMagenta}></div>
         <h2 className={pageStyles.sectionHeading}>PLAN WYDARZENIA (24-25.05.2025)</h2>
         <ul className={pageStyles.timeline}>
@@ -322,7 +738,7 @@ export default function Home() {
       </section>
 
       {/* --- Nagrody & Partnerzy Section --- */}
-      <section id="nagrody-partnerzy" className={`${pageStyles.section} ${pageStyles.darkGreyBg}`}>
+      <section id="nagrody-partnerzy" className={`${pageStyles.section} ${pageStyles.darkGreyBg}`} ref={nagrodyPartnerzyRef}>
         <div className={pageStyles.separatorCyan}></div>
         <div className={`${pageStyles.nagrodyPartnerzyContainer} ${pageStyles.sectionContent}`}> 
             <div className={pageStyles.nagrodyColumn}>
@@ -362,7 +778,7 @@ export default function Home() {
       </section>
 
       {/* --- Rejestracja Section --- */}
-      <section id="rejestracja" className={`${pageStyles.section} ${pageStyles.blackBg}`}>
+      <section id="rejestracja" className={`${pageStyles.section} ${pageStyles.blackBg}`} ref={rejestracjaSectionRef}>
         <div className={pageStyles.separatorBlue}></div>
         <h2 className={pageStyles.sectionHeading}>ZAREJESTRUJ SWÓJ ZESPÓŁ!</h2>
         <p className={pageStyles.paragraph}>Zbierz ekipę (2-4 osoby) i dołącz do nas! Wypełnij formularz poniżej. Liczba miejsc ograniczona!</p>
@@ -379,7 +795,7 @@ export default function Home() {
       </section>
 
       {/* --- Footer --- */}
-      <footer className={pageStyles.footer}>
+      <footer className={pageStyles.footer} ref={footerRef}>
           <p className={pageStyles.footerText}>© 2025 AI Possibilities Lab, WSEI Krakow.</p>
           <Image
             src="/assets/logo@0.25x.png"
