@@ -30,6 +30,18 @@ const nextConfig = {
     // number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 2,
   },
+  // Enable static exports
+  output: 'export',
+  // Disable image optimization during export
+  images: {
+    unoptimized: true,
+  },
+  // Disable trailing slash
+  trailingSlash: false,
+  // Exclude default routes from static generation
+  skipTrailingSlashRedirect: true,
+  // Preserve paths during export
+  distDir: 'build',
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;
