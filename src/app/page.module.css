@@ -1,0 +1,644 @@
+/* Base Styles */
+:root {
+  --electric-blue: #0000FF;
+  --vibrant-magenta: #FF00FF;
+  --bright-cyan: #00FFFF;
+  --white: #FFFFFF;
+  --black: #000000;
+  --dark-grey: #222222;
+  --light-grey: #333333;
+  --placeholder-grey: #555555;
+  --font-sans: 'Montserrat', sans-serif; /* Example: Use your chosen geometric sans-serif */
+}
+
+/* Apply global styles if not done in globals.css */
+body {
+  background-color: var(--black);
+  color: var(--white);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+  /* Ensure Lenis works correctly - these might be in globals.css already */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+}
+
+.pageWrapper {
+  width: 100%;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+/* --- Navbar Styles --- */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px; /* Thin height */
+  background-color: var(--black);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  padding: 0 2rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+}
+
+.navbarContent {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbarLogo {
+  /* Styles for Artboard 9 logo */
+  height: 25px; /* Adjust as needed */
+  width: auto;
+}
+
+.navbarLinks {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.navbarLinks button {
+  background: none;
+  border: none;
+  color: var(--white);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.navbarLinks button:hover {
+  color: var(--bright-cyan);
+}
+
+.navbarLinks button::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 1px;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bright-cyan);
+  transition: width 0.3s ease;
+}
+
+.navbarLinks button:hover::after {
+  width: 100%;
+}
+
+/* --- General Section Styles --- */
+.section {
+  padding: 6rem 2rem; /* Generous padding */
+  min-height: 60vh; /* Ensure sections have some height */
+  position: relative; /* Needed for absolute positioned children like separators/sparkles */
+  overflow: hidden; /* Prevent parallax elements from spilling */
+}
+
+.darkGreyBg {
+  background-color: var(--dark-grey);
+}
+
+.blackBg {
+  background-color: var(--black);
+}
+
+.sectionHeading {
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 3rem;
+  color: var(--white);
+}
+
+.sectionHeadingAlt {
+  font-size: 2rem; /* Slightly smaller for side-by-side layouts */
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: var(--white);
+}
+
+.subHeading, .subHeadingAlt {
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 3rem;
+  margin-bottom: 2rem;
+  color: var(--white);
+}
+
+.subHeadingAlt {
+ text-align: left; 
+ margin-top: 2rem;
+}
+
+.paragraph {
+  max-width: 800px;
+  margin: 0 auto 2rem auto;
+  line-height: 1.7;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.paragraphSmall {
+   line-height: 1.6;
+   font-size: 0.95rem;
+   margin-bottom: 1.5rem;
+}
+
+/* --- Separators --- */
+.separatorMagenta, .separatorCyan, .separatorBlue {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px; /* Thin line */
+}
+
+.separatorMagenta { background-color: var(--vibrant-magenta); }
+.separatorCyan { background-color: var(--bright-cyan); }
+.separatorBlue { background-color: var(--electric-blue); }
+
+/* --- Hero Section Styles --- */
+.heroSection {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding-top: 60px; /* Account for navbar */
+  text-align: center;
+}
+
+.heroBackgroundMap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/assets/artboard-6-map-white.svg'); /* Placeholder */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.07; /* Very subtle map */
+  z-index: 0;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.heroVisual {
+  max-width: 90%;
+  height: auto;
+  margin-bottom: 3rem;
+  /* Add styles to ensure colors match palette if needed */
+}
+
+.ctaButton {
+  background-color: var(--electric-blue);
+  color: var(--white);
+  border: none;
+  padding: 1rem 2.5rem;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.ctaButton:hover {
+  background-color: #0000cc; /* Slightly darker blue */
+  transform: translateY(-2px);
+}
+
+/* --- Sparkle/Parallax Styles --- */
+.sparkle {
+  position: absolute;
+  z-index: 5; /* Above background, potentially below content */
+  pointer-events: none; /* So they don't interfere */
+}
+
+/* Adjust positions based on visual design */
+.heroSparkle1 { top: -5%; left: -5%; }
+.heroSparkle2 { top: 20%; right: -10%; }
+.challengeSparkle1 { bottom: 10%; left: 5%; }
+.challengeSparkle2 { top: 15%; right: 8%; }
+.registrationSparkle1 { top: 85%; left: 20%; }
+.registrationSparkle2 { top: 20%; right: 25%; }
+
+/* --- O Hackathonie Section --- */
+.bulletGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+  max-width: 900px;
+  margin: 2rem auto 0 auto;
+}
+
+.bulletItem {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background-color: var(--light-grey);
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.bulletItem img {
+  flex-shrink: 0;
+}
+
+.bulletItem span {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* --- Wyzwania Section --- */
+.challengeContainer {
+  display: flex;
+  gap: 3rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  flex-wrap: wrap; /* Allow stacking on smaller screens */
+  justify-content: center;
+}
+
+.challengeBlock {
+  flex: 1; /* Try to take equal space */
+  min-width: 300px; /* Minimum width before wrapping */
+  max-width: 500px;
+  padding: 2rem;
+  background-color: var(--dark-grey); /* Slightly lighter than section bg */
+  border-radius: 8px;
+  position: relative; /* For background map */
+  overflow: hidden;
+}
+
+.challengeBackgroundMap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/assets/artboard-6-map-white.svg'); /* Placeholder */
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.05; /* Very subtle map within block */
+  z-index: 0;
+}
+
+.challengeIcon, .challengeHeading, .challengeBlock .paragraphSmall, .tagContainer {
+ position: relative; z-index: 1; /* Ensure content is above map */
+}
+
+.challengeIcon {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.challengeHeading {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.tagContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  justify-content: center;
+}
+
+.tag {
+  background-color: var(--light-grey);
+  padding: 0.3rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.tagCyan { color: var(--bright-cyan); border: 1px solid var(--bright-cyan);}
+.tagMagenta { color: var(--vibrant-magenta); border: 1px solid var(--vibrant-magenta); }
+
+/* --- O Nas Section --- */
+.oNasContainer {
+  display: flex;
+  gap: 3rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  align-items: flex-start; /* Align items top */
+  flex-wrap: wrap; /* Stacking on smaller screens */
+}
+
+.oNasLeft, .oNasRight {
+  flex: 1;
+}
+
+.oNasLeft {
+  text-align: center;
+}
+
+.oNasLogo {
+  max-width: 80%;
+  height: auto;
+  margin-top: 1rem;
+}
+
+.oNasRight .paragraph {
+  text-align: left;
+  margin-left: 0;
+  margin-right: 0;
+  max-width: 100%;
+}
+
+.projectDescriptions p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.projectDescriptions strong {
+ color: var(--bright-cyan);
+ font-weight: 600;
+ display: block; /* Make title appear on its own line */
+ margin-bottom: 0.2rem;
+}
+
+/* --- Harmonogram Section --- */
+.timeline {
+  position: relative;
+  margin: 4rem auto;
+  max-width: 800px;
+  padding: 0 2rem;
+}
+
+.timelineLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: linear-gradient(to bottom, #00a4ff, #ff00ff, #00e5ff);
+  transform: translateX(-50%);
+  z-index: 0;
+}
+
+.timelineItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 2.5rem;
+  z-index: 1;
+}
+
+.timelineNode {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  z-index: 2;
+  margin: 0 1rem;
+}
+
+.timelineTime {
+  min-width: 100px;
+  text-align: right;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.timelineContent {
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  flex: 1;
+}
+
+/* --- Nagrody & Partnerzy Section --- */
+.nagrodyPartnerzyContainer {
+ display: flex;
+ gap: 3rem;
+ max-width: 1000px;
+ margin: 0 auto;
+ align-items: flex-start;
+ flex-wrap: wrap;
+}
+
+.nagrodyColumn, .partnerzyColumn {
+ flex: 1;
+ min-width: 300px;
+}
+
+.nagrodyColumn .paragraph {
+  text-align: left;
+  margin-left: 0;
+}
+
+.partnerLogos {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+.partnerLogos img {
+  filter: grayscale(100%) brightness(3); /* Make logos white/monochrome */
+  height: 40px;
+  width: auto;
+}
+
+.partnerPlaceholder {
+  width: 100px;
+  height: 40px;
+  background-color: var(--placeholder-grey);
+  border-radius: 4px;
+}
+
+/* --- Rejestracja Section --- */
+.registrationFormPlaceholder {
+  max-width: 700px;
+  margin: 2rem auto 0 auto;
+  padding: 3rem;
+  border: 2px dashed var(--white);
+  background-color: var(--dark-grey);
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--white);
+  border-radius: 8px;
+  position: relative; /* For sparkles */
+}
+
+/* --- Footer --- */
+.footer {
+  background-color: var(--black);
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--light-grey); /* Subtle separator */
+}
+
+.footerText {
+  font-size: 0.85rem;
+  color: #aaa; /* Lighter grey */
+}
+
+.footerLogo {
+  height: 25px; /* Small logo */
+  width: auto;
+}
+
+/* Media Queries for Responsiveness (Example) */
+@media (max-width: 768px) {
+  .section {
+    padding: 4rem 1rem;
+  }
+
+  .sectionHeading {
+    font-size: 2rem;
+  }
+
+  .navbarLinks {
+    display: none; /* Consider a mobile menu button */
+  }
+
+  .challengeContainer {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .oNasContainer {
+     flex-direction: column;
+     gap: 2rem;
+  }
+  
+  .oNasLeft {
+     text-align: center;
+     width: 100%;
+  }
+  
+  .oNasLogo {
+      max-width: 150px; /* Smaller logo */
+  }
+  
+  .oNasRight .paragraph {
+      text-align: center;
+  }
+  
+  .nagrodyPartnerzyContainer {
+      flex-direction: column;
+      gap: 2rem;
+      align-items: center;
+  }
+  
+  .nagrodyColumn .paragraph, .partnerzyColumn {
+      text-align: center;
+  }
+  
+  .partnerLogos {
+      justify-content: center;
+  }
+
+  .timeline {
+    padding-left: 2rem;
+  }
+  
+  .timelineLine {
+    left: 1rem;
+  }
+  
+  .timelineItem {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-left: 1rem;
+  }
+  
+  .timelineTime {
+    min-width: 0;
+    text-align: left;
+    margin-bottom: 0.5rem;
+  }
+  
+  .timelineNode {
+    position: absolute;
+    left: -1rem;
+    top: 0;
+    margin: 0;
+  }
+  
+  .timelineContent {
+    width: 100%;
+  }
+  
+  .bulletGrid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, auto);
+  }
+} 
+
+/* Section Content Container */
+.sectionContent {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Bullet Grid (3x2) */
+.bulletGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, auto);
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.bulletItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.5rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.bulletItem:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.bulletItem .icon {
+  margin-bottom: 1rem;
+}
+
+.bulletItem span {
+  font-weight: 600;
+}
+
+/* Add the node color styles */
+.nodeBlue { background-color: #00a4ff; }
+.nodeMagenta { background-color: #ff00ff; }
+.nodeCyan { background-color: #00e5ff; } 

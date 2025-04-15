@@ -1,0 +1,32 @@
+[
+  {
+    "time": "16:00",
+    "description": "Start & Rejestracja",
+    "nodeColor": "blue"
+  },
+  {
+    "time": "17:00",
+    "description": "Wprowadzenie & Wyzwania",
+    "nodeColor": "magenta"
+  },
+  {
+    "time": "18:00 - 08:00",
+    "description": "Praca nad projektami",
+    "nodeColor": "cyan"
+  },
+  {
+    "time": "",
+    "description": "(Przerwy na posiłki & Mentoring)",
+    "nodeColor": "blue"
+  },
+  {
+    "time": "14:00",
+    "description": "Prezentacje Finałowe",
+    "nodeColor": "magenta"
+  },
+  {
+    "time": "16:00",
+    "description": "Ogłoszenie Wyników",
+    "nodeColor": "cyan"
+  }
+] 
