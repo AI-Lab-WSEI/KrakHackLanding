@@ -3,6 +3,8 @@
 .pageWrapper {
   width: 100%;
   overflow-x: hidden; /* Prevent horizontal scroll */
+  max-width: 100vw; /* Ensure content doesn't exceed viewport width */
+  position: relative;
 }
 
 /* --- Navbar Styles --- */
@@ -10,7 +12,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: -webkit-fill-available;
+  width: -webkit-fill-available; /* Changed back to -webkit-fill-available as requested */
   height: 60px; /* Thin height */
   background-color: var(--black); /* Will use global variable */
   z-index: 1000;
@@ -128,6 +130,7 @@
 .subHeadingAlt {
  text-align: left; 
  margin-top: 2rem;
+ margin-bottom: 2rem;
 }
 
 .paragraph {
@@ -166,19 +169,23 @@
   justify-content: center;
   position: relative;
   text-align: center;
+  width: -webkit-fill-available; /* Changed to -webkit-fill-available as requested */
+  overflow: hidden; /* Prevent background from creating horizontal scroll */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 .heroBackgroundMap {
   position: absolute;
   left: 0;
   width: 100%;
-  top:45px;
-  height: 80%;
+  top: 45px;
+  height: 100%; /* Increased from 80% to 100% for better coverage */
   background-image: url('/assets/artboard-6-map-white.svg'); /* Placeholder */
   background-position: center;
-  /* background-size: cover; */
-  scale: 1.5;
-  opacity: 1; /* Very subtle map */
+  background-repeat: no-repeat; /* Prevent repeating */
+  background-size: contain; /* Contain instead of cover to prevent stretching */
+  scale: 1.8; /* Increased from 1.5 to 1.8 to size up the map */
+  opacity: 0.4; /* Very subtle map */
   z-index: 0;
   filter: blur(1.5px);
 }
@@ -189,20 +196,32 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: -webkit-fill-available;
+  padding: 0 1rem;
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.heroVisualContainer {
+  position: relative;
+  left: -10%; /* Reduced from -15% to -10% for better positioning on desktop */
+  margin: 2rem 0;
+  width: auto;
+  display: flex;
+  justify-content: center;
 }
 
 .heroVisual {
   max-width: 90%;
   height: auto;
-  margin-bottom: 3rem;
-  /* Add styles to ensure colors match palette if needed */
+  margin-bottom: 2rem; /* Reduced from 3rem to 2rem */
+  object-fit: contain; /* Ensure image maintains aspect ratio */
 }
 
 .ctaButton {
   background-color: var(--electric-blue);
   color: var(--black);
   border: none;
-  padding: 1rem 2.5rem;
+  padding: 0.75rem 1.5rem; /* Reduced from 1rem 2.5rem */
   border-radius: 4px;
   font-size: 1.1rem;
   font-weight: 600;
@@ -228,12 +247,20 @@
 /* New positions for larger sparkles */
 .heroSparkle1Large { 
   top: 10%; 
-  left: -25%; 
+  left: 7%; 
 }
 .heroSparkle2Large { 
-  top: -7%; 
-  right: -15%; 
+  top: -1%; 
+  right: 16%; 
   z-index: 10;
+}
+
+/* Hide sparkles on screens less than 900px */
+@media (max-width: 900px) {
+  .heroSparkle1Large,
+  .heroSparkle2Large {
+    display: none;
+  }
 }
 
 /* CTA Button Container */
@@ -289,6 +316,7 @@
   max-width: 1200px;
   margin: 0 auto;
   align-items: stretch; /* Make items stretch to container height */
+  margin-bottom: 2rem;
 }
 
 .challengeBlock {
@@ -589,6 +617,7 @@
   display: flex;
   gap: 2rem;
   margin-top: 2rem;
+  margin-bottom: 2rem;
   justify-content: center; /* Center logos if fewer than max */
   align-items: center;
   flex-wrap: wrap; /* Allow wrapping */
@@ -649,8 +678,7 @@
   }
 
   .navbarLinks {
-    gap: 0.8rem;
-    margin-right: -1rem; /* Add negative margin to adjust position */
+    display: none; /* Hide standard navbar links on mobile */
   }
   
   .navbarLinks button {
@@ -729,6 +757,14 @@
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(3, auto);
   }
+
+  .mobileMenuToggle {
+    display: block;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
 } 
 
 /* Section Content Container */
@@ -738,7 +774,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 2rem;
+
 }
 
 /* Bullet Grid (3x2) */
@@ -748,6 +784,7 @@
   grid-template-rows: repeat(2, auto);
   gap: 2rem;
   margin-top: 2rem;
+   margin-bottom: 2rem;
 }
 
 .bulletItem {
@@ -942,5 +979,182 @@
   
   #wyzwania .challengeMainHeading {
     font-size: 2rem;
+  }
+} 
+
+/* Mobile Menu Styles */
+.mobileMenuToggle {
+  display: none;
+  color: var(--white);
+  cursor: pointer;
+  z-index: 1001;
+  margin-left: auto; /* Push to right side */
+}
+
+.mobileMenu {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  width: -webkit-fill-available; /* Changed to -webkit-fill-available for consistency */
+  background-color: rgba(0, 0, 0, 0.95); /* Darkened background for better visibility */
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0; /* Reduced from 1rem */
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  animation: slideDown 0.3s ease-in-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobileMenu button {
+  background: none;
+  border: none;
+  color: var(--white);
+  font-family: var(--font-sans);
+  font-size: 0.95rem; /* Reduced from 1rem */
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.75rem 1.5rem; /* Reduced from 1rem 2rem */
+  text-align: left;
+  transition: background-color 0.2s ease;
+}
+
+.mobileMenu button:hover {
+  background-color: rgba(255, 255, 255, 0.1); /* Slightly increased from 0.05 */
+  color: var(--bright-cyan);
+}
+
+/* Media Queries for Responsiveness */
+@media (max-width: 992px) {
+  .navbarLinks {
+    gap: 1rem;
+  }
+  
+  .sectionHeading {
+    font-size: 2.2rem;
+  }
+  
+  .heroBackgroundMap {
+    scale: 1.5;
+    height: 90%;
+    opacity: 0.4;
+    filter: blur(2px);
+  }
+  
+  .bulletGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .heroVisualContainer {
+    left: 0; /* Reset left positioning on tablets */
+    width: 100%;
+  }
+}
+
+/* Small devices (mobile phones) */
+@media (max-width: 768px) {
+  .section {
+    padding: 1.5rem 1rem;
+    min-height: 50vh;
+  }
+  
+  .sectionHeading {
+    font-size: 1.8rem;
+    margin-bottom: 2rem;
+  }
+  
+  .navbarLinks {
+    display: none; /* Hide on mobile - implement a mobile menu if needed */
+  }
+  
+  .navbarContent {
+    position: relative; /* For positioning mobile menu toggle */
+  }
+  
+  .mobileMenuToggle {
+    display: block;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  .heroSection {
+    align-items: center; /* Changed from flex-start to center */
+    padding-top: 60px; /* Reduced from 80px */
+  }
+  
+  .heroBackgroundMap {
+    scale: 1.2; /* Adjusted from 1 to 1.2 */
+    height: 100%; /* Increased from 70% to 100% */
+    top: 45px; /* Changed from 60px to 45px to match desktop */
+  }
+  
+  .heroVisualContainer {
+    left: 0;
+    width: 100%;
+    margin: 0.75rem 0; /* Reduced from 1rem */
+    text-align: center; /* Added to center the image */
+  }
+  
+  .heroVisual {
+    max-width: 90%; /* Reduced from 100% */
+    margin: 0.5rem auto; /* Changed from 1rem 0 to auto for horizontal centering */
+    display: block; /* Ensures centering works properly */
+  }
+  
+  .ctaButton {
+    padding: 0.5rem 1.25rem; /* Even smaller padding for mobile */
+    font-size: 1rem;
+  }
+  
+  .ctaContainer {
+    margin-top: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Keep sparkles but make them smaller and repositioned */
+  .heroSparkle1Large, .heroSparkle2Large {
+    transform: scale(0.9);
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+  .navbar {
+    padding: 0 1rem;
+  }
+  
+  .navbarLogo {
+    height: 20px;
+  }
+  
+  .heroBackgroundMap {
+    scale: 1.4; /* Increased from previous mobile value */
+    opacity: 0.7; /* Slightly more visible */
+  }
+  
+  .heroContent {
+    padding: 0 0.5rem;
+  }
+  
+  .heroVisualContainer {
+    margin: 0.5rem 0;
+  }
+  
+  .ctaButton {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
   }
 } 

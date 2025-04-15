@@ -10,6 +10,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 // Import React Icons
 import { FaBrain, FaDatabase, FaCode, FaChartLine, FaUsers, FaTrophy } from 'react-icons/fa';
 import { FaMapLocationDot, FaTrainSubway, FaComments } from 'react-icons/fa6';
+// Import hamburger menu icons
+import { FaBars, FaTimes } from 'react-icons/fa';
 // Import timeline data
 import timelineEvents from '../data/timelineEvents.json';
 // Import parallax background component
@@ -47,6 +49,9 @@ interface ParallaxElement {
 export default function Home() {
   // State to track client-side rendering
   const [isClient, setIsClient] = useState(false);
+  
+  // Add state for mobile menu
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Refs for parallax elements
   const heroSparkleRef1 = useRef<HTMLDivElement>(null);
@@ -139,6 +144,17 @@ export default function Home() {
     }
   };
 
+  // Toggle mobile menu
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+  
+  // Close mobile menu after clicking a link
+  const handleNavClick = (sectionId: string) => {
+    scrollToSection(sectionId);
+    setMobileMenuOpen(false);
+  };
+
   return (
     <div className={pageStyles.pageWrapper}>
       {/* --- Sticky Navbar --- */}
@@ -158,7 +174,23 @@ export default function Home() {
             <button onClick={() => scrollToSection('harmonogram')}>Harmonogram</button>
             <button onClick={() => scrollToSection('rejestracja')}>Rejestracja</button>
           </div>
+          
+          {/* Mobile Menu Toggle Button */}
+          <div className={pageStyles.mobileMenuToggle} onClick={toggleMobileMenu}>
+            {mobileMenuOpen ? <FaTimes size={24} color="white" /> : <FaBars size={24} color="white" />}
+          </div>
         </div>
+        
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className={pageStyles.mobileMenu}>
+            <button onClick={() => handleNavClick('o-hackathonie')}>O Hackathonie</button>
+            <button onClick={() => handleNavClick('wyzwania')}>Wyzwania</button>
+            <button onClick={() => handleNavClick('o-nas')}>O Nas</button>
+            <button onClick={() => handleNavClick('harmonogram')}>Harmonogram</button>
+            <button onClick={() => handleNavClick('rejestracja')}>Rejestracja</button>
+          </div>
+        )}
       </nav>
 
       {/* --- Hero Section --- */}
@@ -171,7 +203,11 @@ export default function Home() {
               src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/map-track-background_bav3wh.jpg?_s=public-apps"
               alt="Hero Background"
               fill
-              
+              style={{
+                objectFit: 'cover',
+                objectPosition: 'center',
+              }}
+              priority
             />
           </div>
         </div>
@@ -186,13 +222,13 @@ export default function Home() {
             />
           </div>
 
-          {/* Main Visual - Positioned slightly left */}
-          <div style={{ position: 'relative', left: '-15%' }} ref={posterRef}> 
+          {/* Main Visual - Using heroVisualContainer class instead of inline styles */}
+          <div className={pageStyles.heroVisualContainer} ref={posterRef}> 
             <Image
               src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/main-text-poster-blacked_0.25x_wkn6tb.jpg?_s=public-apps"
               alt="AI Krak Hack Main Visual"
-              width={600} 
-              height={450}
+              width={700} 
+              height={500}
               className={pageStyles.heroVisual}
               priority
             />
@@ -346,7 +382,7 @@ export default function Home() {
             </div>
             <div className={pageStyles.oNasRight}>
                  <h2 className={pageStyles.sectionHeadingAlt}>AI POSSIBILITIES LAB</h2>
-                 <p className={pageStyles.paragraph}>
+                 <p className={pageStyles.projectDescriptions}>
                     Koło AI Possibilities Lab skupia osoby zafascynowane sztuczną inteligencją - studentów, absolwentów i entuzjastów technologii z WSEI i nie tylko. Działamy projektowo, rozwijając praktyczne umiejętności i realizując ambitne pomysły. Od narzędzi wspierających rynek pracy, przez platformy edukacyjne, po eksperymenty z przetwarzaniem języka - stale poszukujemy nowych wyzwań. Nasza struktura i zakres działania dynamicznie się rozwijają, a wizja kolejnych projektów klaruje się z tygodnia na tydzień.
                  </p>
                  <h3 className={pageStyles.subHeadingAlt}>Nasze Projekty</h3>
