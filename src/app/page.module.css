@@ -10,7 +10,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
+  width: -webkit-fill-available;
   height: 60px; /* Thin height */
   background-color: var(--black); /* Will use global variable */
   z-index: 1000;
@@ -50,6 +50,7 @@
   cursor: pointer;
   transition: color 0.2s ease;
   padding: 0;
+  position: relative; /* Add this for positioning ::after element */
 }
 
 .navbarLinks button:hover {
@@ -61,7 +62,7 @@
   position: absolute;
   width: 0;
   height: 1px;
-  bottom: 0;
+  bottom: -4px; /* Position below the text */
   left: 50%;
   transform: translateX(-50%);
   background-color: var(--bright-cyan);
@@ -69,7 +70,7 @@
 }
 
 .navbarLinks button:hover::after {
-  width: 100%;
+  width: 100%; /* Full width on hover */
 }
 
 /* --- General Section Styles --- */
@@ -161,24 +162,25 @@
   min-height: 100vh;
   display: flex;
   align-items: center;
+  padding-top: 60px; /* Account for navbar */
   justify-content: center;
   position: relative;
-  padding-top: 60px; /* Account for navbar */
   text-align: center;
 }
 
 .heroBackgroundMap {
   position: absolute;
-  top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  top:45px;
+  height: 80%;
   background-image: url('/assets/artboard-6-map-white.svg'); /* Placeholder */
-  background-repeat: no-repeat;
   background-position: center;
-  background-size: cover;
-  opacity: 0.07; /* Very subtle map */
+  /* background-size: cover; */
+  scale: 1.5;
+  opacity: 1; /* Very subtle map */
   z-index: 0;
+  filter: blur(1.5px);
 }
 
 .heroContent {
@@ -225,7 +227,7 @@
 
 /* New positions for larger sparkles */
 .heroSparkle1Large { 
-  top: 7%; 
+  top: 10%; 
   left: -25%; 
 }
 .heroSparkle2Large { 
@@ -317,7 +319,6 @@
   opacity: 0.7 !important;
   z-index: 0 !important; /* Changed from -1 to 0 */
   pointer-events: none !important; /* Don't capture clicks */
-  background-image: url('/assets/artboard-6-map-white.svg') !important; /* Added map image */
   background-repeat: no-repeat !important;
   background-position: center !important;
   background-size: cover !important;
@@ -648,7 +649,12 @@
   }
 
   .navbarLinks {
-    display: none; /* Consider a mobile menu button */
+    gap: 0.8rem;
+    margin-right: -1rem; /* Add negative margin to adjust position */
+  }
+  
+  .navbarLinks button {
+    font-size: 0.8rem;
   }
 
   .challengeContainer {

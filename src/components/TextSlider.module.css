@@ -1,13 +1,13 @@
 .sliderBackground {
   position: absolute;
-  top: 20%; /* Adjust vertical position */
-  right: -15%; /* Adjust horizontal position */
+  top: 22%; /* Adjust vertical position */
+  right: -25%; /* Adjust horizontal position */
   width: 45%; /* Roughly 20-25% of hero, adjust as needed */
   max-width: 450px;
   padding: 1.5rem; /* Padding inside the background */
   border-radius: 10px;
-  background-color: rgba(112, 112, 112, 0.088); /* Dark semi-transparent */
-  backdrop-filter: blur(10px); /* Blur effect */
+  background-color: rgba(42, 42, 42, 0.088); /* Dark semi-transparent */
+  backdrop-filter: blur(5px); /* Blur effect */
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* Drop shadow */
   z-index: 4; /* Below slider text but above main background */
 }

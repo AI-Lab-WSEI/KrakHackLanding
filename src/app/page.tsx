@@ -50,6 +50,7 @@ export default function Home() {
   
   // Refs for parallax elements
   const heroSparkleRef1 = useRef<HTMLDivElement>(null);
+  const heroBackgroundRef = useRef<HTMLDivElement>(null);
   const heroSparkleRef2 = useRef<HTMLDivElement>(null);
   const heroSliderRef = useRef<HTMLDivElement>(null);
   const challengeSparkleRef1 = useRef<HTMLDivElement>(null);
@@ -121,7 +122,7 @@ export default function Home() {
     applyParallax(heroSliderRef, 0.25);
     applyParallax(posterRef, -0.1);
     applyParallax(mapBackgroundRef, 0.2);
-    
+    applyParallax(heroBackgroundRef, 0.2);
     // Apply parallax to dynamic elements
     parallaxElements.current.forEach(item => {
       if (item.el) {
@@ -151,11 +152,11 @@ export default function Home() {
             className={pageStyles.navbarLogo}
           />
           <div className={pageStyles.navbarLinks}>
-            <button className="navLink" onClick={() => scrollToSection('o-hackathonie')}>O Hackathonie</button>
-            <button className="navLink" onClick={() => scrollToSection('wyzwania')}>Wyzwania</button>
-            <button className="navLink" onClick={() => scrollToSection('o-nas')}>O Nas</button>
-            <button className="navLink" onClick={() => scrollToSection('harmonogram')}>Harmonogram</button>
-            <button className="navLink" onClick={() => scrollToSection('rejestracja')}>Rejestracja</button>
+            <button onClick={() => scrollToSection('o-hackathonie')}>O Hackathonie</button>
+            <button onClick={() => scrollToSection('wyzwania')}>Wyzwania</button>
+            <button onClick={() => scrollToSection('o-nas')}>O Nas</button>
+            <button onClick={() => scrollToSection('harmonogram')}>Harmonogram</button>
+            <button onClick={() => scrollToSection('rejestracja')}>Rejestracja</button>
           </div>
         </div>
       </nav>
@@ -163,14 +164,16 @@ export default function Home() {
       {/* --- Hero Section --- */}
       <header id="hero" className={pageStyles.heroSection} ref={heroSectionRef}>
         {/* Use Image Background with Parallax */}
-        <div className="heroBackground">
-          <ParallaxBackground 
-            imageSrc="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/map-track-background_bav3wh.jpg?_s=public-apps" 
-            alt="Krakow Map Background" 
-            verticalSpeed={0.1}
-            opacity={0.55}
-            blurAmount={0.6}
-          />
+
+        <div className="heroBackgroundMap">
+          <div className={pageStyles.heroBackgroundMap} ref={heroBackgroundRef}>
+            <Image 
+              src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/map-track-background_bav3wh.jpg?_s=public-apps"
+              alt="Hero Background"
+              fill
+              
+            />
+          </div>
         </div>
         
         <div className={pageStyles.heroContent}>
