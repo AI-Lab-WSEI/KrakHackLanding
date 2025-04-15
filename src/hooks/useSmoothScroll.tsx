@@ -20,6 +20,7 @@ interface LenisOptions {
   smoothWheel?: boolean;
   syncTouch?: boolean;
   syncTouchLerp?: number;
+  smoothTouch?: boolean;
 }
 
 /**
@@ -45,23 +46,33 @@ export function useSmoothScroll(callback?: ScrollCallback) {
     
     if (typeof window === 'undefined') return;
     
-    // Skip Lenis initialization on touch devices
-    if (isTouchDevice()) {
-      console.log('Touch device detected, skipping Lenis initialization');
-      return;
-    }
+    // Different configuration for touch devices instead of skipping
+    const isMobile = isTouchDevice();
 
     // Dynamically import Lenis to avoid SSR issues
     const importLenis = async () => {
       try {
         const lenisModule = await import('lenis');
         const LenisClass = lenisModule.default;
-        const instance = new LenisClass({
-          duration: 1.2,
-          easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-          touchMultiplier: 2,
-          smoothWheel: true,
-        });
+        
+        // Configure Lenis based on device type
+        const lenisOptions = isMobile 
+          ? {
+              duration: 0.8,
+              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+              touchMultiplier: 0.5,
+              smoothWheel: false,
+              smoothTouch: false,
+              syncTouch: true,
+            }
+          : {
+              duration: 1.2,
+              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+              touchMultiplier: 2,
+              smoothWheel: true,
+            };
+        
+        const instance = new LenisClass(lenisOptions);
         setLenis(instance);
         return instance;
       } catch (error) {
@@ -133,23 +144,30 @@ export function SmoothScroller({ children, options = {} }: SmoothScrollerProps) 
     if (initialized.current || typeof window === 'undefined') return;
     initialized.current = true;
 
-    // Skip Lenis initialization on touch devices
-    if (isTouchDevice()) {
-      console.log('Touch device detected, skipping Lenis initialization');
-      return;
-    }
+    // Different configuration for touch devices instead of skipping
+    const isMobile = isTouchDevice();
 
     const initLenis = async () => {
       try {
         const lenisModule = await import('lenis');
         const LenisClass = lenisModule.default;
         
-        const defaultOptions = {
-          duration: 1.2,
-          easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-          touchMultiplier: 2,
-          smoothWheel: true,
-        };
+        // Default options based on device type
+        const defaultOptions = isMobile 
+          ? {
+              duration: 0.8,
+              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+              touchMultiplier: 0.5,
+              smoothWheel: false,
+              smoothTouch: false,
+              syncTouch: true,
+            }
+          : {
+              duration: 1.2,
+              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+              touchMultiplier: 2,
+              smoothWheel: true,
+            };
         
         const instance = new LenisClass({
           ...defaultOptions,

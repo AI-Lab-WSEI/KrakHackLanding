@@ -56,6 +56,17 @@ body {
     overflow-y: scroll !important; /* Force scrolling to be enabled */
     -webkit-overflow-scrolling: touch !important; /* Force momentum scrolling */
   }
+  
+  /* Help with parallax performance on mobile */
+  .sparkle, 
+  .heroBackgroundMap, 
+  .sliderBackground,
+  .heroVisualContainer {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
 }
 
 /* Optional: Add your other global styles below */ 

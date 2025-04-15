@@ -13,7 +13,7 @@
   box-sizing: border-box; /* Include padding in width calculation */
   @media screen and (min-width: 768px) {
     top: 22%; /* Adjust vertical position */
-    right: 14%; /* Adjust horizontal position */
+    right: 8%; /* Adjust horizontal position */
   }
 }
 

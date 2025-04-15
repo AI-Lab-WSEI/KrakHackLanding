@@ -109,32 +109,45 @@ export default function Home() {
   useLenis((params: { scroll: number }) => {
     if (!isClient) return; // Skip on server
     
-    // Skip parallax on touch devices
-    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) return;
-    
     const { scroll } = params;
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
     // Apply parallax effect (adjust multiplier for different speeds)
     const applyParallax = (ref: React.RefObject<HTMLDivElement | null>, multiplier: number) => {
-      if (ref.current) {
-        ref.current.style.transform = `translateY(${scroll * multiplier}px)`;
-      }
+      if (!ref.current) return;
+      
+      // Use lighter parallax effect on mobile
+      const effectMultiplier = isMobile ? multiplier * 0.3 : multiplier;
+      ref.current.style.transform = `translateY(${scroll * effectMultiplier}px)`;
     };
 
-    // Apply parallax to traditional refs
+    // Apply parallax to elements with reduced intensity on mobile
     applyParallax(heroSparkleRef1, 0.2);
     applyParallax(heroSparkleRef2, -0.15);
     applyParallax(challengeSparkleRef1, 0.1);
     applyParallax(challengeSparkleRef2, -0.1);
     applyParallax(registrationSparkleRef1, 0.05);
     applyParallax(registrationSparkleRef2, -0.08);
-    applyParallax(heroSliderRef, 0.25);
-    applyParallax(posterRef, -0.1);
-    applyParallax(mapBackgroundRef, 0.2);
-    applyParallax(heroBackgroundRef, 0.2);
-    // Apply parallax to dynamic elements
+    
+    // Only apply these effects on desktop or use very minimal effect on mobile
+    if (!isMobile) {
+      applyParallax(heroSliderRef, 0.25);
+      applyParallax(posterRef, -0.1);
+      applyParallax(mapBackgroundRef, 0.2);
+      applyParallax(heroBackgroundRef, 0.2);
+    } else {
+      // Very minimal effect for content elements on mobile
+      applyParallax(heroSliderRef, 0.05);
+      applyParallax(posterRef, -0.02);
+      applyParallax(mapBackgroundRef, 0.04);
+      applyParallax(heroBackgroundRef, 0.04);
+    }
+    
+    // Apply parallax to dynamic elements with reduced intensity on mobile
     parallaxElements.current.forEach(item => {
       if (item.el) {
-        item.el.style.transform = `translateY(${scroll * item.speed}px)`;
+        const effectSpeed = isMobile ? item.speed * 0.3 : item.speed;
+        item.el.style.transform = `translateY(${scroll * effectSpeed}px)`;
       }
     });
   });
