@@ -70,29 +70,30 @@ export default function Home() {
 
       {/* --- Hero Section --- */}
       <header id="hero" className={styles.heroSection}>
-        {/* Map background with parallax effect */}
+        {/* Use Image Background with Parallax */}
         <ParallaxBackground 
           imageSrc="/assets/map-track-background.png" 
           alt="Krakow Map Background" 
-          speed={0.1}
-          opacity={0.25}
+          verticalSpeed={0.1}
+          opacity={0.15}
+          blurAmount={2}
         />
         
         <div className={styles.heroContent}>
           <Image
             src="/assets/main-text-poster-blacked@0.25x.png"
             alt="AI Krak Hack Main Visual"
-            width={800}
-            height={600}
+            width={600}
+            height={450}
             className={styles.heroVisual}
             priority
           />
           {/* Parallax Sparkles */}
           <div ref={heroSparkleRef1} className={`${styles.sparkle} ${styles.heroSparkle1}`}>
-            <Image src="/assets/stars@0.1x.png" alt="Sparkle" width={200} height={200} />
+            <Image src="/assets/stars@0.1x.png" alt="Sparkle" width={100} height={100} />
           </div>
           <div ref={heroSparkleRef2} className={`${styles.sparkle} ${styles.heroSparkle2}`}>
-            <Image src="/assets/talks-1@0.1x.png" alt="Talks" width={260} height={260} />
+            <Image src="/assets/talks-1@0.1x.png" alt="Talks" width={120} height={120} />
           </div>
 
           <button className={styles.ctaButton} onClick={() => scrollToSection('rejestracja')}>
@@ -104,16 +105,6 @@ export default function Home() {
       {/* --- O Hackathonie Section --- */}
       <section id="o-hackathonie" className={`${styles.section} ${styles.darkGreyBg}`}>
         <div className={styles.separatorMagenta}></div>
-        {/* Gradient parallax background with blur */}
-        <ParallaxBackground 
-          gradientColors={["#1a1a1a", "#000000", "#1a1a1a"]} 
-          speed={0.05}
-          opacity={0.8}
-          blurAmount={20}
-          rotate={true}
-          zoom={true}
-        />
-        
         <div className={styles.sectionContent}>
           <h2 className={styles.sectionHeading}>CZYM JEST AI KRAK HACK?</h2>
           <p className={styles.paragraph}>
@@ -203,7 +194,6 @@ export default function Home() {
              </div>
            </div>
         </div>
-         {/* Parallax Sparkles */}
         <div ref={challengeSparkleRef1} className={`${styles.sparkle} ${styles.challengeSparkle1}`}>
             <Image src="/assets/stars@0.1x.png" alt="Sparkle" width={20} height={20} />
         </div>
@@ -215,16 +205,6 @@ export default function Home() {
       {/* --- O Nas Section --- */}
       <section id="o-nas" className={`${styles.section} ${styles.darkGreyBg}`}>
         <div className={styles.separatorBlue}></div>
-        {/* Gradient parallax background with blur */}
-        <ParallaxBackground 
-          gradientColors={["#0a0a0a", "#151525", "#0a0a0a"]} 
-          speed={-0.05}
-          opacity={0.9}
-          blurAmount={15}
-          rotate={true}
-          zoom={true}
-        />
-        
         <div className={styles.oNasContainer}>
             <div className={styles.oNasLeft}>
                  <h2 className={styles.sectionHeadingAlt}>POZNAJ ORGANIZATORÓW</h2>
@@ -255,37 +235,54 @@ export default function Home() {
       <section id="harmonogram" className={`${styles.section} ${styles.blackBg}`}>
         <div className={styles.separatorMagenta}></div>
         <h2 className={styles.sectionHeading}>PLAN WYDARZENIA (24-25.05.2025)</h2>
-        <div className={styles.timeline}>
+        <ul className={styles.timeline}>
           {timelineEvents.map((event, index) => (
-            <div key={index} className={styles.timelineItem}>
+            <li key={index} className={styles.timelineItem}>
+               {/* Add the node inside the item */}
               <div className={`${styles.timelineNode} ${styles[`node${event.nodeColor.charAt(0).toUpperCase() + event.nodeColor.slice(1)}`]}`}></div>
-              <div className={styles.timelineTime}>{event.time}</div>
-              <div className={styles.timelineContent}>{event.description}</div>
-            </div>
+              <div className={styles.timelineContent}>
+                <span className={styles.timelineTime}>{event.time}</span>
+                <p>{event.description}</p>
+              </div>
+            </li>
           ))}
-          <div className={styles.timelineLine}></div>
-        </div>
+        </ul>
       </section>
 
       {/* --- Nagrody & Partnerzy Section --- */}
       <section id="nagrody-partnerzy" className={`${styles.section} ${styles.darkGreyBg}`}>
         <div className={styles.separatorCyan}></div>
-         <div className={styles.nagrodyPartnerzyContainer}>
+        <div className={`${styles.nagrodyPartnerzyContainer} ${styles.sectionContent}`}> 
             <div className={styles.nagrodyColumn}>
                 <h2 className={styles.sectionHeadingAlt}>NAGRODY</h2>
-                <p className={styles.paragraph}>Dla najlepszych zespołów w każdym wyzwaniu przewidzieliśmy atrakcyjne nagrody, w tym znaczące zniżki na czesne w WSEI oraz nagrody rzeczowe i vouchery ufundowane przez naszych wspaniałych partnerów!</p>
+                <div className={styles.awardsList}> {/* New container for awards */}
+                  <div className={styles.awardItem}>
+                    <h3>Zniżki na Czesne WSEI</h3>
+                    <p>Znaczące zniżki dla najlepszych zespołów.</p>
+                  </div>
+                  <div className={styles.awardItem}>
+                    <h3>Nagrody Rzeczowe</h3>
+                    <p>Atrakcyjne nagrody od partnerów.</p>
+                  </div>
+                  <div className={styles.awardItem}>
+                    <h3>Vouchery</h3>
+                    <p>Ufundowane przez naszych partnerów.</p>
+                  </div>
+                </div>
             </div>
             <div className={styles.partnerzyColumn}>
                  <h2 className={styles.sectionHeadingAlt}>PARTNERZY</h2>
+                 {/* Ensure partner logos section is styled appropriately */}
                  <div className={styles.partnerLogos}>
+                    {/* Placeholders for now */}
                     <div className={styles.partnerPlaceholder}>
-                      <FaMapLocationDot size={60} color="#FFFFFF" />
+                      <FaMapLocationDot size={60} color="var(--white)" />
                     </div>
                     <div className={styles.partnerPlaceholder}>
-                      <FaComments size={60} color="#FFFFFF" />
+                      <FaComments size={60} color="var(--white)" />
                     </div>
                     <div className={styles.partnerPlaceholder}>
-                      <FaBrain size={60} color="#FFFFFF" />
+                      <FaBrain size={60} color="var(--white)" />
                     </div>
                  </div>
             </div>
