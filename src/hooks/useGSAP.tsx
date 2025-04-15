@@ -95,7 +95,7 @@ export function useGSAP(isClient: boolean, refs: AnimationRefs) {
           ".heroBackground",
           { opacity: 0 },
           { opacity: 1, duration: 1.2 },
-          0.2
+          0.8
         );
         
         // Hero content

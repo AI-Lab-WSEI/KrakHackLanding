@@ -13,6 +13,21 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'asset.cloudinary.com',
+        pathname: '**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '**',
+      }
+    ],
+    unoptimized: true,
+  },
   output: 'export',
   webpack: (config) => {
     config.optimization.splitChunks = {

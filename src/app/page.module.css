@@ -74,7 +74,7 @@
 
 /* --- General Section Styles --- */
 .section {
-  padding: 6rem 2rem; /* Generous padding */
+  padding: 2rem 2rem; /* Generous padding */
   min-height: 60vh; /* Ensure sections have some height */
   position: relative; /* Remains relative */
   overflow: hidden; /* Prevent parallax elements from spilling */
@@ -370,7 +370,7 @@
   margin: 0 auto;
   position: relative; /* Add position relative */
   z-index: 1; /* Ensure content is above background */
-  padding: 2rem; /* Add padding for spacing */
+  padding: 0rem 2rem; /* Add padding for spacing */
 }
 
 .oNasLeft {
@@ -638,7 +638,7 @@
 /* Media Queries for Responsiveness (Example) */
 @media (max-width: 768px) {
   .section {
-    padding: 3rem 1rem;
+    padding: 1rem 1rem;
   }
 
   .sectionHeading {
@@ -653,7 +653,7 @@
 
   .challengeContainer {
     flex-direction: column;
-    gap: 2rem;
+    gap: rem;
   }
 
   .oNasContainer {
@@ -732,7 +732,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0 2rem;
 }
 
 /* Bullet Grid (3x2) */

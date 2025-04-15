@@ -144,7 +144,7 @@ export default function Home() {
       <nav className={pageStyles.navbar} ref={navbarRef}>
         <div className={pageStyles.navbarContent}>
           <Image
-            src="/assets/krak-hack-text.png"
+            src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733652/krak-hack-text_leuvjp.jpg?_s=public-apps"
             alt="AI Krak Hack Logo"
             width={150}
             height={30}
@@ -165,11 +165,11 @@ export default function Home() {
         {/* Use Image Background with Parallax */}
         <div className="heroBackground">
           <ParallaxBackground 
-            imageSrc="/assets/map-track-background.png" 
+            imageSrc="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/map-track-background_bav3wh.jpg?_s=public-apps" 
             alt="Krakow Map Background" 
             verticalSpeed={0.1}
-            opacity={0.35}
-            blurAmount={0.4}
+            opacity={0.55}
+            blurAmount={0.6}
           />
         </div>
         
@@ -186,7 +186,7 @@ export default function Home() {
           {/* Main Visual - Positioned slightly left */}
           <div style={{ position: 'relative', left: '-15%' }} ref={posterRef}> 
             <Image
-              src="/assets/main-text-poster-blacked@0.25x.png"
+              src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/main-text-poster-blacked_0.25x_wkn6tb.jpg?_s=public-apps"
               alt="AI Krak Hack Main Visual"
               width={600} 
               height={450}
@@ -197,10 +197,10 @@ export default function Home() {
           
           {/* Parallax Sparkles - Larger and repositioned */}
           <div ref={heroSparkleRef1} className={`${pageStyles.sparkle} ${pageStyles.heroSparkle1Large}`}>
-            <Image src="/assets/stars@0.1x.png" alt="Sparkle" width={150} height={150} /> 
+            <Image src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/stars_0.1x_fy3net.jpg?_s=public-apps" alt="Sparkle" width={150} height={150} /> 
           </div>
           <div ref={heroSparkleRef2} className={`${pageStyles.sparkle} ${pageStyles.heroSparkle2Large}`}>
-            <Image src="/assets/talks-1@0.1x.png" alt="Talks" width={180} height={180} /> 
+            <Image src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733654/talks-1_0.1x_lnuvpd.jpg?_s=public-apps" alt="Talks" width={180} height={180} /> 
           </div>
 
           {/* CTA Button - Centered relative to hero content */} 
@@ -257,7 +257,7 @@ export default function Home() {
         <div className="mapBackground">
           <div className={pageStyles.challengeBackgroundMap} ref={mapBackgroundRef}>
             <Image 
-              src="/assets/map-background.png"
+              src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/map-background_hejf6y.jpg?_s=public-apps"
               alt="Krakow Map Background"
               fill
               style={{ opacity: 0, filter: 'blur(2px)' }} // Start with opacity 0 for animation
@@ -334,7 +334,7 @@ export default function Home() {
             <div className={pageStyles.oNasLeft}>
                  <h2 className={pageStyles.sectionHeadingAlt}>POZNAJ ORGANIZATORÓW</h2>
                  <Image
-                    src="/assets/logo@0.25x.png"
+                    src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/logo_0.5x_o34a4o.jpg?_s=public-apps"
                     alt="AI Possibilities Lab Logo"
                     width={200}
                     height={200}
@@ -435,7 +435,7 @@ export default function Home() {
       <footer className={pageStyles.footer} ref={footerRef}>
           <p className={pageStyles.footerText}>© 2025 AI Possibilities Lab, WSEI Krakow.</p>
           <Image
-            src="/assets/logo@0.25x.png"
+            src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/logo_0.5x_o34a4o.jpg?_s=public-apps"
             alt="AI Possibilities Lab Logo Small"
             width={30}
             height={30}

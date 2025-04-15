@@ -17,7 +17,7 @@ export default function ParallaxBackground({
   imageSrc,
   alt = "Background",
   verticalSpeed = 0.1,
-  opacity = 0.2,
+  opacity = 0.7,
   blurAmount = 0,
   className = "",
 }: ParallaxBackgroundProps) {
