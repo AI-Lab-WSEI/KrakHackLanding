@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Required styles for Lenis smooth scrolling */
 html, body {
   height: 100%;
