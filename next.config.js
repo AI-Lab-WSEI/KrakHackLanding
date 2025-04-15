@@ -13,6 +13,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: true,
+  output: 'export',
   webpack: (config) => {
     config.optimization.splitChunks = {
       ...config.optimization.splitChunks,
