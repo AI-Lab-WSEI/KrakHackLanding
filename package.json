@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@studio-freight/react-lenis": "^0.0.47",
     "framer-motion": "^12.7.3",
     "gsap": "^3.12.7",
     "lenis": "^1.2.3",
