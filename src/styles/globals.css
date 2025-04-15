@@ -3,11 +3,19 @@
 @tailwind utilities;
 
 /* Required styles for Lenis smooth scrolling */
-html, body {
+html {
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto; /* Allow vertical scrolling */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  -webkit-overflow-scrolling: touch; /* Enable momentum scrolling on iOS */
 }
 
 html.lenis {
@@ -39,6 +47,15 @@ html.lenis {
 body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+/* Fix for mobile touch devices */
+@media (max-width: 768px) {
+  body {
+    position: relative; /* Ensure proper stacking context */
+    overflow-y: scroll !important; /* Force scrolling to be enabled */
+    -webkit-overflow-scrolling: touch !important; /* Force momentum scrolling */
+  }
 }
 
 /* Optional: Add your other global styles below */ 

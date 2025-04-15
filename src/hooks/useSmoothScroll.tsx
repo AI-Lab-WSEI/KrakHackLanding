@@ -23,6 +23,14 @@ interface LenisOptions {
 }
 
 /**
+ * Check if the current device is a touch device
+ */
+const isTouchDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+};
+
+/**
  * A custom hook that provides Lenis smooth scrolling functionality
  * Using only the standard Lenis package
  */
@@ -36,6 +44,12 @@ export function useSmoothScroll(callback?: ScrollCallback) {
     initialized.current = true;
     
     if (typeof window === 'undefined') return;
+    
+    // Skip Lenis initialization on touch devices
+    if (isTouchDevice()) {
+      console.log('Touch device detected, skipping Lenis initialization');
+      return;
+    }
 
     // Dynamically import Lenis to avoid SSR issues
     const importLenis = async () => {
@@ -118,6 +132,12 @@ export function SmoothScroller({ children, options = {} }: SmoothScrollerProps) 
   useEffect(() => {
     if (initialized.current || typeof window === 'undefined') return;
     initialized.current = true;
+
+    // Skip Lenis initialization on touch devices
+    if (isTouchDevice()) {
+      console.log('Touch device detected, skipping Lenis initialization');
+      return;
+    }
 
     const initLenis = async () => {
       try {

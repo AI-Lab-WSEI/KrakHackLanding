@@ -109,6 +109,9 @@ export default function Home() {
   useLenis((params: { scroll: number }) => {
     if (!isClient) return; // Skip on server
     
+    // Skip parallax on touch devices
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) return;
+    
     const { scroll } = params;
     // Apply parallax effect (adjust multiplier for different speeds)
     const applyParallax = (ref: React.RefObject<HTMLDivElement | null>, multiplier: number) => {
@@ -136,11 +139,17 @@ export default function Home() {
     });
   });
 
-  // Function to scroll to a specific section
+  // Function to scroll to a specific section with native scrolling on mobile
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      // Use smooth scrollIntoView only on desktop
+      if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        // Simple scroll for mobile devices
+        window.scrollTo(0, element.offsetTop);
+      } else {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   };
 
