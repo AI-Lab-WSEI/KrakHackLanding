@@ -1,32 +1,47 @@
 [
   {
-    "time": "16:00",
-    "description": "Start & Rejestracja",
+    "time": "piątek 09.05, 16:00",
+    "description": "Udostępnienie materiałów przygotowawczych",
     "nodeColor": "blue"
   },
   {
-    "time": "17:00",
-    "description": "Wprowadzenie & Wyzwania",
-    "nodeColor": "magenta"
-  },
-  {
-    "time": "18:00 - 08:00",
-    "description": "Praca nad projektami",
-    "nodeColor": "cyan"
-  },
-  {
-    "time": "",
-    "description": "(Przerwy na posiłki & Mentoring)",
+    "time": "piątek 24.05, 18:00",
+    "description": "Udoskonalenie zadań projektowych",
     "nodeColor": "blue"
   },
   {
-    "time": "14:00",
-    "description": "Prezentacje Finałowe",
+    "time": "sobota 25.05, 9:00",
+    "description": "Rozpoczęcie wydarzenia na uczelni.",
     "nodeColor": "magenta"
   },
   {
-    "time": "16:00",
-    "description": "Ogłoszenie Wyników",
+    "time": "sobota 25.05, 13:00",
+    "description": "Przerwa na obiad ",
+    "nodeColor": "blue"
+  },
+  {
+    "time": "sobota 25.05, 17:30",
+    "description": "Prezentacje Finałowe (10 min / zespół)",
+    "nodeColor": "magenta"
+  },
+  {
+    "time": "sobota 25.05, 19:00",
+    "description": "Prezentacje - Knowledge sharing zaproszonych gości",
+    "nodeColor": "blue"
+  },
+  {
+    "time": "sobota 25.05, 20:00",
+    "description": "Ogłoszenie Wyników i wręczenie nagród",
     "nodeColor": "cyan"
+  },
+  {
+    "time": "sobota 25.05, 21:00",
+    "description": "Afterparty & Integracja ",
+    "nodeColor": "blue"
+  },
+  {
+    "time": "sobota 25.05, 22:00",
+    "description": "Zakończenie wydarzenia",
+    "nodeColor": "blue"
   }
 ] 
