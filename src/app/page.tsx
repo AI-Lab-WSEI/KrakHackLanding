@@ -523,7 +523,7 @@ export default function Home() {
       {/* --- Harmonogram Section --- */}
       <section id="harmonogram" className={`${pageStyles.section} ${pageStyles.blackBg}`} ref={harmonogramSectionRef}>
         <div className={pageStyles.separatorMagenta}></div>
-        <h2 className={pageStyles.sectionHeading}>PLAN WYDARZENIA (24-25.05.2025)</h2>
+        <h2 className={pageStyles.sectionHeading}>PLAN WYDARZENIA (30-31.05.2025)</h2>
         <ul className={pageStyles.timeline}>
           {timelineEvents.map((event, index) => (
             <li key={index} className={pageStyles.timelineItem}>
