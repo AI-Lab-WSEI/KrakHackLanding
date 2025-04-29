@@ -623,26 +623,239 @@
   flex-wrap: wrap; /* Allow wrapping */
 }
 
+.partnerLogo {
+  background-color: var(--white);
+  padding: 1.5rem;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 180px;
+  height: 100px;
+}
+
+.partnerLogo:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.partnerImage {
+  object-fit: contain;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.contactPartner {
+  background: linear-gradient(135deg, rgba(0, 228, 255, 0.2), rgba(255, 0, 255, 0.2));
+  padding: 1.5rem;
+  border-radius: 12px;
+  min-width: 180px;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.contactPartner:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, rgba(0, 228, 255, 0.3), rgba(255, 0, 255, 0.3));
+}
+
+.contactPartnerContent h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 0.3rem;
+}
+
+.contactPartnerContent p {
+  margin: 0;
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+  color: var(--white);
+}
+
+.contactEmail {
+  color: var(--bright-cyan);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.contactEmail:hover {
+  color: var(--vibrant-magenta);
+  text-decoration: underline;
+}
+
+/* Remove the old partnerPlaceholder styles */
 .partnerPlaceholder {
-  /* Style placeholders as needed */
-  background-color: rgba(255, 255, 255, 0.1);
-  padding: 1rem;
-  border-radius: 50%;
+  display: none;
+}
+
+/* Responsive adjustments for partner logos */
+@media (max-width: 768px) {
+  .partnerLogos {
+    gap: 1.5rem;
+  }
+  
+  .partnerLogo, .contactPartner {
+    width: 150px;
+    height: 80px;
+    padding: 1rem;
+  }
+  
+  .contactPartnerContent h3 {
+    font-size: 0.8rem;
+  }
+  
+  .contactPartnerContent p, .contactEmail {
+    font-size: 0.75rem;
+  }
 }
 
 /* --- Rejestracja Section --- */
-.registrationFormPlaceholder {
-  max-width: 700px;
+.registrationFormContainer {
+  max-width: 800px;
+  width: 100%;
   margin: 2rem auto 0 auto;
-  padding: 3rem;
-  border: 2px dashed var(--black);
-  background-color: var(--dark-grey);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  height: 600px;
+}
+
+.formBackground {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/map-track-background_bav3wh.jpg?_s=public-apps');
+  background-size: cover;
+  background-position: center;
+  filter: blur(8px);
+  opacity: 0.35;
+  z-index: 1;
+}
+
+.formContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  height: 100%;
   text-align: center;
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: var(--black);
+}
+
+.formHeading {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  color: var(--bright-cyan);
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+  letter-spacing: 1px;
+}
+
+.formSubheading {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: var(--vibrant-magenta);
+  text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+}
+
+.formDescription {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  max-width: 500px;
+  line-height: 1.6;
+}
+
+.formCtaButton {
+  background-color: var(--electric-blue);
+  color: var(--white);
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  font-weight: 700;
   border-radius: 8px;
-  position: relative; /* For sparkles */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 164, 255, 0.4);
+}
+
+.formCtaButton:hover {
+  background-color: var(--vibrant-magenta);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(255, 0, 255, 0.6);
+}
+
+.formMobileText {
+  font-size: 1rem;
+  color: var(--white);
+  opacity: 0.8;
+}
+
+.formMobileLink {
+  display: inline-block;
+  margin-left: 0.5rem;
+  color: var(--bright-cyan);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--bright-cyan);
+  transition: all 0.2s ease;
+}
+
+.formMobileLink:hover {
+  color: var(--white);
+  border-bottom-color: var(--white);
+}
+
+/* Responsive adjustments for form */
+@media (max-width: 768px) {
+  .registrationFormContainer {
+    max-width: 95%;
+    height: 500px;
+  }
+  
+  .formHeading {
+    font-size: 2rem;
+  }
+  
+  .formSubheading {
+    font-size: 1.5rem;
+  }
+  
+  .formDescription {
+    font-size: 1rem;
+  }
+  
+  .formCtaButton {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+/* Remove the old placeholder style */
+.registrationFormPlaceholder {
+  display: none;
 }
 
 /* --- Footer --- */
@@ -1157,4 +1370,125 @@
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
   }
+} 
+
+/* Challenge description */
+.challengeDescription {
+  margin-bottom: 2rem;
+  color: var(--white);
+}
+
+.challengeList {
+  margin: 1rem 0;
+  padding-left: 2rem;
+  list-style-type: disc;
+}
+
+.challengeList li {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+/* Collapsible details section */
+.detailsSection {
+  margin-bottom: 3rem;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--electric-blue);
+}
+
+.detailsToggleBtn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: var(--white);
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.detailsToggleBtn:hover {
+  background-color: rgba(0, 164, 255, 0.1);
+}
+
+.toggleIcon {
+  transition: transform 0.3s ease;
+  color: var(--electric-blue);
+  font-size: 1.2rem;
+}
+
+.detailsOpen .toggleIcon {
+  transform: rotate(180deg);
+}
+
+.detailsContent {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease;
+}
+
+.detailsContentOpen {
+  max-height: 3000px; /* Large enough to show all content */
+  transition: max-height 1s ease;
+}
+
+.detailsChallenge {
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detailsChallenge:last-child {
+  border-bottom: none;
+}
+
+.detailsHeading {
+  color: var(--bright-cyan);
+  font-size: 1.4rem;
+  margin-bottom: 1.2rem;
+}
+
+.detailsList {
+  margin: 1rem 0;
+  padding-left: 2rem;
+  list-style-type: disc;
+}
+
+.detailsList li {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+/* Responsive styles for collapsible section */
+@media (max-width: 768px) {
+  .detailsToggleBtn span {
+    font-size: 1rem;
+  }
+  
+  .detailsHeading {
+    font-size: 1.2rem;
+  }
+  
+  .detailsChallenge {
+    padding: 1rem;
+  }
+} 
+
+.challengeConclusion {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+.detailsSection {
+  margin-bottom: 3rem;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--electric-blue);
 } 

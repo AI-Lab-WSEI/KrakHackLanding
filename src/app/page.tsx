@@ -12,6 +12,8 @@ import { FaBrain, FaDatabase, FaCode, FaChartLine, FaUsers, FaTrophy } from 'rea
 import { FaMapLocationDot, FaTrainSubway, FaComments } from 'react-icons/fa6';
 // Import hamburger menu icons
 import { FaBars, FaTimes } from 'react-icons/fa';
+// Import arrow icon for collapsible section
+import { FaChevronDown } from 'react-icons/fa';
 // Import timeline data
 import timelineEvents from '../data/timelineEvents.json';
 // Import parallax background component
@@ -61,6 +63,9 @@ export default function Home() {
   
   // Add state for mobile menu
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Add state for collapsible challenges section
+  const [detailsOpen, setDetailsOpen] = useState(false);
   
   // Refs for parallax elements
   const heroSparkleRef1 = useRef<HTMLDivElement>(null);
@@ -184,6 +189,11 @@ export default function Home() {
   const handleNavClick = (sectionId: string) => {
     scrollToSection(sectionId);
     setMobileMenuOpen(false);
+  };
+
+  // Function to toggle details section
+  const toggleDetails = () => {
+    setDetailsOpen(!detailsOpen);
   };
 
   return (
@@ -343,6 +353,18 @@ export default function Home() {
         <div className={pageStyles.sectionContent}>
           <h2 className={pageStyles.challengeMainHeading}>PODEJMIJ WYZWANIE</h2>
           
+          <div className={pageStyles.challengeDescription}>
+            <p className={pageStyles.paragraph}>
+              Dziesięcioletnia Ania niesie trzy ananasy. Z jaką prędkością obraca się Saturn, kiedy pociąg relacji Pcim-Moskwa staranował jej chomika?" - Kojarzysz ten klimat? Ile razy na studiach mierzyliśmy się z problemami, które wydawały się istnieć tylko po to, by przetestować naszą zdolność do żonglowania wzorami? Tworzenie symulacji dla samej symulacji może być ciekawe, ale my, jako Koło Naukowe AI Possibilities Lab, postawiliśmy sobie inny cel. Chcieliśmy stworzyć wyzwania, które wykorzystują najnowsze możliwości AI, ale jednocześnie mocno stąpają po ziemi – tej krakowskiej. Naszą główną motywacją jest budowanie narzędzi, które mają realne znaczenie, odnoszą się do naszego najbliższego kontekstu i są na tyle praktyczne i użyteczne, że sami chcielibyśmy z nich korzystać na co dzień. Dlatego nie rzucamy Was na głęboką wodę z czystą abstrakcją. Przygotowaliśmy konkretne dane dotyczące naszego miasta i mamy przemyślane pomysły na zadania, które pozwolą Wam te dane przekuć w coś wartościowego. Co więcej, najlepsze rezultaty hackathonu postaramy się przedstawić decydentom w Krakowie – kto wie, może właśnie Wasz projekt będzie miał szansę na dalszy rozwój i realne wdrożenie?
+            </p>
+            <p className={pageStyles.paragraph}>
+             Żyjemy w fascynujących czasach. Modele językowe i narzędzia AI rewolucjonizują sposób, w jaki wchodzimy w interakcje z technologią i jak tworzymy oprogramowanie. Jesteśmy u progu ery, w której interakcje ze światem cyfrowym zmienią się nie do poznania. Nie jesteśmy alfą i omegą – uczymy się tej rewolucji razem z Wami. Dlatego zadania, które proponujemy, odzwierciedlają obszary bliskie naszym projektom i doświadczeniom w Kole.
+            </p>
+            <p className={pageStyles.paragraph}>
+              Nasza główna motywacja? Stworzyć coś, co ma realne znaczenie, rozwija praktyczne umiejętności i – co najważniejsze – jest na tyle użyteczne, że sami chcielibyśmy z tego korzystać. Dlatego przygotowaliśmy dwa różne wyzwania:
+            </p>
+          </div>
+          
           <div className={pageStyles.challengeContainer}>
             {/* Block 1: Tramwaje */}
             <div className={pageStyles.challengeBlock + " challenge-block"}>
@@ -351,7 +373,7 @@ export default function Home() {
               </div>
               <h3 className={pageStyles.challengeHeading + " challenge-heading"}>Wyzwanie 1: Zoptymalizuj Krakowską Sieć Tramwajową</h3>
               <p className={pageStyles.paragraphSmall + " challenge-text"}>
-                Na czym polega wyzwanie? Wyobraź sobie Kraków z jeszcze płynniejszą komunikacją miejską! Twoim zadaniem będzie analiza danych o ruchu tramwajowym i zaproponowanie optymalizacji tras lub rozkładów jazdy, aby zminimalizować czas podróży i zapewnić jak najlepsze pokrycie potrzeb mieszkańców. Dlaczego warto? Rozwiń kluczowe umiejętności w analizie danych przestrzennych i optymalizacji, pracując nad realnym problemem miejskim i poczuj satysfakcję z tworzenia rozwiązań dla społeczności!
+                Bardziej algorytmiczne i optymalizacyjne, które pozwoli Ci zmierzyć się z realnymi danymi miejskimi dotyczącymi transportu publicznego. To szansa na pogłębienie wiedzy z analizy danych przestrzennych, algorytmów grafowych i technik optymalizacji (np. programowania liniowego, heurystyk). Zapewniamy solidny, przemyślany punkt startowy w postaci danych – reszta w Waszych rękach!
               </p>
               <div className={pageStyles.tagContainer}>
                 <span className={`${pageStyles.tag} ${pageStyles.tagCyan} challenge-tag`}>Python</span>
@@ -368,7 +390,7 @@ export default function Home() {
               </div>
               <h3 className={pageStyles.challengeHeading + " challenge-heading"}>Wyzwanie 2: Zbuduj Inteligentnego Asystenta Kulturalnego Krakowa</h3>
               <p className={pageStyles.paragraphSmall + " challenge-text"}>
-                Na czym polega wyzwanie? Koncerty, wystawy, spektakle – Kraków tętni życiem kulturalnym! Stwórz inteligentnego chatbota lub system rekomendacji, który pomoże mieszkańcom i turystom odkrywać najciekawsze wydarzenia, dostarczając spersonalizowane propozycje dopasowane do jego zainteresowań. Dlaczego warto? Zanurz się w NLP i systemach rekomendacyjnych, ucząc się jak przetwarzać tekst, budować modele i tworzyć angażujące interfejsy. To szansa na zbudowanie kompletnego projektu AI – od pozyskania danych po interfejs użytkownika.
+                Bardziej otwarte, skupione na interakcji człowiek-AI i przetwarzaniu informacji, gdzie możecie zbudować inteligentnego asystenta pomagającego odkrywać kulturalne życie Krakowa. To pole do popisu dla umiejętności z zakresu NLP, systemów rekomendacyjnych, web scrapingu i budowy aplikacji AI. Udostępniamy startowy zestaw danych z kalendarza wydarzeń (ponad 700 pozycji!).
               </p>
               <div className={pageStyles.tagContainer}>
                 <span className={`${pageStyles.tag} ${pageStyles.tagMagenta} challenge-tag`}>Python</span>
@@ -377,7 +399,74 @@ export default function Home() {
                 <span className={`${pageStyles.tag} ${pageStyles.tagMagenta} challenge-tag`}>Rekomendacje</span>
               </div>
             </div>
+          </div>
+          
+          <div className={pageStyles.challengeConclusion}>
+            <p className={pageStyles.paragraph}>
+              Opanowanie tych technik to nie tylko świetny wpis do CV, ale realna inwestycja w umiejętności, które będą kształtować przyszłość technologii.
+            </p>
+          </div>
+          
+          {/* Collapsible Details Section */}
+          <div className={pageStyles.detailsSection}>
+            <button 
+              className={`${pageStyles.detailsToggleBtn} ${detailsOpen ? pageStyles.detailsOpen : ''}`}
+              onClick={toggleDetails}
+            >
+              <span>Dokładniejszy opis zadań</span>
+              <FaChevronDown className={pageStyles.toggleIcon} />
+            </button>
             
+            <div className={`${pageStyles.detailsContent} ${detailsOpen ? pageStyles.detailsContentOpen : ''}`}>
+              {/* Challenge 1 Details */}
+              <div className={pageStyles.detailsChallenge}>
+                <h3 className={pageStyles.detailsHeading}>Wyzwanie 1: Zoptymalizuj Krakowską Sieć Tramwajową – zostań architektem miejskiej mobilności!</h3>
+                <p className={pageStyles.paragraph}>
+                  <strong>Na czym polega wyzwanie?</strong> Wyobraź sobie, że możesz przeprojektować trasy tramwajowe w Krakowie, by były szybsze, wygodniejsze i docierały tam, gdzie są najbardziej potrzebne. Otrzymasz realne dane o torach, przystankach (z OpenStreetMap) i gęstości zaludnienia. Twoim zadaniem będzie użycie zaawansowanych technik AI i optymalizacji (programowanie liniowe, heurystyki, algorytmy ewolucyjne – wybór należy do Ciebie!), aby zaproponować najlepsze możliwe trasy dla istniejących lub nawet nowych linii, minimalizując np. czas przejazdu i maksymalizując pokrycie potrzeb mieszkańców.
+                </p>
+                <p className={pageStyles.paragraph}><strong>Dlaczego warto podjąć to wyzwanie?</strong></p>
+                <ul className={pageStyles.detailsList}>
+                  <li><strong>Rozwiń kluczowe umiejętności AI:</strong> Zmierzysz się z klasycznym, ale złożonym problemem optymalizacyjnym. To idealna okazja, by w praktyce zastosować i pogłębić wiedzę z zakresu algorytmów przeszukiwania grafów, programowania matematycznego (np. ILP), metaheurystyk czy analizy danych przestrzenznych.</li>
+                  <li><strong>Pracuj z realnymi danymi miejskimi:</strong> Zapomnij o sztucznych datasetach. Tutaj dostaniesz prawdziwe dane dotyczące infrastruktury Krakowa – nauczysz się je przetwarzać, analizować i wizualizować.</li>
+                  <li><strong>Stwórz imponujący projekt do portfolio:</strong> Rozwiązanie problemu optymalizacji trasy tramwajowej z wykorzystaniem AI to konkretny, zaawansowany technicznie projekt, który zaimponuje przyszłym pracodawcom.</li>
+                  <li><strong>Miej realny wpływ:</strong> Twoje pomysły i kod mogą stać się inspiracją dla realnych ulepszeń w systemie transportu publicznego Krakowa. Poczuj satysfakcję z tworzenia rozwiązań dla społeczności!</li>
+                </ul>
+                <p className={pageStyles.paragraph}>
+                  <strong>Technologie:</strong> Szansa na pracę z Pythonem, bibliotekami do analizy danych (Pandas, GeoPandas), wizualizacji (Matplotlib, Folium) oraz specjalistycznymi narzędziami do optymalizacji (np. PuLP, OR-Tools, Scipy).
+                </p>
+              </div>
+              
+              {/* Challenge 2 Details */}
+              <div className={pageStyles.detailsChallenge}>
+                <h3 className={pageStyles.detailsHeading}>Wyzwanie 2: Zbuduj Inteligentnego Asystenta Kulturalnego Krakowa – Pogadaj z miastem o swoich planach!</h3>
+                <p className={pageStyles.paragraph}>
+                  <strong>Problem:</strong> Kraków kipi od wydarzeń kulturalnych, naukowych i rozrywkowych! Jednak znalezienie wydarzeń, które naprawdę nas interesują, często wymaga przeszukiwania wielu różnych stron i kalendarzy. Jak ułatwić mieszkańcom (i sobie!) odkrywanie perełek dopasowanych do ich gustu? Chcemy odwrócić konwencję – niech to wydarzenia, dopasowane do Ciebie, znajdą drogę do Twojego kalendarza!
+                </p>
+                <p className={pageStyles.paragraph}>
+                  <strong>Twoje Wyzwanie (Cel):</strong> Stwórz proaktywnego, inteligentnego Asystenta Kulturalnego Krakowa. Twoim celem jest zaprojektowanie narzędzia, które nie tylko agreguje informacje o wydarzeniach, ale przede wszystkim rozumie indywidualne preferencje użytkownika i w nienachalny, konwersacyjny sposób proponuje mu trafione wydarzenia z bazy, zanim ten zdąży o nie intensywnie szukać.
+                </p>
+                <p className={pageStyles.paragraph}><strong>Jak możesz do tego podejść? (Przykładowe kierunki):</strong></p>
+                <ul className={pageStyles.detailsList}>
+                  <li>Zaprojektuj innowacyjny sposób budowania profilu użytkownika (inteligentny formularz, quiz, analiza historii?).</li>
+                  <li>Zbuduj interfejs konwersacyjny (chatbota), z którym można 'pogadać' o planach i uzyskać spersonalizowane propozycje.</li>
+                  <li>Opracuj algorytmy rekomendacyjne trafnie dopasowujące wydarzenia do profilu.</li>
+                  <li>Skup się na efektywnym pozyskiwaniu i unifikacji danych o wydarzeniach.</li>
+                  <li>Pomyśl o mechanizmie proaktywnego powiadamiania.</li>
+                </ul>
+                <p className={pageStyles.paragraph}>
+                  <strong>Opcjonalny Punkt Startowy (Nasz Dataset):</strong> Aby ułatwić Wam szybki start, przygotowaliśmy bazowy zestaw danych zawierający ponad 700 wydarzeń z portalu kulturalnego Krakowa. Możecie go użyć, ale równie dobrze możecie bazować na innych danych lub stworzyć własny mechanizm ich zbierania. Najważniejszy jest Wasz pomysł!
+                </p>
+                <p className={pageStyles.paragraph}>
+                  <strong>Unleash Your Creativity!</strong> Kluczowa jest Wasza wizja odwrócenia konwencji – jak sprawić, by to wydarzenia znajdowały odbiorcę? Skupcie się na personalizacji, proaktywności i intuicyjnym interfejsie.
+                </p>
+                <p className={pageStyles.paragraph}>
+                  <strong>Kluczowe umiejętności:</strong> Przetwarzanie Języka Naturalnego (NLP), Budowa Chatbotów, Systemy Rekomendacyjne, Projektowanie Profili Użytkownika, Web Scraping/API, Analiza Danych, Budowa Aplikacji AI.
+                </p>
+                <p className={pageStyles.paragraph}>
+                  <strong>Technologie (Przykłady):</strong> Python, spaCy, NLTK, Transformers, Rasa/Dialogflow, Scikit-learn, Pandas, Beautiful Soup, Scrapy, Flask/FastAPI, bazy danych.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -472,37 +561,61 @@ export default function Home() {
             </div>
             <div className={pageStyles.partnerzyColumn}>
                  <h2 className={pageStyles.sectionHeadingAlt}>PARTNERZY</h2>
-                 {/* Ensure partner logos section is styled appropriately */}
+                 {/* Replace placeholder icons with actual partner logos */}
                  <div className={pageStyles.partnerLogos}>
-                    {/* Placeholders for now */}
-                    <div className={pageStyles.partnerPlaceholder}>
-                      <FaMapLocationDot size={60} color="var(--white)" />
-                    </div>
-                    <div className={pageStyles.partnerPlaceholder}>
-                      <FaComments size={60} color="var(--white)" />
-                    </div>
-                    <div className={pageStyles.partnerPlaceholder}>
-                      <FaBrain size={60} color="var(--white)" />
+
+                    <a href="https://wsei.edu.pl" target="_blank" rel="noopener noreferrer" className={pageStyles.partnerLogo}>
+                      <Image
+                        src="https://salewkrakowie.pl/wp-content/uploads/2017/02/logo-wsei-big.png"
+                        alt="WSEI Logo"
+                        width={180}
+                        height={100}
+                        className={pageStyles.partnerImage}
+                      />
+                    </a>
+                    <a href="https://www.uber.com" target="_blank" rel="noopener noreferrer" className={pageStyles.partnerLogo}>
+                      <Image
+                        src="https://s23.q4cdn.com/407969754/files/doc_multimedia/Uber_Logo_Black_RGB.jpg"
+                        alt="Uber Logo"
+                        width={180}
+                        height={100}
+                        className={pageStyles.partnerImage}
+                      />
+                    </a>
+                    <div className={pageStyles.contactPartner}>
+                      <div className={pageStyles.contactPartnerContent}>
+                        <h3>Chciałbyś wspomóc naszą inicjatywę?</h3>
+                        <p>Napisz do nas!</p>
+                        <a href="mailto:knai@wsei.edu.pl" className={pageStyles.contactEmail}>knai@wsei.edu.pl</a>
+                      </div>
                     </div>
                  </div>
             </div>
         </div>
       </section>
 
-      {/* --- Rejestracja Section --- */}
-      <section id="rejestracja" className={`${pageStyles.section} ${pageStyles.blackBg}`} ref={rejestracjaSectionRef}>
-        <div className={pageStyles.separatorBlue}></div>
-        <h2 className={pageStyles.sectionHeading}>ZAREJESTRUJ SWÓJ ZESPÓŁ!</h2>
-        <p className={pageStyles.paragraph}>Zbierz ekipę (2-4 osoby) i dołącz do nas! Wypełnij formularz poniżej. Liczba miejsc ograniczona!</p>
-        <div className={pageStyles.registrationFormPlaceholder}>
-           [ Tu zostanie osadzony formularz Microsoft Forms ]
-        </div>
-         {/* Parallax Sparkles */}
-        <div ref={registrationSparkleRef1} className={`${pageStyles.sparkle} ${pageStyles.registrationSparkle1}`}>
-            <Image src="/assets/stars@0.1x.png" alt="Sparkle" width={15} height={15} />
-        </div>
-        <div ref={registrationSparkleRef2} className={`${pageStyles.sparkle} ${pageStyles.registrationSparkle2}`}>
-            <Image src="/assets/stars@0.1x.png" alt="Sparkle" width={22} height={22} />
+      {/* --- Registration Form Section */}
+      <section id="rejestracja" className={`${pageStyles.sectionPadding} ${pageStyles.registrationFormSection}`}>
+        <div className={pageStyles.sectionContent}>
+          <div className={pageStyles.registrationFormContainer}>
+            <div className={pageStyles.formBackground}></div>
+            <div className={pageStyles.formContent}>
+              <h1 className={pageStyles.formHeading}>FORMULARZ REJESTRACYJNY</h1>
+              <h2 className={pageStyles.formSubheading}>AI-KRAKHACK</h2>
+              <p className={pageStyles.formDescription}>
+                Wypełnij formularz rejestracyjny, aby wziąć udział w wydarzeniu! Stwórz super projekt, poznaj nowych ludzi.
+              </p>
+              <a 
+                href="https://forms.office.com/Pages/ResponsePage.aspx?id=SmTtt7PRRkmF-TCjOAwmGF8O7yJ9tqJGvDUoXb8MCbxUMkFNRTYySFo1V1ZPRjg0TFFPTjQxN0Y2NC4u" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className={pageStyles.formCtaButton}
+              >
+                WYPEŁNIJ FORMULARZ
+              </a>
+             
+            </div>
+          </div>
         </div>
       </section>
 
