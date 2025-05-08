@@ -266,7 +266,7 @@ export default function Home() {
           {/* Main Visual - Using heroVisualContainer class instead of inline styles */}
           <div className={pageStyles.heroVisualContainer} ref={posterRef}> 
             <Image
-              src="https://res.cloudinary.com/dyux0lw71/image/upload/fl_preserve_transparency/v1744733653/main-text-poster-blacked_0.25x_wkn6tb.jpg?_s=public-apps"
+              src="https://res.cloudinary.com/dyux0lw71/image/upload/v1746696068/main-text_0.3x_vyimzc.png"
               alt="AI Krak Hack Main Visual"
               width={700} 
               height={500}
