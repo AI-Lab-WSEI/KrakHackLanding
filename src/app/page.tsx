@@ -582,6 +582,15 @@ export default function Home() {
                         className={pageStyles.partnerImage}
                       />
                     </a>
+                    <a href="https://www.uber.com" target="_blank" rel="noopener noreferrer" className={pageStyles.partnerLogo}>
+                      <Image
+                        src="https://www.dataart.com/media/n3jkyr0j/dataart-logo-colour-rgb.png"
+                        alt="DataArt Logo"
+                        width={180}
+                        height={100}
+                        className={pageStyles.partnerImage}
+                      />
+                    </a>
                     <div className={pageStyles.contactPartner}>
                       <div className={pageStyles.contactPartnerContent}>
                         <h3>Chciałbyś wspomóc naszą inicjatywę?</h3>
