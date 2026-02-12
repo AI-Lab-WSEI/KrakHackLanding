@@ -17,8 +17,10 @@ export function AdminAuth({ children }: AdminAuthProps) {
 
   useEffect(() => {
     // Check if user is already authenticated
-    const authStatus = localStorage.getItem('adminAuthenticated');
-    const authExpiry = localStorage.getItem('adminAuthExpiry');
+    const authStatus = localStorage.getItem('admin_session_v1_active');
+    const authExpiry = localStorage.getItem('admin_session_v1_expiry');
+
+    console.log('[AdminAuth] Checking session:', { authStatus, authExpiry });
 
     if (authStatus === 'true' && authExpiry) {
       const expiryDate = new Date(authExpiry);
@@ -26,8 +28,8 @@ export function AdminAuth({ children }: AdminAuthProps) {
         setIsAuthenticated(true);
       } else {
         // Authentication expired
-        localStorage.removeItem('adminAuthenticated');
-        localStorage.removeItem('adminAuthExpiry');
+        localStorage.removeItem('admin_session_v1_active');
+        localStorage.removeItem('admin_session_v1_expiry');
       }
     }
     setIsLoading(false);
@@ -44,8 +46,8 @@ export function AdminAuth({ children }: AdminAuthProps) {
       const expiryDate = new Date();
       expiryDate.setHours(expiryDate.getHours() + 24);
 
-      localStorage.setItem('adminAuthenticated', 'true');
-      localStorage.setItem('adminAuthExpiry', expiryDate.toISOString());
+      localStorage.setItem('admin_session_v1_active', 'true');
+      localStorage.setItem('admin_session_v1_expiry', expiryDate.toISOString());
 
       setPassword('');
     } else {
@@ -63,8 +65,8 @@ export function AdminAuth({ children }: AdminAuthProps) {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('adminAuthenticated');
-    localStorage.removeItem('adminAuthExpiry');
+    localStorage.removeItem('admin_session_v1_active');
+    localStorage.removeItem('admin_session_v1_expiry');
   };
 
   if (isLoading) {
