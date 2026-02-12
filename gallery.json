@@ -1,0 +1,148 @@
+{
+    "gallery": [
+        {
+            "id": "1",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821583/AIKrakHack-10_djr1ca.jpg",
+            "alt": "AI Krak Hack - Zespół podczas pracy",
+            "caption": "Zespoły pracują nad projektami AI",
+            "category": "hackathon",
+            "year": "2025"
+        },
+        {
+            "id": "2",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821581/AIPossibilitiesLab_zdj_1_midlgu.jpg",
+            "alt": "AI Possibilities Lab - Prezentacja",
+            "caption": "Prezentacja projektów AI",
+            "category": "presentation",
+            "year": "2025"
+        },
+        {
+            "id": "3",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821581/AIKrakHack-70_Large_wwu35f.jpg",
+            "alt": "AI Krak Hack - Networking",
+            "caption": "Networking i wymiana doświadczeń",
+            "category": "networking",
+            "year": "2025"
+        },
+        {
+            "id": "5",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821584/AIKrakHack-25_hs5pd2.jpg",
+            "alt": "AI Krak Hack - Praca zespołowa",
+            "caption": "Intensywna współpraca zespołowa",
+            "category": "teamwork",
+            "year": "2025"
+        },
+        {
+            "id": "6",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821584/AIKrakHack-13_jctr4r.jpg",
+            "alt": "AI Krak Hack - Coding session",
+            "caption": "Sesje programowania AI",
+            "category": "coding",
+            "year": "2025"
+        },
+        {
+            "id": "7",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821587/AIKrakHack-17_ckrbyh.jpg",
+            "alt": "AI Krak Hack - Workshop",
+            "caption": "Warsztaty techniczne",
+            "category": "workshop",
+            "year": "2025"
+        },
+        {
+            "id": "8",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821589/AIKrakHack-27_jrkent.jpg",
+            "alt": "AI Krak Hack - Demo Day",
+            "caption": "Demo Day - prezentacje finałowe",
+            "category": "demo",
+            "year": "2025"
+        },
+        {
+            "id": "9",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821589/AIKrakHack-12_zybxvo.jpg",
+            "alt": "AI Krak Hack - Jury ocena",
+            "caption": "Ocena projektów przez jury",
+            "category": "judging",
+            "year": "2025"
+        },
+        {
+            "id": "10",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821590/AIKrakHack-9_jfuyrw.jpg",
+            "alt": "AI Krak Hack - Nagrody",
+            "caption": "Ceremonia wręczenia nagród",
+            "category": "awards",
+            "year": "2025"
+        },
+        {
+            "id": "11",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821593/AIKrakHack-42_gavuoj.jpg",
+            "alt": "AI Krak Hack - Afterparty",
+            "caption": "Afterparty i integracja",
+            "category": "social",
+            "year": "2025"
+        },
+        {
+            "id": "12",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821594/AIKrakHack-45_m9x4ux.jpg",
+            "alt": "AI Krak Hack - Zespół zwycięzców",
+            "caption": "Zespół zwycięzców z nagrodami",
+            "category": "winners",
+            "year": "2025"
+        },
+        {
+            "id": "13",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821595/AIKrakHack-50_x12vlb.jpg",
+            "alt": "AI Krak Hack - Organizatorzy",
+            "caption": "Zespół organizatorów AI Krak Hack",
+            "category": "organizers",
+            "year": "2025"
+        },
+        {
+            "id": "14",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821597/AIKrakHack-57_j20ulu.jpg",
+            "alt": "AI Krak Hack - Lokalizacja",
+            "caption": "WSEI Kraków - miejsce wydarzenia",
+            "category": "venue",
+            "year": "2025"
+        },
+        {
+            "id": "15",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821607/AIPossibilitiesLab_zdj_3_fcl2tk.jpg",
+            "alt": "AI Possibilities Lab - Koło naukowe",
+            "caption": "Członkowie koła naukowego AI Possibilities Lab",
+            "category": "team",
+            "year": "2025"
+        },
+        {
+            "id": "16",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821608/AIKrakHack-73_gcwx4a.jpg",
+            "alt": "AI Krak Hack - Finał",
+            "caption": "Finałowe momenty hackathonu",
+            "category": "finale",
+            "year": "2025"
+        },
+        {
+            "id": "17",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821588/AIKrakHack-22_xpzf4v.jpg",
+            "alt": "AI Krak Hack - Współpraca",
+            "caption": "Współpraca między zespołami",
+            "category": "collaboration",
+            "year": "2025"
+        },
+        {
+            "id": "18",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821586/AIKrakHack-18_a0lexu.jpg",
+            "alt": "AI Krak Hack - Technologie",
+            "caption": "Wykorzystanie najnowszych technologii AI",
+            "category": "technology",
+            "year": "2025"
+        },
+        {
+            "id": "19",
+            "url": "https://res.cloudinary.com/dyux0lw71/image/upload/v1770821582/AIKrakHack-29_lfjsuf.jpg",
+            "alt": "AI Krak Hack - Atmosfera",
+            "caption": "Niesamowita atmosfera wydarzenia",
+            "category": "atmosphere",
+            "year": "2025"
+        }
+    ]
+}

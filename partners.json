@@ -1,0 +1,40 @@
+{
+  "partners": [
+    {
+      "id": "microsoft",
+      "name": "Microsoft",
+      "logo": "https://images.unsplash.com/photo-1633419461186-7d40a38105ec?w=200&h=100&fit=crop&crop=center",
+      "website": "https://microsoft.com"
+    },
+    {
+      "id": "google",
+      "name": "Google",
+      "logo": "https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=200&h=100&fit=crop&crop=center",
+      "website": "https://google.com"
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "logo": "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=200&h=100&fit=crop&crop=center",
+      "website": "https://openai.com"
+    },
+    {
+      "id": "nvidia",
+      "name": "NVIDIA",
+      "logo": "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=200&h=100&fit=crop&crop=center",
+      "website": "https://nvidia.com"
+    },
+    {
+      "id": "aws",
+      "name": "Amazon Web Services",
+      "logo": "https://images.unsplash.com/photo-1523474253046-8cd2748b5fd2?w=200&h=100&fit=crop&crop=center",
+      "website": "https://aws.amazon.com"
+    },
+    {
+      "id": "ibm",
+      "name": "IBM",
+      "logo": "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=200&h=100&fit=crop&crop=center",
+      "website": "https://ibm.com"
+    }
+  ]
+}
