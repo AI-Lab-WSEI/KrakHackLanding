@@ -6,7 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "preview": "vite preview"
+    "preview": "npm run build && serve -s dist -l 8080",
+    "start": "serve -s dist -l $PORT"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

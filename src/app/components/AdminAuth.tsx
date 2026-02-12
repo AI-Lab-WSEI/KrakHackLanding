@@ -15,6 +15,8 @@ export function AdminAuth({ children }: AdminAuthProps) {
 
   const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'MakaPaka2026';
 
+  console.log('[AdminAuth] Component Mounted. Auth Strategy:', ADMIN_PASSWORD === 'MakaPaka2026' ? 'Default' : 'Environment');
+
   useEffect(() => {
     // Check if user is already authenticated
     const authStatus = localStorage.getItem('admin_session_v1_active');
@@ -39,7 +41,8 @@ export function AdminAuth({ children }: AdminAuthProps) {
     e.preventDefault();
     setError('');
 
-    if (password === ADMIN_PASSWORD) {
+    if (password && password === ADMIN_PASSWORD) {
+      console.log('[AdminAuth] Password correct. Setting session.');
       setIsAuthenticated(true);
 
       // Set authentication to expire in 24 hours
@@ -51,6 +54,7 @@ export function AdminAuth({ children }: AdminAuthProps) {
 
       setPassword('');
     } else {
+      console.log('[AdminAuth] Password incorrect or empty.');
       setError('Nieprawidłowe hasło');
       setPassword('');
 
