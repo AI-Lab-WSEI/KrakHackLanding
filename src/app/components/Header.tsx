@@ -38,29 +38,29 @@ export function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
-          <a href="#o-nas" className="text-gray-300 hover:text-cyan-400 transition-colors">
+          <a href="/#o-nas" className="text-gray-300 hover:text-cyan-400 transition-colors">
             O nas
           </a>
-          <a href="#kategorie" className="text-gray-300 hover:text-cyan-400 transition-colors">
+          <a href="/#kategorie" className="text-gray-300 hover:text-cyan-400 transition-colors">
             Kategorie
           </a>
-          <a href="#wyzwania" className="text-gray-300 hover:text-cyan-400 transition-colors">
+          <a href="/#wyzwania" className="text-gray-300 hover:text-cyan-400 transition-colors">
             Wyzwania
           </a>
-          <a href="#harmonogram" className="text-gray-300 hover:text-cyan-400 transition-colors">
+          <a href="/#harmonogram" className="text-gray-300 hover:text-cyan-400 transition-colors">
             Harmonogram
           </a>
-          <a href="#program" className="text-gray-300 hover:text-cyan-400 transition-colors">
+          <a href="/#program" className="text-gray-300 hover:text-cyan-400 transition-colors">
             Program
           </a>
-          <a href="#zostanSponsorom" className="text-gray-300 hover:text-cyan-400 transition-colors">
+          <a href="/#zostanSponsorom" className="text-gray-300 hover:text-cyan-400 transition-colors">
             Zostań sponsorem
           </a>
-          <a href="#zostanMentorem" className="text-gray-300 hover:text-pink-400 transition-colors">
+          <a href="/#zostanMentorem" className="text-gray-300 hover:text-pink-400 transition-colors">
             Zostań mentorem
           </a>
           {location.pathname === '/2025' && (
-            <a href="#galeria" className="text-gray-300 hover:text-cyan-400 transition-colors">
+            <a href="/#galeria" className="text-gray-300 hover:text-cyan-400 transition-colors">
               Galeria
             </a>
           )}

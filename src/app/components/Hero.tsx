@@ -89,7 +89,7 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 container mx-auto px-4 text-center pt-8 pb-12">
+      <div className="relative z-10 container mx-auto px-4 text-center pt-4 pb-12">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -125,7 +125,7 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="text-xl md:text-2xl lg:text-3xl text-gray-200 mb-12 max-w-4xl mx-auto leading-relaxed font-light"
+            className="text-lg md:text-xl lg:text-2xl text-gray-200 mb-8 max-w-4xl mx-auto leading-relaxed font-light"
           >
             {subtitle}
           </motion.p>
@@ -146,7 +146,7 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-8"
+            className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             {!isArchive && ctaUrl && (
               <a
@@ -174,27 +174,10 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
             )}
           </motion.div>
 
-          {!isArchive && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 1 }}
-              className="mt-10"
-            >
-              <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-500/10 backdrop-blur-sm border border-green-400/40 rounded-full">
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="w-2.5 h-2.5 bg-green-400 rounded-full"
-                ></motion.div>
-                <span className="text-green-300 font-medium">Rekrutacja otwarta</span>
-              </div>
-            </motion.div>
-          )}
         </motion.div>
       </div>
 
-      {/* Scroll indicator */}
+      {/* Scroll indicator & Status */}
       {!isArchive && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -202,14 +185,32 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
           transition={{ delay: 1.5, duration: 0.8 }}
           className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10"
         >
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-gray-400 text-sm font-medium">Przewiń w dół</span>
-            <div className="w-7 h-12 border-2 border-cyan-400/60 rounded-full flex items-start justify-center p-2 backdrop-blur-sm bg-black/20">
+          <div className="flex flex-col items-center gap-4">
+            {/* Recruitment Status Pill */}
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.2 }}
+              className="inline-flex items-center gap-2 px-5 py-2 bg-green-500/10 backdrop-blur-md border border-green-500/30 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.1)]"
+            >
               <motion.div
-                animate={{ y: [0, 16, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                className="w-2 h-2 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400/50"
+                animate={{ scale: [1, 1.2, 1], opacity: [1, 0.5, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="w-2 h-2 bg-green-400 rounded-full"
               ></motion.div>
+              <span className="text-green-300 font-bold uppercase tracking-widest text-[10px]">Rekrutacja otwarta</span>
+            </motion.div>
+
+            {/* Scroll Mouse Indicator */}
+            <div className="flex flex-col items-center gap-3">
+              <span className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Przewiń w dół</span>
+              <div className="w-6 h-10 border-2 border-white/10 rounded-full flex items-start justify-center p-1.5 backdrop-blur-md bg-white/5">
+                <motion.div
+                  animate={{ y: [0, 12, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]"
+                ></motion.div>
+              </div>
             </div>
           </div>
         </motion.div>

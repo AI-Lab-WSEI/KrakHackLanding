@@ -30,8 +30,8 @@ export function Gallery({ images }: GalleryProps) {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Galeria</h2>
-          <div className="w-20 h-1 bg-gradient-to-r from-cyan-400 to-pink-400 mx-auto"></div>
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tight">Galeria</h2>
+          <div className="w-24 h-1.5 bg-gradient-to-r from-cyan-400 to-blue-600 mx-auto rounded-full"></div>
         </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
@@ -42,7 +42,7 @@ export function Gallery({ images }: GalleryProps) {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group cursor-pointer overflow-hidden rounded-lg bg-gray-800"
+              className="group cursor-pointer overflow-hidden rounded-2xl bg-white/5 border border-white/10 hover:border-cyan-500/50 transition-all shadow-xl"
               onClick={() => {
                 setLightboxIndex(index);
                 setLightboxOpen(true);

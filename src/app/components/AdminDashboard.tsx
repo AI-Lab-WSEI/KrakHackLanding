@@ -270,7 +270,7 @@ export function AdminDashboard() {
               </h2>
               <div className="space-y-4">
                 {[
-                  { id: 'geospatial', name: 'Smart Infrastructure (Tramwaje)' },
+                  { id: 'geospatial', name: 'Smart Infrastructure (infrasruktura)' },
                   { id: 'process-automation', name: 'Process-to-Automation (Asystent)' }
                 ].map((c) => (
                   <div key={c.id} className="p-5 bg-white/5 border border-white/10 rounded-3xl space-y-4">

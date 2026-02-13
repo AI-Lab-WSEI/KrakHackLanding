@@ -41,7 +41,7 @@ export function CTABlock({ ctaUrl, showSecondary = true }: CTABlockProps) {
               transition={{ delay: 0.4 }}
               className="text-center lg:text-left"
             >
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+              <h2 className="text-3xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight">
                 Gotowy na wyzwanie?
               </h2>
               <p className="text-xl text-gray-300 mb-10 max-w-2xl">
@@ -52,7 +52,7 @@ export function CTABlock({ ctaUrl, showSecondary = true }: CTABlockProps) {
                 {ctaUrl && (
                   <a
                     href={ctaUrl}
-                    className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-lg transition-all shadow-lg hover:shadow-cyan-500/50 flex items-center gap-2 text-lg font-semibold"
+                    className="group px-8 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl transition-all shadow-xl hover:shadow-cyan-500/50 flex items-center gap-2 text-lg font-black uppercase tracking-widest"
                   >
                     <span>Zgłoś się teraz</span>
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -62,15 +62,15 @@ export function CTABlock({ ctaUrl, showSecondary = true }: CTABlockProps) {
                 {showSecondary && (
                   <div className="flex flex-col sm:flex-row gap-4">
                     <a
-                      href="#zostanSponsorom"
-                      className="px-6 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-white rounded-lg transition-all border border-gray-700 flex items-center gap-2 backdrop-blur-sm"
+                      href="mailto:knai@microsoft.wsei.edu.pl"
+                      className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all border border-white/10 flex items-center gap-2 backdrop-blur-sm uppercase font-black tracking-wider text-[11px]"
                     >
-                      <Handshake className="w-4 h-4" />
+                      <Mail className="w-4 h-4" />
                       <span>Zostań sponsorem</span>
                     </a>
                     <a
-                      href="#zostanMentorem"
-                      className="px-6 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-white rounded-lg transition-all border border-gray-700 flex items-center gap-2 backdrop-blur-sm"
+                      href="mailto:knai@microsoft.wsei.edu.pl"
+                      className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all border border-white/10 flex items-center gap-2 backdrop-blur-sm uppercase font-black tracking-wider text-[11px]"
                     >
                       <Mail className="w-4 h-4" />
                       <span>Zostań mentorem</span>

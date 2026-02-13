@@ -19,7 +19,7 @@ export function ChallengesSection({ challenges }: ChallengesSectionProps) {
 
   const handleChallengeClick = (challengeId: string) => {
     const slugMap: { [key: string]: string } = {
-      'geospatial': 'tramwaje',
+      'geospatial': 'infrasruktura',
       'process-automation': 'asystent'
     };
     const slug = slugMap[challengeId] || challengeId;
@@ -36,7 +36,7 @@ export function ChallengesSection({ challenges }: ChallengesSectionProps) {
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-6xl font-black text-white mb-6 uppercase tracking-tighter">
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight">
             Wyzwania AI Krak Hack 2026
           </h2>
           <div className="w-24 h-2 bg-gradient-to-r from-cyan-400 to-blue-600 mx-auto mb-8 rounded-full shadow-[0_0_20px_rgba(6,182,212,0.5)]"></div>
@@ -61,12 +61,12 @@ export function ChallengesSection({ challenges }: ChallengesSectionProps) {
               >
                 {/* Challenge Card */}
                 <div
-                  className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/5 backdrop-blur-xl cursor-pointer transition-all duration-500 hover:border-cyan-500/50 hover:shadow-[0_0_60px_rgba(6,182,212,0.2)] hover:scale-[1.02] p-10"
+                  className="relative h-full overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl cursor-pointer transition-all duration-500 hover:border-cyan-500/50 hover:shadow-[0_0_60px_rgba(6,182,212,0.2)] hover:scale-[1.01] p-10 flex flex-col"
                 >
                   {/* Status Badge */}
                   <div className="absolute top-8 right-8">
-                    <div className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full">
-                       <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Active Track</span>
+                    <div className="flex items-center justify-center px-4 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full">
+                       <span className="text-[9px] font-black text-cyan-400 uppercase tracking-[0.2em] leading-none">Active Track</span>
                     </div>
                   </div>
 
@@ -84,7 +84,7 @@ export function ChallengesSection({ challenges }: ChallengesSectionProps) {
                   <p className="text-cyan-400 font-bold mb-6 text-sm uppercase tracking-widest">
                     {challenge.subtitle}
                   </p>
-                  <p className="text-gray-400 leading-relaxed mb-8 text-lg font-medium">
+                  <p className="text-gray-400 leading-relaxed mb-8 text-lg font-medium flex-grow">
                     {challenge.shortDescription}
                   </p>
 

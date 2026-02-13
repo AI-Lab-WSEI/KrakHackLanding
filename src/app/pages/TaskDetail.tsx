@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, ExternalLink, Globe, Shield, Terminal, Zap, CheckCircle } from 'lucide-react';
@@ -15,7 +15,7 @@ export function TaskDetail() {
   // Find which edition/challenge this slug belongs to
   const edition2026 = editions['2026'];
   const slugIdMap: Record<string, string> = {
-    'tramwaje': 'geospatial',
+    'infrasruktura': 'geospatial',
     'asystent': 'process-automation'
   };
   
@@ -60,15 +60,13 @@ export function TaskDetail() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] animate-pulse delay-700" />
         
         <div className="container mx-auto px-6 relative z-10">
-          <motion.button
-            onClick={() => navigate('/')}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2 text-gray-500 hover:text-cyan-400 transition-colors mb-12 uppercase font-black tracking-widest text-[10px]"
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors mb-12 backdrop-blur-md bg-white/5 px-4 py-2 rounded-full border border-white/10 uppercase font-black tracking-wider text-[10px]"
           >
             <ArrowLeft className="w-4 h-4" />
             Powrót do bazy
-          </motion.button>
+          </Link>
 
           <div className="max-w-4xl">
             <motion.div
@@ -83,7 +81,7 @@ export function TaskDetail() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-5xl md:text-7xl font-black mb-6 uppercase tracking-tighter leading-tight"
+              className="text-4xl md:text-6xl font-black mb-6 uppercase tracking-tight leading-tight"
             >
               {challenge.title}
             </motion.h1>
@@ -106,7 +104,7 @@ export function TaskDetail() {
               {challenge.technologies.map((tech, index) => (
                 <span
                   key={index}
-                  className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-cyan-400"
+                  className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-black uppercase tracking-wider text-cyan-400"
                 >
                   {tech}
                 </span>
@@ -126,7 +124,7 @@ export function TaskDetail() {
             className="lg:col-span-2 space-y-16"
           >
             {/* Description Card */}
-            <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-10 backdrop-blur-3xl relative overflow-hidden group">
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-10 backdrop-blur-3xl relative overflow-hidden group">
                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
                  <Icon className="w-32 h-32" />
                </div>
@@ -136,11 +134,11 @@ export function TaskDetail() {
                  Opis Wyzwania
                </h2>
                
-               <div className="prose prose-lg prose-invert max-w-none text-gray-400 font-medium leading-relaxed">
+               <div className="prose prose-lg prose-invert max-w-none text-gray-200 font-medium leading-relaxed">
                   {challenge.fullDescription.split('\n\n').map((paragraph, idx) => (
                     <p key={idx} className="mb-6 last:mb-0">
                       {paragraph.startsWith('**') ? (
-                        <strong className="text-white block mt-8 mb-4 uppercase tracking-wider">{paragraph.replace(/\*\*/g, '')}</strong>
+                        <strong className="text-white block mt-8 mb-4 tracking-wider">{paragraph.replace(/\*\*/g, '')}</strong>
                       ) : paragraph}
                     </p>
                   ))}
@@ -148,7 +146,7 @@ export function TaskDetail() {
             </div>
 
             {/* Deliverables */}
-            <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-10 backdrop-blur-3xl">
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-10 backdrop-blur-3xl">
                <h2 className="text-2xl font-black uppercase tracking-widest text-white mb-8 flex items-center gap-3">
                  <CheckCircle className="w-6 h-6 text-green-500" />
                  Oczekiwane Rezultaty
@@ -173,11 +171,11 @@ export function TaskDetail() {
             className="space-y-10"
           >
             {/* Materials Card */}
-            <div className="bg-indigo-600 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden group">
-               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-90" />
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-10 shadow-2xl relative overflow-hidden group">
+               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-purple-600/10 opacity-90" />
                <div className="relative z-10 space-y-6">
                  <h2 className="text-xl font-black uppercase tracking-widest text-white">Materiały Misji</h2>
-                 <p className="text-indigo-100/70 font-medium text-sm">Pobierz dokumentację i zbiory danych przygotowane przez naszych ekspertów.</p>
+                 <p className="text-gray-300 font-medium text-sm">Pobierz dokumentację i zbiory danych przygotowane przez naszych ekspertów.</p>
                  
                  <div className="space-y-4">
                    <FileDownload
@@ -191,7 +189,7 @@ export function TaskDetail() {
                      fileName={`${slug}_zadanie.pdf`}
                      fileTitle="Arkusz Zadania"
                      fileDescription="PDF • 1.2 MB"
-                     unlockDate={new Date('2026-03-27T16:00:00')}
+                     unlockDate={new Date('2026-03-27T18:00:00')}
                      fileSize="1.2 MB"
                    />
                  </div>
@@ -204,7 +202,7 @@ export function TaskDetail() {
                 href={dynamicExternalUrl || challenge.externalUrl} 
                 target="_blank" 
                 rel="noreferrer"
-                className="block p-8 bg-white/5 border border-white/10 rounded-[2.5rem] hover:border-cyan-500 transition-all group"
+                className="block p-8 bg-white/5 border border-white/10 rounded-3xl hover:border-cyan-500 transition-all group"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-black uppercase tracking-widest text-xs text-cyan-400 group-hover:text-white transition-colors">Repozytorium / Zasoby</span>

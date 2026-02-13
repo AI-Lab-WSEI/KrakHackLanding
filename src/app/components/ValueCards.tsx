@@ -47,8 +47,8 @@ export function ValueCards({ cards, title = 'Dlaczego warto?' }: ValueCardsProps
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">{title}</h2>
-          <div className="w-20 h-1 bg-gradient-to-r from-cyan-400 to-pink-400 mx-auto"></div>
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tight">{title}</h2>
+          <div className="w-20 h-1.5 bg-gradient-to-r from-cyan-400 to-blue-600 mx-auto rounded-full"></div>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
@@ -73,12 +73,12 @@ export function ValueCards({ cards, title = 'Dlaczego warto?' }: ValueCardsProps
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="group"
               >
-                <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl border border-gray-700 hover:border-cyan-500/50 transition-all h-full flex flex-col">
-                  <div className={`w-14 h-14 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                <div className="bg-white/5 backdrop-blur-md p-8 rounded-3xl border border-white/10 hover:border-cyan-500/50 hover:bg-white/10 transition-all h-full flex flex-col group/card">
+                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-6 group-hover/card:scale-110 transition-transform`}>
                     {Icon && <Icon className="w-7 h-7 text-white" />}
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3">{card.title}</h3>
-                  <p className="text-gray-300 leading-relaxed flex-grow">{card.description}</p>
+                  <h3 className="text-xl font-black text-white mb-3 uppercase tracking-tight">{card.title}</h3>
+                  <p className="text-gray-400 leading-relaxed flex-grow font-medium">{card.description}</p>
                 </div>
               </motion.div>
             );

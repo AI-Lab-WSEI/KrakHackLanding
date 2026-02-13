@@ -6,8 +6,8 @@ export const editions: Record<string, Edition> = {
     year: '2026',
     status: 'active',
     heroTitle: 'AI Krak Hack 2026',
-    heroSubtitle: 'Najlepszy hackathon AI w Krakowie. Dołącz do koła naukowego AI&SE i rozwijaj swoje umiejętności w sztucznej inteligencji!',
-    heroDate: 'Data: TBA',
+    heroSubtitle: 'Zmierzmy się po raz kolejny z wyzwaniami naszego miejskiego otoczenia, wykorzystując potencjał optymalizacji, uczenia maszynowego i sztucznej inteligencji!',
+    heroDate: '27-28 Marca 2026',
     ctaApplyUrl: '/forms',
     categories: [
       {
@@ -98,10 +98,10 @@ export const editions: Record<string, Edition> = {
 4. **Artefakty wdrożeniowe** - formularze, zmienne, reguły decyzyjne dla demonstracji
 
 **Dostępne dane:**
-- Logi zdarzeń procesowych z atrybutami przypadków
-- Czasy trwania i opóźnienia
-- Wariantowość procesów MŚP
-- Ręczne kroki i braki w danych
+1. Logi zdarzeń procesowych z atrybutami przypadków
+2. Czasy trwania i opóźnienia
+3. Wariantowość procesów MŚP
+4. Ręczne kroki i braki w danych
 
 **Oczekiwany rezultat:**
 Działający prototyp (API/serwis/UI/CLI), który potrafi zobrazować przebieg procesu, wskazać wąskie gardła, zasugerować automatyzację i wygenerować definicję workflow gotową do uruchomienia.`,
@@ -128,45 +128,63 @@ Działający prototyp (API/serwis/UI/CLI), który potrafi zobrazować przebieg p
         color: 'pink',
       },
       {
-        title: 'Start hackathonu',
-        dateRange: 'TBA',
-        description: 'Rozpoczęcie pracy nad projektami AI',
+        title: 'piątek 27.03, 18:00',
+        dateRange: '27.03.2026',
+        description: 'Start hackathonu - Udostępnienie zadań i rozpoczęcie pracy nad projektami AI',
         color: 'cyan',
       },
       {
-        title: 'Praca nad prototypem',
-        dateRange: '24 godziny',
-        description: 'Intensywna praca zespołowa z wsparciem mentorów',
+        title: 'sobota 28.03, 09:00',
+        dateRange: '28.03.2026',
+        description: 'Praca na uczelni - Intensywna praca zespołowa z wsparciem mentorów (24h)',
         color: 'pink',
       },
       {
-        title: 'Demo Day & Finał',
-        dateRange: 'TBA',
-        description: 'Prezentacje projektów przed jury i ogłoszenie wyników',
+        title: 'sobota 28.03, 13:00',
+        dateRange: '28.03.2026',
+        description: 'Przerwa na obiad i sesje mentoringowe',
         color: 'cyan',
       },
       {
-        title: 'Ogłoszenie wyników',
-        dateRange: 'TBA',
-        description: 'Prezentacja zwycięzców i nagrody',
+        title: 'sobota 28.03, 17:30',
+        dateRange: '28.03.2026',
+        description: 'Demo Day & Finał - Prezentacje projektów przed jury i ogłoszenie wyników',
         color: 'pink',
+      },
+      {
+        title: 'sobota 28.03, 19:00',
+        dateRange: '28.03.2026',
+        description: 'Knowledge sharing - Wystąpienia zaproszonych gości',
+        color: 'cyan',
+      },
+      {
+        title: 'sobota 28.03, 20:00',
+        dateRange: '28.03.2026',
+        description: 'Ogłoszenie wyników i wręczenie nagród',
+        color: 'pink',
+      },
+      {
+        title: 'sobota 28.03, 21:00',
+        dateRange: '28.03.2026',
+        description: 'Afterparty & Integracja uczestników',
+        color: 'cyan',
       },
     ],
     highlights: [
       {
         icon: 'Brain',
-        title: 'Rozwój Umiejętności AI',
-        description: 'Praktyczne zastosowanie najnowszych technologii AI, machine learning i deep learning w realnych projektach',
+        title: 'Kompetencje Przyszłości',
+        description: 'Praktyczne zastosowanie najnowszych osiągnięć machine learning i deep learning w realnych scenariuszach projektowych',
       },
       {
         icon: 'Database',
-        title: 'Praca z Realnymi Danymi',
-        description: 'Dostęp do autentycznych zbiorów danych geoprzestrzennych i procesowych z prawdziwymi wyzwaniami',
+        title: 'Realne Zbiory Danych',
+        description: 'Dostęp do autentycznych informacji geoprzestrzennych i procesowych pozwalający zmierzyć się z prawdziwymi wyzwaniami',
       },
       {
         icon: 'FolderOpen',
-        title: 'Projekt do Portfolio',
-        description: 'Stwórz działający prototyp wykorzystujący AI, który wyróżni Cię na rynku pracy i w aplikacjach',
+        title: 'Budowa Portfolia',
+        description: 'Stwórz działający prototyp, który wyróżni Twoje kompetencje na rynku pracy i w procesach rekrutacyjnych',
       },
       {
         icon: 'Target',
@@ -180,8 +198,8 @@ Działający prototyp (API/serwis/UI/CLI), który potrafi zobrazować przebieg p
       },
       {
         icon: 'Zap',
-        title: 'Intensywne Doświadczenie',
-        description: 'Szybka nauka przez praktykę, praca w zespole i rozwiązywanie problemów pod presją czasu',
+        title: 'Nauka w Praktyce',
+        description: 'Szybkie przyswajanie wiedzy przez działanie, praca w zespole i rozwiązywanie problemów pod presją czasu',
       },
     ],
     program: {

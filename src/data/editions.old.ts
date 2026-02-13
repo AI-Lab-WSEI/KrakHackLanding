@@ -6,8 +6,7 @@ export const editions: Record<string, Edition> = {
     year: '2026',
     status: 'active',
     heroTitle: 'AI Krak Hack 2026',
-    heroSubtitle: 'Najlepszy hackathon AI w Krakowie. Dołącz do koła naukowego AI&SE i rozwijaj swoje umiejętności w sztucznej inteligencji!',
-    heroDate: 'Data: TBA',
+    heroSubtitle: 'Zmierzmy się po raz kolejny z wyzwaniami naszego miejskiego otoczenia, wykorzystując potencjał optymalizacji, uczenia maszynowego i sztucznej inteligencji!',
     ctaApplyUrl: '#formularz',
     categories: [
       {

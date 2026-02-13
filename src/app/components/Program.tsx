@@ -22,8 +22,8 @@ export function Program({ title, description, faqs }: ProgramProps) {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">{title}</h2>
-          <div className="w-20 h-1 bg-gradient-to-r from-cyan-400 to-pink-400 mx-auto mb-8"></div>
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tight">{title}</h2>
+          <div className="w-24 h-1.5 bg-gradient-to-r from-cyan-400 to-blue-600 mx-auto rounded-full mb-8"></div>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
             {description}
           </p>
@@ -40,7 +40,7 @@ export function Program({ title, description, faqs }: ProgramProps) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700 overflow-hidden"
+                  className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden hover:border-cyan-500/30 transition-all"
                 >
                   <button
                     onClick={() => setOpenIndex(openIndex === index ? null : index)}

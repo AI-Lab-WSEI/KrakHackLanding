@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { useState } from 'react';
-import { Building, Mail, Phone, Send, User, DollarSign, Award, Users } from 'lucide-react';
+import { Building, Mail, Phone, Send, User } from 'lucide-react';
 import { notificationService } from '@/utils/notificationService';
 
 interface CompanyFormData {
@@ -8,16 +8,7 @@ interface CompanyFormData {
   contactPerson: string;
   email: string;
   phone: string;
-  website: string;
-  industry: string;
-  companySize: string;
-  partnershipType: string[];
-  sponsorshipLevel: string;
-  budget: string;
-  goals: string;
-  previousExperience: string;
-  additionalServices: string[];
-  timeline: string;
+  message: string;
 }
 
 export function CompanyForm() {
@@ -26,60 +17,11 @@ export function CompanyForm() {
     contactPerson: '',
     email: '',
     phone: '',
-    website: '',
-    industry: '',
-    companySize: '',
-    partnershipType: [],
-    sponsorshipLevel: '',
-    budget: '',
-    goals: '',
-    previousExperience: '',
-    additionalServices: [],
-    timeline: '',
+    message: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-
-  const partnershipOptions = [
-    'Sponsoring finansowy',
-    'Nagrody dla zwycięzców',
-    'Mentoring techniczny',
-    'Warsztaty/prezentacje',
-    'Rekrutacja talentów',
-    'Udostępnienie infrastruktury',
-    'Catering',
-    'Marketing/promocja'
-  ];
-
-  const additionalServicesOptions = [
-    'Prezentacja firmy',
-    'Stoisko rekrutacyjne',
-    'Warsztaty techniczne',
-    'Networking z uczestnikami',
-    'Ocena projektów (jury)',
-    'Możliwość praktyk/pracy',
-    'Dostęp do bazy CV',
-    'Branding na materiałach'
-  ];
-
-  const handlePartnershipToggle = (partnership: string) => {
-    setFormData(prev => ({
-      ...prev,
-      partnershipType: prev.partnershipType.includes(partnership)
-        ? prev.partnershipType.filter(p => p !== partnership)
-        : [...prev.partnershipType, partnership]
-    }));
-  };
-
-  const handleServiceToggle = (service: string) => {
-    setFormData(prev => ({
-      ...prev,
-      additionalServices: prev.additionalServices.includes(service)
-        ? prev.additionalServices.filter(s => s !== service)
-        : [...prev.additionalServices, service]
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,9 +71,7 @@ export function CompanyForm() {
               onClick={() => {
                 setSubmitted(false);
                 setFormData({
-                  companyName: '', contactPerson: '', email: '', phone: '', website: '',
-                  industry: '', companySize: '', partnershipType: [], sponsorshipLevel: '',
-                  budget: '', goals: '', previousExperience: '', additionalServices: [], timeline: ''
+                  companyName: '', contactPerson: '', email: '', phone: '', message: ''
                 });
               }}
               className="px-6 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg transition-colors"
@@ -170,7 +110,6 @@ export function CompanyForm() {
         >
           <form onSubmit={handleSubmit} className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Company Info */}
               <div>
                 <label htmlFor="companyName" className="flex items-center gap-2 text-white mb-2">
                   <Building className="w-4 h-4 text-green-400" />
@@ -233,198 +172,21 @@ export function CompanyForm() {
                   placeholder="+48 123 456 789"
                 />
               </div>
-
-              <div>
-                <label htmlFor="website" className="flex items-center gap-2 text-white mb-2">
-                  <span>Strona internetowa</span>
-                </label>
-                <input
-                  type="url"
-                  id="website"
-                  value={formData.website}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors"
-                  placeholder="https://firma.com"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="industry" className="flex items-center gap-2 text-white mb-2">
-                  <span>Branża *</span>
-                </label>
-                <select
-                  id="industry"
-                  required
-                  value={formData.industry}
-                  onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors"
-                >
-                  <option value="">Wybierz...</option>
-                  <option value="technology">Technologia/IT</option>
-                  <option value="fintech">Fintech</option>
-                  <option value="healthcare">Zdrowie/Medtech</option>
-                  <option value="automotive">Motoryzacja</option>
-                  <option value="consulting">Konsulting</option>
-                  <option value="education">Edukacja</option>
-                  <option value="ecommerce">E-commerce</option>
-                  <option value="other">Inne</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="companySize" className="flex items-center gap-2 text-white mb-2">
-                  <Users className="w-4 h-4 text-green-400" />
-                  <span>Wielkość firmy *</span>
-                </label>
-                <select
-                  id="companySize"
-                  required
-                  value={formData.companySize}
-                  onChange={(e) => setFormData({ ...formData, companySize: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors"
-                >
-                  <option value="">Wybierz...</option>
-                  <option value="startup">Startup (1-10 osób)</option>
-                  <option value="small">Mała (11-50 osób)</option>
-                  <option value="medium">Średnia (51-250 osób)</option>
-                  <option value="large">Duża (251-1000 osób)</option>
-                  <option value="enterprise">Korporacja (1000+ osób)</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="sponsorshipLevel" className="flex items-center gap-2 text-white mb-2">
-                  <Award className="w-4 h-4 text-green-400" />
-                  <span>Poziom sponsoringu</span>
-                </label>
-                <select
-                  id="sponsorshipLevel"
-                  value={formData.sponsorshipLevel}
-                  onChange={(e) => setFormData({ ...formData, sponsorshipLevel: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors"
-                >
-                  <option value="">Wybierz...</option>
-                  <option value="title">Sponsor tytularny</option>
-                  <option value="gold">Sponsor złoty</option>
-                  <option value="silver">Sponsor srebrny</option>
-                  <option value="bronze">Sponsor brązowy</option>
-                  <option value="partner">Partner</option>
-                  <option value="other">Inne</option>
-                </select>
-              </div>
             </div>
 
-            {/* Partnership Type */}
             <div className="mt-6">
-              <label className="flex items-center gap-2 text-white mb-4">
-                <span>Rodzaj partnerstwa *</span>
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {partnershipOptions.map(partnership => (
-                  <label key={partnership} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.partnershipType.includes(partnership)}
-                      onChange={() => handlePartnershipToggle(partnership)}
-                      className="rounded border-gray-600 bg-gray-900 text-green-500 focus:ring-green-500"
-                    />
-                    <span className="text-sm text-gray-300">{partnership}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Budget */}
-            <div className="mt-6">
-              <label htmlFor="budget" className="flex items-center gap-2 text-white mb-2">
-                <DollarSign className="w-4 h-4 text-green-400" />
-                <span>Budżet (orientacyjny)</span>
-              </label>
-              <select
-                id="budget"
-                value={formData.budget}
-                onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors"
-              >
-                <option value="">Wybierz...</option>
-                <option value="under-5k">Poniżej 5 000 PLN</option>
-                <option value="5k-10k">5 000 - 10 000 PLN</option>
-                <option value="10k-25k">10 000 - 25 000 PLN</option>
-                <option value="25k-50k">25 000 - 50 000 PLN</option>
-                <option value="over-50k">Powyżej 50 000 PLN</option>
-                <option value="discuss">Do uzgodnienia</option>
-              </select>
-            </div>
-
-            {/* Additional Services */}
-            <div className="mt-6">
-              <label className="flex items-center gap-2 text-white mb-4">
-                <span>Dodatkowe usługi</span>
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {additionalServicesOptions.map(service => (
-                  <label key={service} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.additionalServices.includes(service)}
-                      onChange={() => handleServiceToggle(service)}
-                      className="rounded border-gray-600 bg-gray-900 text-green-500 focus:ring-green-500"
-                    />
-                    <span className="text-sm text-gray-300">{service}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Goals */}
-            <div className="mt-6">
-              <label htmlFor="goals" className="flex items-center gap-2 text-white mb-2">
-                <span>Cele partnerstwa *</span>
+              <label htmlFor="message" className="flex items-center gap-2 text-white mb-2">
+                <span>Wiadomość / Cel partnerstwa *</span>
               </label>
               <textarea
-                id="goals"
+                id="message"
                 required
-                value={formData.goals}
-                onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
-                rows={4}
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                rows={5}
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors resize-none"
-                placeholder="Jakie są Wasze cele związane z partnerstwem? Rekrutacja, branding, CSR, networking..."
+                placeholder="Jak możemy wspólnie współpracować?"
               />
-            </div>
-
-            {/* Previous Experience */}
-            <div className="mt-6">
-              <label htmlFor="previousExperience" className="flex items-center gap-2 text-white mb-2">
-                <span>Poprzednie doświadczenie</span>
-              </label>
-              <textarea
-                id="previousExperience"
-                value={formData.previousExperience}
-                onChange={(e) => setFormData({ ...formData, previousExperience: e.target.value })}
-                rows={3}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors resize-none"
-                placeholder="Czy wcześniej sponsorowaliście hackathony lub podobne wydarzenia?"
-              />
-            </div>
-
-            {/* Timeline */}
-            <div className="mt-6">
-              <label htmlFor="timeline" className="flex items-center gap-2 text-white mb-2">
-                <span>Preferowany termin decyzji</span>
-              </label>
-              <select
-                id="timeline"
-                value={formData.timeline}
-                onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors"
-              >
-                <option value="">Wybierz...</option>
-                <option value="asap">Jak najszybciej</option>
-                <option value="1-week">W ciągu tygodnia</option>
-                <option value="2-weeks">W ciągu 2 tygodni</option>
-                <option value="1-month">W ciągu miesiąca</option>
-                <option value="flexible">Elastycznie</option>
-              </select>
             </div>
 
             {/* Submit */}

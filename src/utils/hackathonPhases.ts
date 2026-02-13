@@ -10,8 +10,8 @@ export interface Phase {
   proTips: string[];
 }
 
-export const HACKATHON_START = new Date('2026-03-27T16:00:00');
-export const HACKATHON_END = new Date('2026-03-28T16:00:00');
+export const HACKATHON_START = new Date('2026-03-27T18:00:00');
+export const HACKATHON_END = new Date('2026-03-28T21:00:00');
 export const HACKATHON_DURATION = 24 * 60 * 60 * 1000; // 24 hours in ms
 
 export const phases: Phase[] = [

@@ -13,8 +13,8 @@ export function CountdownProgress({ variant = 'main', taskType = 'preparation' }
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const preparationUnlockDate = new Date('2026-03-20T18:00:00');
-  const hackathonStartDate = new Date('2026-03-27T16:00:00');
-  const hackathonEndDate = new Date('2026-03-28T16:00:00');
+  const hackathonStartDate = new Date('2026-03-27T18:00:00');
+  const hackathonEndDate = new Date('2026-03-28T21:00:00');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -139,7 +139,7 @@ export function CountdownProgress({ variant = 'main', taskType = 'preparation' }
       {
         position: 75,
         label: 'Start hackathonu',
-        date: '27.03.2026 16:00',
+        date: '27.03.2026 18:00',
         active: phase === 'hackathon' || phase === 'ended',
         icon: '🚀'
       }

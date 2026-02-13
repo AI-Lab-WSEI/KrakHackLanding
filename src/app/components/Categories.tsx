@@ -35,8 +35,8 @@ export function Categories({ categories, title = 'Technologie i narzędzia' }: C
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">{title}</h2>
-          <div className="w-24 h-1 bg-gradient-to-r from-cyan-400 to-pink-400 mx-auto mb-6"></div>
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tight">{title}</h2>
+          <div className="w-24 h-1.5 bg-gradient-to-r from-cyan-400 to-blue-600 mx-auto mb-6 rounded-full"></div>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
             Poznaj kluczowe technologie i obszary, które będziesz wykorzystywać podczas hackathonu
           </p>
@@ -55,14 +55,14 @@ export function Categories({ categories, title = 'Technologie i narzędzia' }: C
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 className="relative group"
               >
-                <div className="h-full p-6 bg-gray-800/20 backdrop-blur-sm rounded-xl border border-gray-700/30 hover:border-gray-600/50 transition-all duration-300 hover:shadow-lg hover:bg-gray-800/30">
+                <div className="h-full p-8 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 hover:border-cyan-500/50 hover:bg-white/10 transition-all duration-300 shadow-xl group/card">
                   {/* Very subtle background pattern */}
                   <div className="absolute inset-0 opacity-[0.02] rounded-xl overflow-hidden">
                     <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600"></div>
                   </div>
                   
                   <div className="relative">
-                    <div className="w-12 h-12 mb-4 bg-gray-700/30 rounded-lg flex items-center justify-center group-hover:bg-gray-700/40 group-hover:scale-105 transition-all duration-300">
+                    <div className="w-14 h-14 mb-6 bg-white/5 rounded-2xl flex items-center justify-center group-hover/card:bg-white/10 group-hover/card:scale-110 transition-all duration-300 border border-white/5">
                       <IconComponent className="w-6 h-6 text-gray-400 group-hover:text-cyan-400 transition-colors duration-300" />
                     </div>
                     
@@ -76,7 +76,7 @@ export function Categories({ categories, title = 'Technologie i narzędzia' }: C
                   </div>
 
                   {/* Subtle glow effect on hover */}
-                  <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/10 to-blue-600/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
+                  <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/5 to-blue-600/5 rounded-3xl opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 -z-10"></div>
                 </div>
               </motion.div>
             );

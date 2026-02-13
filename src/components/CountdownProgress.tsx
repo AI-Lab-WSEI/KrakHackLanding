@@ -12,8 +12,8 @@ const CountdownProgress = ({ variant = 'main', taskType = 'preparation' }: Count
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const preparationUnlockDate = new Date('2026-03-20T18:00:00');
-  const hackathonStartDate = new Date('2026-03-27T16:00:00');
-  const hackathonEndDate = new Date('2026-03-28T16:00:00');
+  const hackathonStartDate = new Date('2026-03-27T18:00:00');
+  const hackathonEndDate = new Date('2026-03-28T21:00:00');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -130,7 +130,7 @@ const CountdownProgress = ({ variant = 'main', taskType = 'preparation' }: Count
              style={{ left: '70%' }}>
           <div className={styles.milestoneCircle} />
           <span className={styles.milestoneLabel}>Start hackathonu</span>
-          <span className={styles.milestoneDate}>27.03 16:00</span>
+          <span className={styles.milestoneDate}>27.03 18:00</span>
         </div>
       </div>
     );

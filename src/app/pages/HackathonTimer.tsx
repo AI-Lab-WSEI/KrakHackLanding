@@ -290,7 +290,7 @@ function BeforeHackathon({ now }: { now: Date }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="text-center space-y-8 opacity-60 backdrop-blur-sm p-12 rounded-[3.5rem] border border-white/5 bg-white/5"
+      className="text-center space-y-8 opacity-60 backdrop-blur-sm p-12 rounded-3xl border border-white/5 bg-white/5"
     >
       <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-full">
         <Calendar className="w-5 h-5 text-gray-400" />
@@ -337,7 +337,7 @@ function AfterHackathon({
       animate={{ opacity: 1, y: 0 }}
       className="space-y-12 opacity-80"
     >
-      <div className="text-center space-y-8 py-12 backdrop-blur-md bg-white/5 border border-white/5 rounded-[4rem] p-12">
+      <div className="text-center space-y-8 py-12 backdrop-blur-md bg-white/5 border border-white/5 rounded-3xl p-12">
         <div className="text-6xl mb-4 grayscale opacity-50">🏆</div>
         <h2 className="text-4xl font-black text-gray-400 uppercase tracking-widest">HACKATHON ZAKOŃCZONY</h2>
         
@@ -408,7 +408,7 @@ function CountdownDisplay({ time, variant, colorClass, urgent }: CountdownDispla
         <motion.div
           key={index}
           className={cn(
-            "rounded-3xl border backdrop-blur-xl text-center flex flex-col items-center justify-center transition-all duration-500",
+            "rounded-2xl border backdrop-blur-xl text-center flex flex-col items-center justify-center transition-all duration-500",
             isLarge ? "p-8 md:p-12 aspect-square md:aspect-auto" : "p-6",
             urgent
               ? "bg-red-500/10 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.2)]"
@@ -552,7 +552,7 @@ function MissionControlMap({ progress, phaseState, now }: any) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.01 }}
-      className="bg-white/5 border border-white/10 rounded-[3rem] p-10 backdrop-blur-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden relative cursor-pointer group"
+      className="bg-white/5 border border-white/10 rounded-3xl p-10 backdrop-blur-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden relative cursor-pointer group"
       onClick={() => {
         const el = document.getElementById(`phase-${phaseState.currentPhase?.id}`);
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -570,14 +570,14 @@ function MissionControlMap({ progress, phaseState, now }: any) {
 
       <div className="relative z-10 space-y-12">
         {/* Header Section */}
-        <div className="flex justify-between items-end">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div className="space-y-1">
             <h3 className="text-2xl font-black text-white uppercase tracking-[0.2em]">Mapa Misji</h3>
             <p className="text-cyan-400 font-black uppercase tracking-widest text-[10px]">
               {isBefore ? "Cisza przed burzą" : "Systemy monitorowania aktywne"}
             </p>
           </div>
-          <div className="text-right">
+          <div className="text-right self-end md:self-auto">
             <span className="text-5xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(34,211,238,0.3)]">
               {isBefore ? "0.0" : progress.toFixed(1)}%
             </span>
