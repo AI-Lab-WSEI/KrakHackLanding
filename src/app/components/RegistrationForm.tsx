@@ -30,7 +30,7 @@ export function RegistrationForm() {
   ];
 
   return (
-    <section id="formularz" className="py-20 bg-gradient-to-b from-gray-900 to-black">
+    <section id="zgloszenie" className="py-20 bg-gradient-to-b from-gray-900 to-black">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

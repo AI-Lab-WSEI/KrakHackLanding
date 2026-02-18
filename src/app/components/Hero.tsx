@@ -10,7 +10,7 @@ interface HeroProps {
 
 export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
+    <section id="info" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
       {/* Background Image - Dark Purple Futuristic */}
       <div className="absolute inset-0 z-0">
         <img
@@ -112,8 +112,25 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3, duration: 0.8 }}
-            className="flex justify-center mb-8"
+            className="flex flex-col items-center justify-center mb-8"
           >
+            {/* Recruitment Status Pill - Moved above logo */}
+            {!isArchive && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="inline-flex items-center gap-2 px-6 py-2 bg-green-500/10 backdrop-blur-xl border border-green-500/30 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.1)] mb-8"
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1], opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-2 h-2 bg-green-400 rounded-full"
+                ></motion.div>
+                <span className="text-green-300 font-bold uppercase tracking-[0.2em] text-[10px]">Rekrutacja otwarta</span>
+              </motion.div>
+            )}
+
             <img 
               src="https://res.cloudinary.com/dyux0lw71/image/upload/v1770832103/ai-krak-hack-central_frj1yg.svg"
               alt="AI Krak Hack 2026"
@@ -150,10 +167,12 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
           >
             {!isArchive && ctaUrl && (
               <a
-                href={ctaUrl}
+                href={new Date() > new Date('2026-03-28T21:00:00') ? '/feedback' : ctaUrl}
                 className="px-10 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(6,182,212,0.3)] hover:shadow-[0_0_50px_rgba(6,182,212,0.5)] hover:-translate-y-1 relative overflow-hidden group"
               >
-                <span className="relative z-10">Zgłoś się teraz</span>
+                <span className="relative z-10">
+                  {new Date() > new Date('2026-03-28T21:00:00') ? 'Wypełnij ankietę' : 'Zgłoś się teraz'}
+                </span>
                 <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 <motion.div
                   className="absolute inset-0 rounded-2xl border-2 border-white/50"
@@ -186,21 +205,6 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
           className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10"
         >
           <div className="flex flex-col items-center gap-4">
-            {/* Recruitment Status Pill */}
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.2 }}
-              className="inline-flex items-center gap-2 px-5 py-2 bg-green-500/10 backdrop-blur-md border border-green-500/30 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.1)]"
-            >
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [1, 0.5, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="w-2 h-2 bg-green-400 rounded-full"
-              ></motion.div>
-              <span className="text-green-300 font-bold uppercase tracking-widest text-[10px]">Rekrutacja otwarta</span>
-            </motion.div>
-
             {/* Scroll Mouse Indicator */}
             <div className="flex flex-col items-center gap-3">
               <span className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Przewiń w dół</span>

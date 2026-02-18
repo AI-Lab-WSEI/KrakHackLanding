@@ -61,22 +61,27 @@ export function Categories({ categories, title = 'Technologie i narzędzia' }: C
                     <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600"></div>
                   </div>
                   
-                  <div className="relative">
-                    <div className="w-14 h-14 mb-6 bg-white/5 rounded-2xl flex items-center justify-center group-hover/card:bg-white/10 group-hover/card:scale-110 transition-all duration-300 border border-white/5">
-                      <IconComponent className="w-6 h-6 text-gray-400 group-hover:text-cyan-400 transition-colors duration-300" />
+                  <div className="relative flex flex-col items-center text-center">
+                    <div className="w-20 h-20 mb-6 bg-white/5 rounded-3xl flex items-center justify-center group-hover/card:bg-white/10 group-hover/card:scale-110 transition-all duration-300 border border-white/5 shadow-inner">
+                      <IconComponent className="w-10 h-10 text-gray-400 group-hover:text-cyan-400 transition-colors duration-300" />
                     </div>
                     
-                    <h3 className="text-lg font-bold text-white mb-3 group-hover:text-cyan-400 transition-colors">
+                    <h3 className="text-xl font-bold text-white group-hover:text-cyan-400 transition-colors tracking-tight uppercase">
                       {category.title}
                     </h3>
                     
-                    <p className="text-gray-400 text-sm leading-relaxed group-hover:text-gray-300 transition-colors">
-                      {category.description}
-                    </p>
+                    {category.description && (
+                      <span className="mt-2 text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] opacity-0 group-hover/card:opacity-100 transition-opacity">
+                        {category.description}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Subtle glow effect on hover */}
-                  <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/5 to-blue-600/5 rounded-3xl opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 -z-10"></div>
+                  {/* Enhanced glow effect on hover */}
+                  <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/10 to-blue-600/10 rounded-3xl opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 -z-10"></div>
+                  <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover/card:opacity-[0.08] transition-opacity">
+                    <IconComponent className="w-24 h-24 -mr-8 -mt-8 rotate-12" />
+                  </div>
                 </div>
               </motion.div>
             );

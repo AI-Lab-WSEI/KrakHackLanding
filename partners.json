@@ -3,38 +3,63 @@
     {
       "id": "microsoft",
       "name": "Microsoft",
-      "logo": "https://images.unsplash.com/photo-1633419461186-7d40a38105ec?w=200&h=100&fit=crop&crop=center",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg",
       "website": "https://microsoft.com"
     },
     {
       "id": "google",
       "name": "Google",
-      "logo": "https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=200&h=100&fit=crop&crop=center",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg",
       "website": "https://google.com"
     },
     {
       "id": "openai",
       "name": "OpenAI",
-      "logo": "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=200&h=100&fit=crop&crop=center",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg",
       "website": "https://openai.com"
     },
     {
       "id": "nvidia",
       "name": "NVIDIA",
-      "logo": "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=200&h=100&fit=crop&crop=center",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo.svg",
       "website": "https://nvidia.com"
     },
     {
       "id": "aws",
       "name": "Amazon Web Services",
-      "logo": "https://images.unsplash.com/photo-1523474253046-8cd2748b5fd2?w=200&h=100&fit=crop&crop=center",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg",
       "website": "https://aws.amazon.com"
     },
     {
       "id": "ibm",
       "name": "IBM",
-      "logo": "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=200&h=100&fit=crop&crop=center",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/5/51/IBM_logo.svg",
       "website": "https://ibm.com"
+    },
+    {
+      "id": "placeholder-1",
+      "name": "Możesz tu być",
+      "isPlaceholder": true
+    },
+    {
+      "id": "placeholder-2",
+      "name": "Twój Logo Tutaj",
+      "isPlaceholder": true
+    },
+    {
+      "id": "placeholder-3",
+      "name": "Dołącz do nas",
+      "isPlaceholder": true
+    },
+    {
+      "id": "placeholder-4",
+      "name": "Partner AI",
+      "isPlaceholder": true
+    },
+    {
+      "id": "placeholder-5",
+      "name": "Wsparcie",
+      "isPlaceholder": true
     }
   ]
 }

@@ -30,7 +30,7 @@ export function MentorSection() {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-b from-black via-gray-900 to-black" id="zostanMentorem">
+    <section className="py-20 bg-gradient-to-b from-black via-gray-900 to-black" id="mentorzy">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -104,7 +104,7 @@ export function MentorSection() {
                 <ul className="space-y-3 mb-8 text-gray-300">
                   <li className="flex items-start gap-3">
                     <span className="text-cyan-400">•</span>
-                    <span>Doświadczenie w pracy z AI/ML (min. 2 lata)</span>
+                    <span>Doświadczenie w pracy z AI/ML </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-cyan-400">•</span>
@@ -112,7 +112,7 @@ export function MentorSection() {
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-cyan-400">•</span>
-                    <span>Dostępność podczas hackathonu (29-31 maja)</span>
+                    <span>Dostępność podczas hackathonu</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-cyan-400">•</span>

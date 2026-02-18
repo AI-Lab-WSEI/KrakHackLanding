@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
-import { useState } from 'react';
-import { User, Mail, Phone, Briefcase, Send, GraduationCap, Code } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Mail, Phone, GraduationCap, Briefcase, Send, Code } from 'lucide-react';
 import { notificationService } from '@/utils/notificationService';
 
 interface ParticipantFormData {
@@ -14,9 +14,11 @@ interface ParticipantFormData {
   experience: string;
   motivation: string;
   skills: string[];
+  otherSkill: string;
+  teamName: string;
   teamPreference: string;
   dietaryRestrictions: string;
-  tshirtSize: string;
+  additionalNotes: string;
 }
 
 export function ParticipantForm() {
@@ -31,10 +33,31 @@ export function ParticipantForm() {
     experience: '',
     motivation: '',
     skills: [],
+    otherSkill: '',
+    teamName: '',
     teamPreference: '',
     dietaryRestrictions: '',
-    tshirtSize: '',
+    additionalNotes: '',
   });
+
+  const [existingTeams, setExistingTeams] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Collect unique team names from existing submissions to offer suggestions
+    const stored = localStorage.getItem('hackathon_submissions');
+    if (stored) {
+      try {
+        const submissions = JSON.parse(stored);
+        const teams = new Set<string>();
+        submissions.forEach((s: any) => {
+          if (s.data?.teamName) teams.add(s.data.teamName);
+        });
+        setExistingTeams(Array.from(teams));
+      } catch (e) {
+        console.error('Error loading existing teams:', e);
+      }
+    }
+  }, []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -105,7 +128,8 @@ export function ParticipantForm() {
                 setFormData({
                   firstName: '', lastName: '', email: '', phone: '', university: '',
                   studyField: '', yearOfStudy: '', experience: '', motivation: '',
-                  skills: [], teamPreference: '', dietaryRestrictions: '', tshirtSize: ''
+                  skills: [], otherSkill: '', teamName: '', teamPreference: '', 
+                  dietaryRestrictions: '', additionalNotes: ''
                 });
               }}
               className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg transition-colors"
@@ -241,6 +265,29 @@ export function ParticipantForm() {
                 />
               </div>
 
+              <div className="md:col-span-2">
+                <label htmlFor="teamName" className="flex items-center gap-2 text-white mb-2">
+                  <span>Nazwa grupy (jeśli już ją masz)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="teamName"
+                    list="team-suggestions"
+                    value={formData.teamName}
+                    onChange={(e) => setFormData({ ...formData, teamName: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    placeholder="Wpisz nazwę swojej grupy lub wybierz z listy..."
+                  />
+                  <datalist id="team-suggestions">
+                    {existingTeams.map(team => (
+                      <option key={team} value={team} />
+                    ))}
+                  </datalist>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-2 font-black uppercase tracking-widest">Wskazówka: Dołączenie do istniejącej grupy połączy Twoje zgłoszenie z zespołem w panelu admina.</p>
+              </div>
+
               <div>
                 <label htmlFor="yearOfStudy" className="flex items-center gap-2 text-white mb-2">
                   <span>Rok studiów *</span>
@@ -265,23 +312,17 @@ export function ParticipantForm() {
               </div>
 
               <div>
-                <label htmlFor="tshirtSize" className="flex items-center gap-2 text-white mb-2">
-                  <span>Rozmiar koszulki</span>
+                <label htmlFor="dietaryRestrictions" className="flex items-center gap-2 text-white mb-2">
+                  <span>Ograniczenia dietetyczne</span>
                 </label>
-                <select
-                  id="tshirtSize"
-                  value={formData.tshirtSize}
-                  onChange={(e) => setFormData({ ...formData, tshirtSize: e.target.value })}
+                <input
+                  type="text"
+                  id="dietaryRestrictions"
+                  value={formData.dietaryRestrictions}
+                  onChange={(e) => setFormData({ ...formData, dietaryRestrictions: e.target.value })}
                   className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                >
-                  <option value="">Wybierz...</option>
-                  <option value="XS">XS</option>
-                  <option value="S">S</option>
-                  <option value="M">M</option>
-                  <option value="L">L</option>
-                  <option value="XL">XL</option>
-                  <option value="XXL">XXL</option>
-                </select>
+                  placeholder="Wegetariańska, wegańska, alergie..."
+                />
               </div>
             </div>
 
@@ -289,7 +330,7 @@ export function ParticipantForm() {
             <div className="mt-6">
               <label className="flex items-center gap-2 text-white mb-4">
                 <Code className="w-4 h-4 text-cyan-400" />
-                <span>Umiejętności techniczne</span>
+                <span>Zainteresowania techniczne</span>
               </label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {skillOptions.map(skill => (
@@ -303,6 +344,15 @@ export function ParticipantForm() {
                     <span className="text-sm text-gray-300">{skill}</span>
                   </label>
                 ))}
+              </div>
+              <div className="mt-4">
+                <input
+                  type="text"
+                  value={formData.otherSkill}
+                  onChange={(e) => setFormData({ ...formData, otherSkill: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="Inne zainteresowania / Własna umiejętność..."
+                />
               </div>
             </div>
 
@@ -351,16 +401,16 @@ export function ParticipantForm() {
             </div>
 
             <div className="mt-6">
-              <label htmlFor="dietaryRestrictions" className="flex items-center gap-2 text-white mb-2">
-                <span>Ograniczenia dietetyczne</span>
+              <label htmlFor="additionalNotes" className="flex items-center gap-2 text-white mb-2">
+                <span>Dodatkowe uwagi dla organizatorów</span>
               </label>
-              <input
-                type="text"
-                id="dietaryRestrictions"
-                value={formData.dietaryRestrictions}
-                onChange={(e) => setFormData({ ...formData, dietaryRestrictions: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                placeholder="Wegetariańska, wegańska, alergie..."
+              <textarea
+                id="additionalNotes"
+                value={formData.additionalNotes}
+                onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
+                rows={3}
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors resize-none"
+                placeholder="Np. informacja o spóźnieniu, specyficzne potrzeby..."
               />
             </div>
 

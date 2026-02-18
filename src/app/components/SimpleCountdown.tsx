@@ -104,8 +104,15 @@ export function SimpleCountdown() {
       default:
         return (
           <div className="text-center py-4">
-            <h2 className="text-2xl font-black text-white mb-2 uppercase">HACKATHON ZAKOŃCZONY</h2>
-            <Link to="/timer" className="text-cyan-400 hover:text-white transition-colors">Wyniki i projekty</Link>
+            <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-widest">HACKATHON ZAKOŃCZONY!</h2>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Link to="/timer" className="px-6 py-2 bg-white/5 hover:bg-white/10 text-cyan-400 rounded-xl transition-all border border-white/10 text-xs font-bold uppercase tracking-widest">
+                Wyniki i projekty
+              </Link>
+              <Link to="/feedback" className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded-xl transition-all font-bold text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+                Wypełnij ankietę
+              </Link>
+            </div>
           </div>
         );
     }

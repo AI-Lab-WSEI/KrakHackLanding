@@ -5,6 +5,7 @@ import { Forms } from '@/app/pages/Forms';
 import { AdminPanel } from '@/app/pages/AdminPanel';
 import { TaskDetail } from '@/app/pages/TaskDetail';
 import { HackathonTimer } from '@/app/pages/HackathonTimer';
+import { Survey } from '@/app/pages/Survey';
 import { Layout } from '@/app/Layout';
 
 export const router = createBrowserRouter([
@@ -31,6 +32,10 @@ export const router = createBrowserRouter([
       {
         path: 'admin',
         Component: AdminPanel,
+      },
+      {
+        path: 'feedback',
+        Component: Survey,
       },
       {
         path: 'zadania/:slug',

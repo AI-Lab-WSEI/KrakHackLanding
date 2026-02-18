@@ -13,7 +13,7 @@ export function Program({ title, description, faqs }: ProgramProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section id="program" className="py-20 bg-black">
+    <section id="pytania" className="py-20 bg-black">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

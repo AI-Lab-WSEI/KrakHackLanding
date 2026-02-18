@@ -172,7 +172,7 @@ interface Edition {
   };
   stats?: Stat[];                      // Statystyki (tylko archiwum)
   gallery?: GalleryImage[];            // Galeria (tylko archiwum)
-  storyBlocks?: StoryBlock[];          // Historia wydarzenia
+  // storyBlocks?: StoryBlock[];          // Historia wydarzenia
   successStory?: SuccessStory;         // Case study
   partners?: Partner[];                // Partnerzy/sponsorzy
 }

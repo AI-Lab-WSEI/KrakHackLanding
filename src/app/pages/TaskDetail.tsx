@@ -10,13 +10,14 @@ import { Footer } from '@/app/components/Footer';
 export function TaskDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const [dynamicExternalUrl, setDynamicExternalUrl] = useState<string | null>(null);
+  const [dynamicResources, setDynamicResources] = useState<{materials?: string, task?: string} | null>(null);
   
   // Find which edition/challenge this slug belongs to
   const edition2026 = editions['2026'];
   const slugIdMap: Record<string, string> = {
     'infrasruktura': 'geospatial',
-    'asystent': 'process-automation'
+    'asystent': 'process-automation',
+    'urban-analytics': 'real-time-analytics'
   };
   
   const challengeId = slugIdMap[slug || ''] || slug;
@@ -24,11 +25,11 @@ export function TaskDetail() {
 
   useEffect(() => {
     if (challengeId) {
-      const storedLinks = localStorage.getItem('challenge-external-links-v1');
-      if (storedLinks) {
-        const links = JSON.parse(storedLinks);
-        if (links[challengeId]) {
-          setDynamicExternalUrl(links[challengeId]);
+      const storedResources = localStorage.getItem('challenge-resources-v1');
+      if (storedResources) {
+        const resources = JSON.parse(storedResources);
+        if (resources[challengeId]) {
+          setDynamicResources(resources[challengeId]);
         }
       }
     }
@@ -149,7 +150,7 @@ export function TaskDetail() {
             <div className="bg-white/5 border border-white/10 rounded-3xl p-10 backdrop-blur-3xl">
                <h2 className="text-2xl font-black uppercase tracking-widest text-white mb-8 flex items-center gap-3">
                  <CheckCircle className="w-6 h-6 text-green-500" />
-                 Oczekiwane Rezultaty
+                 Sugerowane Rezultaty
                </h2>
                
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -182,6 +183,7 @@ export function TaskDetail() {
                      fileName={`${slug}_materialy.pdf`}
                      fileTitle="Zestaw Startowy"
                      fileDescription="PDF • 2.4 MB"
+                     externalUrl={dynamicResources?.materials}
                      unlockDate={new Date('2026-03-20T18:00:00')}
                      fileSize="2.4 MB"
                    />
@@ -189,6 +191,7 @@ export function TaskDetail() {
                      fileName={`${slug}_zadanie.pdf`}
                      fileTitle="Arkusz Zadania"
                      fileDescription="PDF • 1.2 MB"
+                     externalUrl={dynamicResources?.task}
                      unlockDate={new Date('2026-03-27T18:00:00')}
                      fileSize="1.2 MB"
                    />
@@ -197,15 +200,18 @@ export function TaskDetail() {
             </div>
 
             {/* Quick Link (CMS Glue) */}
-            {(dynamicExternalUrl || challenge.externalUrl) && (
+            {(dynamicResources?.task || challenge.externalUrl) && (
               <a 
-                href={dynamicExternalUrl || challenge.externalUrl} 
+                href={dynamicResources?.task || challenge.externalUrl} 
                 target="_blank" 
                 rel="noreferrer"
-                className="block p-8 bg-white/5 border border-white/10 rounded-3xl hover:border-cyan-500 transition-all group"
+                className="block p-8 bg-white/5 border border-white/10 rounded-3xl hover:border-cyan-500 transition-all group shadow-[0_0_30px_rgba(6,182,212,0.1)]"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-black uppercase tracking-widest text-xs text-cyan-400 group-hover:text-white transition-colors">Repozytorium / Zasoby</span>
+                  <div>
+                    <span className="block font-black uppercase tracking-widest text-[10px] text-cyan-400 group-hover:text-white transition-colors mb-1">Repozytorium / Zadanie</span>
+                    <span className="text-[9px] text-gray-500 font-bold uppercase">Link zewnętrzny (GitHub/Drive)</span>
+                  </div>
                   <ExternalLink className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
                 </div>
               </a>

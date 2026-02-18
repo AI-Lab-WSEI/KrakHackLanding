@@ -6,8 +6,9 @@ interface FileDownloadProps {
   fileName: string;
   fileTitle: string;
   fileDescription: string;
-  unlockDate: Date;
+  unlockDate?: Date;
   fileSize?: string;
+  externalUrl?: string;
 }
 
 export function FileDownload({
@@ -15,37 +16,49 @@ export function FileDownload({
   fileTitle,
   fileDescription,
   unlockDate,
-  fileSize = '1.5 MB'
+  fileSize = '1.5 MB',
+  externalUrl
 }: FileDownloadProps) {
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [isHovered, setIsHovered] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const isUnlocked = currentTime >= unlockDate;
-
-  const getTimeRemaining = () => {
-    const diff = unlockDate.getTime() - currentTime.getTime();
-    if (diff <= 0) return null;
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (days > 0) {
-      return `${days} ${days === 1 ? 'dzień' : 'dni'} ${hours}h ${minutes}min`;
-    } else if (hours > 0) {
-      return `${hours}h ${minutes}min`;
-    } else {
-      return `${minutes} min`;
+    if (!unlockDate) {
+      setIsUnlocked(true);
+      return;
     }
-  };
+
+    const timer = setInterval(() => {
+      const now = new Date();
+      if (now >= unlockDate) {
+        setIsUnlocked(true);
+        clearInterval(timer);
+      } else {
+        const diff = unlockDate.getTime() - now.getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        let timeString = '';
+        if (days > 0) {
+          timeString += `${days} ${days === 1 ? 'dzień' : 'dni'} `;
+        }
+        if (hours > 0 || days > 0) { // Show hours if days exist or hours are present
+          timeString += `${hours}h `;
+        }
+        timeString += `${minutes}min`;
+        if (days === 0 && hours === 0) { // Only show seconds if it's less than an hour
+          timeString += ` ${seconds}s`;
+        }
+        setTimeLeft(timeString.trim());
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [unlockDate]);
 
   const handleDownload = () => {
     if (!isUnlocked) {
@@ -54,7 +67,12 @@ export function FileDownload({
       return;
     }
 
-    // Simulate download
+    if (externalUrl) {
+      window.open(externalUrl, '_blank');
+      return;
+    }
+
+    // Simulate download for internal files
     const link = document.createElement('a');
     link.href = `/files/${fileName}`;
     link.download = fileName;
@@ -62,8 +80,6 @@ export function FileDownload({
     link.click();
     document.body.removeChild(link);
   };
-
-  const timeRemaining = getTimeRemaining();
 
   return (
     <motion.div
@@ -125,7 +141,7 @@ export function FileDownload({
             {fileSize}
           </p>
 
-          {!isUnlocked && (
+          {!isUnlocked && unlockDate && (
             <div className="space-y-1">
               <p className="text-xs text-purple-400 font-medium">
                 Odblokowanie: {unlockDate.toLocaleDateString('pl-PL')} {unlockDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
@@ -151,7 +167,7 @@ export function FileDownload({
       )}
 
       {/* Tooltip for locked files */}
-      {(showTooltip || (isHovered && !isUnlocked)) && timeRemaining && (
+      {(showTooltip || (isHovered && !isUnlocked)) && isUnlocked === false && timeLeft && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -162,7 +178,7 @@ export function FileDownload({
               <Clock className="w-4 h-4 text-purple-400" />
               <p className="text-sm text-muted-foreground">Do odblokowania pozostało:</p>
             </div>
-            <p className="text-cyan-400 font-bold">{timeRemaining}</p>
+            <p className="text-cyan-400 font-bold">{timeLeft}</p>
 
             {/* Tooltip arrow */}
             <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-purple-500/50" />

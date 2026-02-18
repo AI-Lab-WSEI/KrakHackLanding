@@ -51,7 +51,7 @@ export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSli
   if (!images || images.length === 0) return null;
 
   return (
-    <section className="py-16 bg-gradient-to-b from-gray-900 to-black relative overflow-hidden">
+    <section id="galeria" className="py-16 bg-gradient-to-b from-gray-900 to-black relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500 rounded-full blur-[100px]"></div>
@@ -86,7 +86,7 @@ export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSli
                     transition={{ duration: 0.5 }}
                     className="relative rounded-2xl overflow-hidden shadow-2xl"
                   >
-                    <div className="aspect-[16/9] md:aspect-[21/9]">
+                    <div className="h-[60vh] w-full">
                       <img
                         src={image.imageUrl}
                         alt={image.alt}

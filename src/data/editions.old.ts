@@ -42,12 +42,6 @@ export const editions: Record<string, Edition> = {
         color: 'cyan',
       },
       {
-        title: 'Ogłoszenie zespołów',
-        dateRange: 'Marzec 2026',
-        description: 'Formowanie zespołów i dobór mentorów',
-        color: 'pink',
-      },
-      {
         title: 'Start hackathonu',
         dateRange: 'TBA',
         description: 'Rozpoczęcie pracy nad projektami AI',

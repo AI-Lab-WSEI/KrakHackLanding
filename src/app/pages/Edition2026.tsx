@@ -9,6 +9,7 @@ import { Categories } from '@/app/components/Categories';
 import { ChallengesSection } from '@/app/components/ChallengesSection';
 import { SponsorSection } from '@/app/components/SponsorSection';
 import { MentorSection } from '@/app/components/MentorSection';
+import { PartnersSection } from '@/app/components/PartnersSection';
 import { editions } from '@/data/editions';
 
 export function Edition2026() {
@@ -40,6 +41,7 @@ export function Edition2026() {
         />
       )}
 
+      <PartnersSection />
       <SponsorSection />
 
       <MentorSection />

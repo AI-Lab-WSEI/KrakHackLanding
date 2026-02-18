@@ -12,7 +12,7 @@ export function SponsorSection() {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-b from-gray-900 via-black to-gray-900" id="zostanSponsorom">
+    <section className="py-20 bg-gradient-to-b from-gray-900 via-black to-gray-900" id="sponsorzy">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -78,13 +78,13 @@ export function SponsorSection() {
                   </a>
 
                   <a
-                    href="tel:+48123456789"
+                    href="tel:+48 662 974 402 / +48690 459 531"
                     className="flex items-center gap-4 p-4 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors group"
                   >
                     <Phone className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition-transform" />
                     <div>
                       <div className="text-sm text-gray-400">Telefon</div>
-                      <div className="text-white font-medium">+48 123 456 789</div>
+                      <div className="text-white font-medium">+48 662 974 402 / +48 690 459 531</div>
                     </div>
                   </a>
                 </div>

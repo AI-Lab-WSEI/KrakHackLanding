@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { ChevronDown, Menu, X } from 'lucide-react';
+import { ChevronDown, Menu, X, MessageSquare } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 export function Header() {
@@ -9,6 +9,7 @@ export function Header() {
   const location = useLocation();
 
   const currentEdition = location.pathname === '/2025' ? '2025 (Archiwum)' : '2026 (Aktualna)';
+  const isPostHackathon = new Date() > new Date('2026-03-28T21:00:00');
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -38,11 +39,8 @@ export function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
-          <a href="/#o-nas" className="text-gray-300 hover:text-cyan-400 transition-colors">
-            O nas
-          </a>
-          <a href="/#kategorie" className="text-gray-300 hover:text-cyan-400 transition-colors">
-            Kategorie
+          <a href="/#info" className="text-gray-300 hover:text-cyan-400 transition-colors">
+            Info
           </a>
           <a href="/#wyzwania" className="text-gray-300 hover:text-cyan-400 transition-colors">
             Wyzwania
@@ -50,14 +48,17 @@ export function Header() {
           <a href="/#harmonogram" className="text-gray-300 hover:text-cyan-400 transition-colors">
             Harmonogram
           </a>
-          <a href="/#program" className="text-gray-300 hover:text-cyan-400 transition-colors">
-            Program
+          <a href="/#pytania" className="text-gray-300 hover:text-cyan-400 transition-colors">
+            Pytania
           </a>
-          <a href="/#zostanSponsorom" className="text-gray-300 hover:text-cyan-400 transition-colors">
-            Zostań sponsorem
+          <a href="/#sponsorzy" className="text-gray-300 hover:text-cyan-400 transition-colors">
+            Dla sponsorów
           </a>
-          <a href="/#zostanMentorem" className="text-gray-300 hover:text-pink-400 transition-colors">
-            Zostań mentorem
+          <a href="/#mentorzy" className="text-gray-300 hover:text-pink-400 transition-colors">
+            Dla mentorów
+          </a>
+          <a href="/#zgloszenie" className="text-gray-300 hover:text-cyan-400 transition-colors font-bold">
+            Zgłoś się
           </a>
           {location.pathname === '/2025' && (
             <a href="/#galeria" className="text-gray-300 hover:text-cyan-400 transition-colors">
@@ -122,18 +123,11 @@ export function Header() {
         <div className="md:hidden bg-gray-900 border-t border-gray-800">
           <nav className="container mx-auto px-4 py-4 flex flex-col gap-4">
             <a 
-              href="#o-nas" 
+              href="#info" 
               onClick={() => setMobileMenuOpen(false)}
               className="text-gray-300 hover:text-cyan-400 transition-colors py-2"
             >
-              O nas
-            </a>
-            <a 
-              href="#kategorie" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-gray-300 hover:text-cyan-400 transition-colors py-2"
-            >
-              Kategorie
+              Info
             </a>
             <a 
               href="#wyzwania" 
@@ -150,25 +144,32 @@ export function Header() {
               Harmonogram
             </a>
             <a 
-              href="#program" 
+              href="#pytania" 
               onClick={() => setMobileMenuOpen(false)}
               className="text-gray-300 hover:text-cyan-400 transition-colors py-2"
             >
-              Program
+              Pytania
             </a>
             <a 
-              href="#zostanSponsorom" 
+              href="#sponsorzy" 
               onClick={() => setMobileMenuOpen(false)}
               className="text-gray-300 hover:text-cyan-400 transition-colors py-2"
             >
-              Zostań sponsorem
+              Dla sponsorów
             </a>
             <a 
-              href="#zostanMentorem" 
+              href="#mentorzy" 
               onClick={() => setMobileMenuOpen(false)}
               className="text-gray-300 hover:text-pink-400 transition-colors py-2"
             >
-              Zostań mentorem
+              Dla mentorów
+            </a>
+            <a 
+              href="#zgloszenie" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-gray-300 hover:text-cyan-400 transition-colors py-2 font-bold"
+            >
+              Zgłoś się
             </a>
             {location.pathname === '/2025' && (
               <a 
@@ -178,6 +179,16 @@ export function Header() {
               >
                 Galeria
               </a>
+            )}
+            {isPostHackathon && (
+              <Link
+                to="/feedback"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-gray-300 hover:text-pink-400 transition-colors py-2 flex items-center gap-2"
+              >
+                <MessageSquare className="w-5 h-5" />
+                Feedback
+              </Link>
             )}
           </nav>
         </div>

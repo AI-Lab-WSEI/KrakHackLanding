@@ -20,6 +20,20 @@ export function Footer() {
             </p>
           </div>
 
+          {/* Navigation */}
+          <div>
+            <h3 className="text-white font-bold mb-4">Nawigacja</h3>
+            <ul className="space-y-2 text-gray-400 text-sm">
+              <li><a href="#info" className="hover:text-cyan-400 transition-colors">Info</a></li>
+              <li><a href="#wyzwania" className="hover:text-cyan-400 transition-colors">Wyzwania</a></li>
+              <li><a href="#harmonogram" className="hover:text-cyan-400 transition-colors">Harmonogram</a></li>
+              <li><a href="#pytania" className="hover:text-cyan-400 transition-colors">Pytania</a></li>
+              <li><a href="#sponsorzy" className="hover:text-cyan-400 transition-colors">Dla sponsorów</a></li>
+              <li><a href="#mentorzy" className="hover:text-cyan-400 transition-colors">Dla mentorów</a></li>
+              <li><a href="#zgloszenie" className="hover:text-cyan-400 transition-colors">Zgłoś się</a></li>
+            </ul>
+          </div>
+
           {/* Contact */}
           <div>
             <h3 className="text-white font-bold mb-4">Kontakt</h3>
@@ -33,7 +47,7 @@ export function Footer() {
               <div className="flex items-start gap-2">
                 <Phone className="w-5 h-5 mt-0.5 flex-shrink-0 text-cyan-400" />
                 <a href="tel:+48662297402" className="hover:text-cyan-400 transition-colors">
-                  +48 662-297-402
+                  +48 662 974 402 / +48 690 459 531
                 </a>
               </div>
               <div className="flex items-start gap-2">

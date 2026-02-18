@@ -13,37 +13,37 @@ export const editions: Record<string, Edition> = {
       {
         icon: 'MapPin',
         title: 'Analiza Geosprzestrzenna',
-        description: 'Wykorzystaj dane geograficzne, GIS, optymalizację tras i modelowanie przestrzenne do rozwiązywania problemów infrastrukturalnych',
+        description: 'GIS & Modelowanie',
         color: 'from-blue-500 to-cyan-600',
       },
       {
         icon: 'Database',
         title: 'Process Mining & AI',
-        description: 'Analizuj dane procesowe, buduj agentów AI i automatyzuj workflow z wykorzystaniem machine learning',
+        description: 'Automatyzacja Workflow',
         color: 'from-purple-500 to-pink-600',
       },
       {
         icon: 'Brain',
         title: 'Machine Learning',
-        description: 'Algorytmy predykcyjne, deep learning, analiza wzorców i inteligentne systemy decyzyjne',
+        description: 'Algorytmy Predykcyjne',
         color: 'from-cyan-500 to-blue-600',
       },
       {
         icon: 'Workflow',
         title: 'Automatyzacja Procesów',
-        description: 'BPMN, workflow engines, process automation i integracje systemowe',
+        description: 'BPMN & Integracje',
         color: 'from-green-500 to-emerald-600',
       },
       {
         icon: 'Map',
         title: 'Infrastruktura & IoT',
-        description: 'Smart city solutions, sensory, analiza ruchu i optymalizacja zasobów miejskich',
+        description: 'Smart City Solutions',
         color: 'from-orange-500 to-red-600',
       },
       {
         icon: 'Zap',
         title: 'Real-time Analytics',
-        description: 'Przetwarzanie strumieni danych, dashboardy i systemy monitorowania w czasie rzeczywistym',
+        description: 'Przetwarzanie Strumieniowe',
         color: 'from-purple-500 to-indigo-600',
       },
     ],
@@ -56,23 +56,7 @@ export const editions: Record<string, Edition> = {
         color: 'from-blue-500 to-cyan-600',
         technologies: ['GIS', 'Python', 'PostGIS', 'Machine Learning', 'Optimization', 'Geospatial Analysis'],
         shortDescription: 'Zaprojektuj inteligentną infrastrukturę lokalną wykorzystując analizę danych geoprzestrzennych, optymalizację tras i modelowanie przestrzenne.',
-        fullDescription: `To wyzwanie dotyczy opracowania koncepcji nowej infrastruktury o lokalnym zasięgu w oparciu o analizę danych geoprzestrzennych. Zadanie ma otwarty i eksploracyjny charakter, z wyraźnym naciskiem na podejście programistyczne i analityczne.
-
-**Dostępne dane:**
-- Informacje o istniejącej infrastrukturze
-- Ukształtowanie terenu i topografia
-- Tereny zielone i przestrzeń publiczna  
-- Natężenie ruchu i wzorce mobilności
-- Demografia i gęstość zaludnienia
-
-**Oczekiwane podejście:**
-- Optymalizacja matematyczna i algorytmiczna
-- Modelowanie przestrzenne i symulacje
-- Uczenie maszynowe dla predykcji
-- Zaawansowana analiza danych geoprzestrzennych
-- Wizualizacja i mapping interaktywny
-
-**Cel:** Zaproponowanie rozwiązania infrastrukturalnego, które odpowiada na potrzeby użytkowników i realia przestrzenne regionu, z wykorzystaniem nowoczesnych metod analitycznych.`,
+        fullDescription: `To wyzwanie dotyczy opracowania koncepcji nowej infrastruktury o lokalnym zasięgu w oparciu o analizę danych geoprzestrzennych. Zadanie ma otwarty i eksploracyjny charakter, z wyraźnym naciskiem na podejście programistyczne i analityczne. Do dyspozycji będą m.in. informacje o istniejącej infrastrukturze, ukształtowaniu terenu, terenach zielonych oraz natężeniu ruchu. Sugerowane jest wykorzystanie metod takich jak optymalizacja, modelowanie, uczenie maszynowe lub zaawansowana analiza danych. Celem jest zaproponowanie rozwiązania, które odpowiada na potrzeby użytkowników i realia przestrzenne regionu.`,
         deliverables: [
           'Analiza istniejącej infrastruktury',
           'Model optymalizacyjny nowej infrastruktury', 
@@ -112,7 +96,7 @@ Działający prototyp (API/serwis/UI/CLI), który potrafi zobrazować przebieg p
           'Wygenerowana definicja BPMN + zmienne',
           'Demo działającej automatyzacji'
         ]
-      }
+      },
     ],
     timelineSteps: [
       {
@@ -122,33 +106,33 @@ Działający prototyp (API/serwis/UI/CLI), który potrafi zobrazować przebieg p
         color: 'cyan',
       },
       {
-        title: 'Ogłoszenie zespołów',
-        dateRange: 'Marzec 2026',
-        description: 'Formowanie zespołów i dobór mentorów',
-        color: 'pink',
+        title: 'piątek 20.03, 18:00',
+        dateRange: '20.03.2026',
+        description: 'Udostępnienie materiałów przygotowawczych - sprawdź bazę wiedzy!',
+        color: 'cyan',
       },
       {
         title: 'piątek 27.03, 18:00',
         dateRange: '27.03.2026',
         description: 'Start hackathonu - Udostępnienie zadań i rozpoczęcie pracy nad projektami AI',
-        color: 'cyan',
+        color: 'pink',
       },
       {
         title: 'sobota 28.03, 09:00',
         dateRange: '28.03.2026',
-        description: 'Praca na uczelni - Intensywna praca zespołowa z wsparciem mentorów (24h)',
+        description: 'Praca na uczelni - Intensywna praca zespołowa z wsparciem mentorów',
         color: 'pink',
       },
       {
         title: 'sobota 28.03, 13:00',
         dateRange: '28.03.2026',
-        description: 'Przerwa na obiad i sesje mentoringowe',
+        description: 'Przerwa na obiad i sesje mentoringowe. PIZZA!',
         color: 'cyan',
       },
       {
         title: 'sobota 28.03, 17:30',
         dateRange: '28.03.2026',
-        description: 'Demo Day & Finał - Prezentacje projektów przed jury i ogłoszenie wyników',
+        description: 'Demo & Finał - Prezentacje projektów przed jury i ogłoszenie wyników',
         color: 'pink',
       },
       {
@@ -183,7 +167,7 @@ Działający prototyp (API/serwis/UI/CLI), który potrafi zobrazować przebieg p
       },
       {
         icon: 'FolderOpen',
-        title: 'Budowa Portfolia',
+        title: 'Budowa Portfolio',
         description: 'Stwórz działający prototyp, który wyróżni Twoje kompetencje na rynku pracy i w procesach rekrutacyjnych',
       },
       {
@@ -206,6 +190,10 @@ Działający prototyp (API/serwis/UI/CLI), który potrafi zobrazować przebieg p
       title: 'Jak to działa?',
       description: 'AI Krak Hack to intensywny hackathon, w którym zespoły pracują przez 24 godziny nad projektami AI. Otrzymujesz wsparcie mentorów, dostęp do danych i infrastruktury, a na koniec prezentujesz swój projekt przed jury.',
       faqs: [
+        {
+          question: 'Czy każdy może wziąć udział?',
+          answer: 'Każdy student z dowolnej uczelni. Jeśli jesteś bardziej doświadczoną osobą, a chciałbyś wziąć udział, gorąco Cię zapraszamy jako mentora, ewentualnie możesz poprowadzić sekcję knowledge sharing, jeśli masz na to jakiś pomysł. Najlepiej skontaktuj się z nami przez maila.',
+        },
         {
           question: 'Czy muszę mieć doświadczenie z AI?',
           answer: 'Nie! Przyjmujemy uczestników na różnych poziomach zaawansowania. Ważna jest chęć nauki i praca zespołowa.',
@@ -235,6 +223,7 @@ Działający prototyp (API/serwis/UI/CLI), który potrafi zobrazować przebieg p
     gallery: getRandomGalleryImages(6, '2025'), // Using 2025 images for 2026 preview
   },
   '2025': {
+    gallery: getGalleryImages('2025'),
     year: '2025',
     status: 'archive',
     heroTitle: 'AI Krak Hack 2025',
@@ -374,36 +363,36 @@ Działający prototyp (API/serwis/UI/CLI), który potrafi zobrazować przebieg p
       { value: '10', label: 'Projektów AI' },
       { value: '24h', label: 'Intensywnej Pracy' },
     ],
-    gallery: getGalleryImages('2025'),
-    storyBlocks: [
-      {
-        title: 'Start hackathonu',
-        text: 'Pierwsza edycja AI Krak Hack rozpoczęła się 30 maja 2025. Ponad 50 uczestników spotkało się na WSEI w Krakowie, pełnych energii i gotowych do wyzwań. Koło Naukowe AI Possibilities Lab przygotowało dwa konkretne wyzwania związane z Krakowem: optymalizację sieci tramwajowej oraz budowę inteligentnego asystenta kulturalnego. Po krótkim wprowadzeniu i prezentacji zadań, zespoły zanurkały w intensywną pracę nad projektami AI.',
-      },
-      {
-        title: 'Praca zespołowa',
-        text: 'Przez 24 godziny, 12 zespołów pracowało nad różnorodnymi projektami wykorzystującymi realne dane miejskie. Jedne zespoły analizowały dane transportowe i optymalizowały trasy tramwajowe, inne budowały inteligentnych asystentów kulturalnych wykorzystując NLP i web scraping. Mentorzy byli dostępni przez cały czas, pomagając rozwiązywać problemy techniczne i rozwijać pomysły. Atmosfera była niesamowita – połączenie koncentracji, współpracy i pasji do AI.',
-      },
-      {
-        title: 'Demo Day',
-        text: 'Finał był pełen emocji. Każdy zespół miał 10 minut na zaprezentowanie swojego projektu przed jury złożonym z ekspertów AI i przedstawicieli branży. Po prezentacjach odbyły się sesje knowledge sharing z zaproszonymi gośćmi, którzy dzielili się swoim doświadczeniem z przemysłu. Poziom prezentacji i jakość rozwiązań przekroczył nasze oczekiwania – od zaawansowanych algorytmów optymalizacyjnych po inteligentne systemy rekomendacji kulturalnych.',
-      },
-      {
-        title: 'Efekty i nagrody',
-        text: 'Wszystkie 12 zespołów ukończyło swoje projekty i zaprezentowało działające prototypy wykorzystujące realne dane Krakowa. Najlepsze projekty otrzymały nagrody od partnerów: zniżki na czesne WSEI, nagrody rzeczowe oraz vouchery. Co najważniejsze, najlepsze rezultaty hackathonu zostały przedstawione decydentom w Krakowie. Wszyscy uczestników zdobyli cenne doświadczenie, projekty do portfolio i kontakty w branży AI. Kilka osób otrzymało oferty praktyk i współpracy z partnerami hackathonu.',
-      },
-    ],
-    successStory: {
-      personNameOrAlias: 'Anna K.',
-      role: 'Studentka Informatyki, AGH',
-      whatDid: 'Uczestniczka AI Krak Hack 2025, członkini zespołu który stworzył system rozpoznawania emocji w czasie rzeczywistym',
-      outcome: 'Otrzymała ofertę praktyk w firmie AI, a następnie stałą pracę jako Junior AI Engineer',
-      quote: 'AI Krak Hack był punktem zwrotnym w mojej karierze. Nie tylko nauczyłam się praktycznych umiejętności AI, ale też poznałam ludzi, którzy pomogli mi znaleźć wymarzoną pracę. Hackathon pokazał mi, że potrafię tworzyć rzeczy, które mają realny wpływ.',
-      links: [
-        { label: 'LinkedIn', url: '#' },
-      ],
-      imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b21hbiUyMHByb2dyYW1tZXJ8ZW58MXx8fHwxNzA4NzAwODAwfDA&ixlib=rb-4.1.0&q=80&w=400',
-    },
+
+    // storyBlocks: [
+    //   {
+    //     title: 'Start hackathonu',
+    //     text: 'Pierwsza edycja AI Krak Hack rozpoczęła się 30 maja 2025. Ponad 50 uczestników spotkało się na WSEI w Krakowie, pełnych energii i gotowych do wyzwań. Koło Naukowe AI Possibilities Lab przygotowało dwa konkretne wyzwania związane z Krakowem: optymalizację sieci tramwajowej oraz budowę inteligentnego asystenta kulturalnego. Po krótkim wprowadzeniu i prezentacji zadań, zespoły zanurkały w intensywną pracę nad projektami AI.',
+    //   },
+    //   {
+    //     title: 'Praca zespołowa',
+    //     text: 'Przez 24 godziny, 12 zespołów pracowało nad różnorodnymi projektami wykorzystującymi realne dane miejskie. Jedne zespoły analizowały dane transportowe i optymalizowały trasy tramwajowe, inne budowały inteligentnych asystentów kulturalnych wykorzystując NLP i web scraping. Mentorzy byli dostępni przez cały czas, pomagając rozwiązywać problemy techniczne i rozwijać pomysły. Atmosfera była niesamowita – połączenie koncentracji, współpracy i pasji do AI.',
+    //   },
+    //   {
+    //     title: 'Demo Day',
+    //     text: 'Finał był pełen emocji. Każdy zespół miał 10 minut na zaprezentowanie swojego projektu przed jury złożonym z ekspertów AI i przedstawicieli branży. Po prezentacjach odbyły się sesje knowledge sharing z zaproszonymi gośćmi, którzy dzielili się swoim doświadczeniem z przemysłu. Poziom prezentacji i jakość rozwiązań przekroczył nasze oczekiwania – od zaawansowanych algorytmów optymalizacyjnych po inteligentne systemy rekomendacji kulturalnych.',
+    //   },
+    //   {
+    //     title: 'Efekty i nagrody',
+    //     text: 'Wszystkie 12 zespołów ukończyło swoje projekty i zaprezentowało działające prototypy wykorzystujące realne dane Krakowa. Najlepsze projekty otrzymały nagrody od partnerów: zniżki na czesne WSEI, nagrody rzeczowe oraz vouchery. Co najważniejsze, najlepsze rezultaty hackathonu zostały przedstawione decydentom w Krakowie. Wszyscy uczestników zdobyli cenne doświadczenie, projekty do portfolio i kontakty w branży AI. Kilka osób otrzymało oferty praktyk i współpracy z partnerami hackathonu.',
+    //   },
+    // ],
+    // successStory: {
+    //   personNameOrAlias: 'Anna K.',
+    //   role: 'Studentka Informatyki, AGH',
+    //   whatDid: 'Uczestniczka AI Krak Hack 2025, członkini zespołu który stworzył system rozpoznawania emocji w czasie rzeczywistym',
+    //   outcome: 'Otrzymała ofertę praktyk w firmie AI, a następnie stałą pracę jako Junior AI Engineer',
+    //   quote: 'AI Krak Hack był punktem zwrotnym w mojej karierze. Nie tylko nauczyłam się praktycznych umiejętności AI, ale też poznałam ludzi, którzy pomogli mi znaleźć wymarzoną pracę. Hackathon pokazał mi, że potrafię tworzyć rzeczy, które mają realny wpływ.',
+    //   links: [
+    //     { label: 'LinkedIn', url: '#' },
+    //   ],
+    //   imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b21hbiUyMHByb2dyYW1tZXJ8ZW58MXx8fHwxNzA4NzAwODAwfDA&ixlib=rb-4.1.0&q=80&w=400',
+    // },
     partners: [
       { name: 'AI Possibilities Lab' },
       { name: 'WSEI' },
