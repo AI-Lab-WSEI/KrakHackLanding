@@ -19,6 +19,7 @@ interface ParticipantFormData {
   teamPreference: string;
   dietaryRestrictions: string;
   additionalNotes: string;
+  acceptRules: boolean;
 }
 
 export function ParticipantForm() {
@@ -38,6 +39,7 @@ export function ParticipantForm() {
     teamPreference: '',
     dietaryRestrictions: '',
     additionalNotes: '',
+    acceptRules: false,
   });
 
   const [existingTeams, setExistingTeams] = useState<string[]>([]);
@@ -129,7 +131,7 @@ export function ParticipantForm() {
                   firstName: '', lastName: '', email: '', phone: '', university: '',
                   studyField: '', yearOfStudy: '', experience: '', motivation: '',
                   skills: [], otherSkill: '', teamName: '', teamPreference: '', 
-                  dietaryRestrictions: '', additionalNotes: ''
+                  dietaryRestrictions: '', additionalNotes: '', acceptRules: false
                 });
               }}
               className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg transition-colors"
@@ -412,6 +414,27 @@ export function ParticipantForm() {
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors resize-none"
                 placeholder="Np. informacja o spóźnieniu, specyficzne potrzeby..."
               />
+            </div>
+
+            <div className="mt-8 p-4 bg-gray-900/50 border border-gray-700 rounded-lg">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  required
+                  checked={formData.acceptRules}
+                  onChange={(e) => setFormData({ ...formData, acceptRules: e.target.checked })}
+                  className="mt-1 rounded border-gray-600 bg-gray-900 text-cyan-500 focus:ring-cyan-500 transition-colors"
+                />
+                <span className="text-sm text-gray-300 leading-relaxed group-hover:text-gray-200 transition-colors">
+                  Akceptuję <a 
+                    href="https://res.cloudinary.com/dyux0lw71/image/upload/v1772050760/AI_KrakHack_REGULAMIN_HACKATHONU_tzgb7g.pdf" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-cyan-400 hover:text-cyan-300 underline"
+                  >Regulamin Hackathonu</a>. 
+                  Wyrażam zgodę na przetwarzanie moich danych osobowych zgodnie z RODO oraz przyjmuję do wiadomości zapisy dotyczące przekazania autorskich praw majątkowych do wypracowanych rozwiązań na rzecz Organizatora i Partnerów (zgodnie z § 8 Regulaminu). *
+                </span>
+              </label>
             </div>
 
             {/* Submit */}

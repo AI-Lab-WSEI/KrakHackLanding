@@ -9,6 +9,7 @@ interface CompanyFormData {
   email: string;
   phone: string;
   message: string;
+  acceptRules: boolean;
 }
 
 export function CompanyForm() {
@@ -18,6 +19,7 @@ export function CompanyForm() {
     email: '',
     phone: '',
     message: '',
+    acceptRules: false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,7 +73,8 @@ export function CompanyForm() {
               onClick={() => {
                 setSubmitted(false);
                 setFormData({
-                  companyName: '', contactPerson: '', email: '', phone: '', message: ''
+                  companyName: '', contactPerson: '', email: '', phone: '', message: '',
+                  acceptRules: false
                 });
               }}
               className="px-6 py-2 bg-green-500 hover:bg-green-400 text-white rounded-lg transition-colors"
@@ -187,6 +190,27 @@ export function CompanyForm() {
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors resize-none"
                 placeholder="Jak możemy wspólnie współpracować?"
               />
+            </div>
+
+            <div className="mt-8 p-4 bg-gray-900/50 border border-gray-700 rounded-lg">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  required
+                  checked={formData.acceptRules}
+                  onChange={(e) => setFormData({ ...formData, acceptRules: e.target.checked })}
+                  className="mt-1 rounded border-gray-600 bg-gray-900 text-green-500 focus:ring-green-500 transition-colors"
+                />
+                <span className="text-sm text-gray-300 leading-relaxed group-hover:text-gray-200 transition-colors">
+                  Akceptuję <a 
+                    href="https://res.cloudinary.com/dyux0lw71/image/upload/v1772050760/AI_KrakHack_REGULAMIN_HACKATHONU_tzgb7g.pdf" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-green-400 hover:text-green-300 underline"
+                  >Regulamin Hackathonu</a>. 
+                  Wyrażam zgodę na przetwarzanie moich danych osobowych zgodnie z RODO oraz przyjmuję do wiadomości zapisy dotyczące przekazania autorskich praw majątkowych do wypracowanych rozwiązań na rzecz Organizatora i Partnerów (zgodnie z § 8 Regulaminu). *
+                </span>
+              </label>
             </div>
 
             {/* Submit */}
