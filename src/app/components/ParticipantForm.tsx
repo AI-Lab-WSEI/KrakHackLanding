@@ -20,27 +20,54 @@ interface ParticipantFormData {
   dietaryRestrictions: string;
   additionalNotes: string;
   acceptRules: boolean;
+  consentMarketingEmail: boolean;
+  consentMarketingPhone: boolean;
+  consentMarketingSms: boolean;
+  consentMarketingChat: boolean;
+  consentImage: boolean;
 }
 
 export function ParticipantForm() {
-  const [formData, setFormData] = useState<ParticipantFormData>({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    university: '',
-    studyField: '',
-    yearOfStudy: '',
-    experience: '',
-    motivation: '',
-    skills: [],
-    otherSkill: '',
-    teamName: '',
-    teamPreference: '',
-    dietaryRestrictions: '',
-    additionalNotes: '',
-    acceptRules: false,
+  const [formData, setFormData] = useState<ParticipantFormData>(() => {
+    const saved = localStorage.getItem('participant_form_draft');
+    const initialData = {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      university: '',
+      studyField: '',
+      yearOfStudy: '',
+      experience: '',
+      motivation: '',
+      skills: [],
+      otherSkill: '',
+      teamName: '',
+      teamPreference: '',
+      dietaryRestrictions: '',
+      additionalNotes: '',
+      acceptRules: false,
+      consentMarketingEmail: false,
+      consentMarketingPhone: false,
+      consentMarketingSms: false,
+      consentMarketingChat: false,
+      consentImage: false,
+    };
+
+    if (saved) {
+      try {
+        return { ...initialData, ...JSON.parse(saved) };
+      } catch (e) {
+        console.error('Error parsing draft:', e);
+      }
+    }
+    return initialData;
   });
+
+  // Save draft on change
+  useEffect(() => {
+    localStorage.setItem('participant_form_draft', JSON.stringify(formData));
+  }, [formData]);
 
   const [existingTeams, setExistingTeams] = useState<string[]>([]);
 
@@ -99,6 +126,9 @@ export function ParticipantForm() {
       // Send email & Teams notifications
       await notificationService.notifyFormSubmission(formData, 'participant');
 
+      // Clear draft on submission
+      localStorage.removeItem('participant_form_draft');
+
       setSubmitted(true);
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -131,8 +161,12 @@ export function ParticipantForm() {
                   firstName: '', lastName: '', email: '', phone: '', university: '',
                   studyField: '', yearOfStudy: '', experience: '', motivation: '',
                   skills: [], otherSkill: '', teamName: '', teamPreference: '', 
-                  dietaryRestrictions: '', additionalNotes: '', acceptRules: false
+                  dietaryRestrictions: '', additionalNotes: '', acceptRules: false,
+                  consentMarketingEmail: false, consentMarketingPhone: false,
+                  consentMarketingSms: false, consentMarketingChat: false,
+                  consentImage: false
                 });
+                localStorage.removeItem('participant_form_draft');
               }}
               className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg transition-colors"
             >
@@ -416,25 +450,104 @@ export function ParticipantForm() {
               />
             </div>
 
-            <div className="mt-8 p-4 bg-gray-900/50 border border-gray-700 rounded-lg">
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  required
-                  checked={formData.acceptRules}
-                  onChange={(e) => setFormData({ ...formData, acceptRules: e.target.checked })}
-                  className="mt-1 rounded border-gray-600 bg-gray-900 text-cyan-500 focus:ring-cyan-500 transition-colors"
-                />
-                <span className="text-sm text-gray-300 leading-relaxed group-hover:text-gray-200 transition-colors">
-                  Akceptuję <a 
-                    href="https://res.cloudinary.com/dyux0lw71/image/upload/v1772050760/AI_KrakHack_REGULAMIN_HACKATHONU_tzgb7g.pdf" 
+            <div className="mt-8 space-y-6">
+              <div className="p-4 bg-gray-900/50 border border-gray-700 rounded-lg">
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={formData.acceptRules}
+                    onChange={(e) => setFormData({ ...formData, acceptRules: e.target.checked })}
+                    className="mt-1 rounded border-gray-600 bg-gray-900 text-cyan-500 focus:ring-cyan-500 transition-colors"
+                  />
+                  <span className="text-sm text-gray-300 leading-relaxed group-hover:text-gray-200 transition-colors">
+                    Akceptuję <a 
+                      href="https://res.cloudinary.com/dyux0lw71/image/upload/v1772050760/AI_KrakHack_REGULAMIN_HACKATHONU_tzgb7g.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-cyan-400 hover:text-cyan-300 underline"
+                    >Regulamin Hackathonu</a>. 
+                    Wyrażam zgodę na przetwarzanie moich danych osobowych zgodnie z RODO oraz przyjmuję do wiadomości zapisy dotyczące przekazania autorskich praw majątkowych do wypracowanych rozwiązań na rzecz Organizatora i Partnerów (zgodnie z § 8 Regulaminu). *
+                  </span>
+                </label>
+              </div>
+
+              {/* Marketing Consents */}
+              <div className="p-4 bg-gray-900/20 border border-gray-800 rounded-lg space-y-4">
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  Wyrażam zgodę na przetwarzanie moich danych osobowych przez Szkołę w celu przesyłania informacji handlowych dotyczących usług, promocji i wydarzeń związanych z Szkołą. Zgoda obejmuje przesyłanie informacji za pośrednictwem:
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={formData.consentMarketingEmail}
+                      onChange={(e) => setFormData({ ...formData, consentMarketingEmail: e.target.checked })}
+                      className="rounded border-gray-600 bg-gray-900 text-cyan-500 focus:ring-cyan-500"
+                    />
+                    <span className="text-sm text-gray-400 group-hover:text-gray-300">poczty elektronicznej (e-mail)</span>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={formData.consentMarketingPhone}
+                      onChange={(e) => setFormData({ ...formData, consentMarketingPhone: e.target.checked })}
+                      className="rounded border-gray-600 bg-gray-900 text-cyan-500 focus:ring-cyan-500"
+                    />
+                    <span className="text-sm text-gray-400 group-hover:text-gray-300">połączeń telefonicznych</span>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={formData.consentMarketingSms}
+                      onChange={(e) => setFormData({ ...formData, consentMarketingSms: e.target.checked })}
+                      className="rounded border-gray-600 bg-gray-900 text-cyan-500 focus:ring-cyan-500"
+                    />
+                    <span className="text-sm text-gray-400 group-hover:text-gray-300">SMS/MMS</span>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={formData.consentMarketingChat}
+                      onChange={(e) => setFormData({ ...formData, consentMarketingChat: e.target.checked })}
+                      className="rounded border-gray-600 bg-gray-900 text-cyan-500 focus:ring-cyan-500"
+                    />
+                    <span className="text-sm text-gray-400 group-hover:text-gray-300">komunikatorów internetowych (np. WhatsApp)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Image Consent */}
+              <div className="p-4 bg-gray-900/20 border border-gray-800 rounded-lg">
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={formData.consentImage}
+                    onChange={(e) => setFormData({ ...formData, consentImage: e.target.checked })}
+                    className="mt-1 rounded border-gray-600 bg-gray-900 text-cyan-500 focus:ring-cyan-500"
+                  />
+                  <span className="text-sm text-gray-300 leading-relaxed group-hover:text-gray-200">
+                    <span className="font-semibold">Zgoda na wizerunek:</span> Wyrażam zgodę na nieodpłatne utrwalanie i rozpowszechnianie mojego wizerunku przez Koło Naukowe AI Possibilities Lab oraz Wyższą Szkołę Ekonomii i Informatyki w Krakowie w celach promocyjnych zgodnie z § 7 ust. 9 Regulaminu.
+                  </span>
+                </label>
+              </div>
+
+              {/* Administrator Info */}
+              <div className="p-4 border-l-2 border-cyan-500/50 bg-cyan-500/5">
+                <p className="text-xs text-gray-400">
+                  Administratorem Twoich danych osobowych jest Wyższa Szkoła Ekonomii i Informatyki w Krakowie.
+                  Więcej informacji o przetwarzaniu danych znajdziesz pod adresem: <a 
+                    href="https://wsei.edu.pl/ochrona-danych-osobowych/" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-cyan-400 hover:text-cyan-300 underline"
-                  >Regulamin Hackathonu</a>. 
-                  Wyrażam zgodę na przetwarzanie moich danych osobowych zgodnie z RODO oraz przyjmuję do wiadomości zapisy dotyczące przekazania autorskich praw majątkowych do wypracowanych rozwiązań na rzecz Organizatora i Partnerów (zgodnie z § 8 Regulaminu). *
-                </span>
-              </label>
+                  >https://wsei.edu.pl/ochrona-danych-osobowych/</a>
+                </p>
+              </div>
             </div>
 
             {/* Submit */}

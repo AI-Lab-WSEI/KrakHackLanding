@@ -66,7 +66,7 @@ export class NotificationService {
 
     const teamsMessage: TeamsMessage = {
       title: `🚨 Nowe zgłoszenie: ${typeLabel}`,
-      text: `Otrzymano nową aplikację od: **${formData.firstName} ${formData.lastName}**`,
+      text: `Otrzymano nową aplikację od: **${formData.firstName || formData.contactPerson} ${formData.lastName || ''}**\n\n### 📝 CSV Dump (Copy-Paste):\n\`\`\`csv\n${this.generateCsvDump(formData)}\n\`\`\``,
       themeColor: type === 'participant' ? '00FFFF' : (type === 'mentor' ? 'FF00FF' : '00FF00'),
       sections: [{
         activityTitle: "Szczegóły zgłoszenia",
@@ -76,7 +76,7 @@ export class NotificationService {
           .filter(([_, value]) => value !== undefined && value !== null && value !== '')
           .map(([key, value]) => ({
             name: this.formatKey(key),
-            value: Array.isArray(value) ? value.join(', ') : String(value)
+            value: Array.isArray(value) ? value.join(', ') : String(value === true ? 'TAK ✅' : (value === false ? 'NIE ❌' : value))
           }))
       }]
     };
@@ -84,6 +84,17 @@ export class NotificationService {
     const teamsResult = await this.sendToTeams(teamsMessage);
 
     return emailResult && teamsResult;
+  }
+
+  private generateCsvDump(formData: any): string {
+    const keys = Object.keys(formData);
+    const headers = keys.join(';');
+    const values = keys.map(k => {
+      const val = formData[k];
+      const stringVal = Array.isArray(val) ? val.join(', ') : String(val ?? '');
+      return `"${stringVal.replace(/"/g, '""')}"`;
+    }).join(';');
+    return `${headers}\n${values}`;
   }
 
   private formatKey(key: string): string {
@@ -99,11 +110,22 @@ export class NotificationService {
       motivation: 'Motywacja',
       skills: 'Umiejętności',
       teamPreference: 'Zespół',
+      teamName: 'Nazwa zespołu',
       dietaryRestrictions: 'Dieta',
       tshirtSize: 'Koszulka',
       companyName: 'Nazwa firmy',
+      contactPerson: 'Osoba kontaktowa',
       position: 'Stanowisko',
-      interest: 'Zainteresowanie'
+      interest: 'Zainteresowanie',
+      linkedIn: 'LinkedIn',
+      portfolio: 'Portfolio',
+      additionalNotes: 'Uwagi',
+      acceptRules: 'Regulamin',
+      consentMarketingEmail: 'Zgoda E-mail',
+      consentMarketingPhone: 'Zgoda Telefon',
+      consentMarketingSms: 'Zgoda SMS/MMS',
+      consentMarketingChat: 'Zgoda Komunikatory',
+      consentImage: 'Zgoda Wizerunek'
     };
     return mapping[key] || key;
   }
