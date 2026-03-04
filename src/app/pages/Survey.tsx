@@ -20,23 +20,22 @@ export function Survey() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Mock save
-    const surveyData = {
-      id: Date.now().toString(),
-      type: 'survey',
-      timestamp: new Date().toISOString(),
-      data: formData
-    };
-    
-    const existing = JSON.parse(localStorage.getItem('hackathon_surveys') || '[]');
-    existing.push(surveyData);
-    localStorage.setItem('hackathon_surveys', JSON.stringify(existing));
-    
-    setTimeout(() => {
-      setIsSubmitting(false);
+
+    try {
+      const response = await fetch('/api/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: formData })
+      });
+
+      if (!response.ok) throw new Error('Błąd serwera');
       setSubmitted(true);
-    }, 1000);
+    } catch (error) {
+      console.error('Error submitting survey:', error);
+      alert('Wystąpił błąd podczas wysyłania ankiety. Spróbuj ponownie.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted) {

@@ -6,6 +6,12 @@ interface AdminAuthProps {
   children: ReactNode;
 }
 
+const TOKEN_KEY = 'admin_api_token';
+
+export function getAdminToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
 export function AdminAuth({ children }: AdminAuthProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -13,64 +19,58 @@ export function AdminAuth({ children }: AdminAuthProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
-  const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'MakaPaka2026';
-
-  console.log('[AdminAuth] Component Mounted. Auth Strategy:', ADMIN_PASSWORD === 'MakaPaka2026' ? 'Default' : 'Environment');
-
   useEffect(() => {
-    // Check if user is already authenticated
-    const authStatus = localStorage.getItem('admin_session_v1_active');
-    const authExpiry = localStorage.getItem('admin_session_v1_expiry');
-
-    console.log('[AdminAuth] Checking session:', { authStatus, authExpiry });
-
-    if (authStatus === 'true' && authExpiry) {
-      const expiryDate = new Date(authExpiry);
-      if (new Date() < expiryDate) {
-        setIsAuthenticated(true);
-      } else {
-        // Authentication expired
-        localStorage.removeItem('admin_session_v1_active');
-        localStorage.removeItem('admin_session_v1_expiry');
-      }
+    // Verify existing token with the server
+    const token = getAdminToken();
+    if (token) {
+      fetch('/api/admin/verify', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => {
+          if (res.ok) {
+            setIsAuthenticated(true);
+          } else {
+            localStorage.removeItem(TOKEN_KEY);
+          }
+        })
+        .catch(() => {
+          // Server might be unreachable, keep token for retry
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (password && password === ADMIN_PASSWORD) {
-      console.log('[AdminAuth] Password correct. Setting session.');
-      setIsAuthenticated(true);
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
 
-      // Set authentication to expire in 24 hours
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 24);
-
-      localStorage.setItem('admin_session_v1_active', 'true');
-      localStorage.setItem('admin_session_v1_expiry', expiryDate.toISOString());
-
-      setPassword('');
-    } else {
-      console.log('[AdminAuth] Password incorrect or empty.');
-      setError('Nieprawidłowe hasło');
-      setPassword('');
-
-      // Add shake animation on error
-      const form = document.getElementById('admin-form');
-      if (form) {
-        form.classList.add('animate-pulse');
-        setTimeout(() => form.classList.remove('animate-pulse'), 500);
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem(TOKEN_KEY, data.token);
+        setIsAuthenticated(true);
+        setPassword('');
+      } else {
+        setError('Nieprawidłowe hasło');
+        setPassword('');
       }
+    } catch {
+      setError('Błąd połączenia z serwerem');
+      setPassword('');
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('admin_session_v1_active');
-    localStorage.removeItem('admin_session_v1_expiry');
+    localStorage.removeItem(TOKEN_KEY);
   };
 
   if (isLoading) {

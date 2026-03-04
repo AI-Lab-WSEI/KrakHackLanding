@@ -1,7 +1,6 @@
 import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
 import { Building, Mail, Phone, Send, User } from 'lucide-react';
-import { notificationService } from '@/utils/notificationService';
 
 interface CompanyFormData {
   companyName: string;
@@ -57,24 +56,18 @@ export function CompanyForm() {
     setIsSubmitting(true);
 
     try {
-      const submission = {
-        id: Date.now().toString(),
-        type: 'company' as const,
-        timestamp: new Date().toISOString(),
-        data: formData,
-        status: 'new' as const
-      };
+      const response = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'company', data: formData })
+      });
 
-      const existing = JSON.parse(localStorage.getItem('hackathon_submissions') || '[]');
-      existing.push(submission);
-      localStorage.setItem('hackathon_submissions', JSON.stringify(existing));
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Błąd serwera');
+      }
 
-      // Send email & Teams notifications
-      await notificationService.notifyFormSubmission(formData, 'company');
-
-      // Clear draft on submission
       localStorage.removeItem('company_form_draft');
-
       setSubmitted(true);
     } catch (error) {
       console.error('Error submitting form:', error);

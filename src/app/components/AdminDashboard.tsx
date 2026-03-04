@@ -1,22 +1,16 @@
 import { useState, useEffect } from 'react';
-import { AdminAuth } from './AdminAuth';
+import { AdminAuth, getAdminToken } from './AdminAuth';
 import { motion } from 'motion/react';
 import ReactEcharts from 'echarts-for-react';
-import { 
-  Users, 
-  ClipboardList, 
-  BarChart3, 
+import {
+  Users,
+  ClipboardList,
+  BarChart3,
   Search,
   MessageSquare,
-  Star
+  Star,
+  RefreshCw
 } from 'lucide-react';
-
-interface TaskLink {
-  id: string;
-  name: string;
-  url: string;
-  active: boolean;
-}
 
 interface Registration {
   id: string;
@@ -27,6 +21,7 @@ interface Registration {
   date: string;
   fullData: {
     teamName?: string;
+    skills?: string[];
     [key: string]: any;
   };
 }
@@ -38,7 +33,7 @@ interface ChallengeResources {
 
 interface SurveyData {
   id: string;
-  timestamp: string;
+  created_at: string;
   data: {
     rating: number;
     pros: string;
@@ -48,10 +43,23 @@ interface SurveyData {
 }
 
 const STORAGE_KEYS = {
-  REGS: 'admin-registrations-v1',
   CHALLENGE_RESOURCES: 'challenge-resources-v1',
-  SURVEYS: 'hackathon_surveys'
 };
+
+async function apiFetch(path: string) {
+  const token = getAdminToken();
+  const res = await fetch(path, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (res.status === 401) {
+    // Token expired — force re-login
+    localStorage.removeItem('admin_api_token');
+    window.location.reload();
+    throw new Error('Sesja wygasła');
+  }
+  if (!res.ok) throw new Error('Błąd API');
+  return res.json();
+}
 
 export function AdminDashboard() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -59,44 +67,44 @@ export function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [resourceLinks, setResourceLinks] = useState<Record<string, ChallengeResources>>({});
   const [activeTab, setActiveTab] = useState<'regs' | 'surveys' | 'teams'>('regs');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const handleResetData = () => {
-    if (window.confirm('CZY NA PEWNO CHCESZ USUNĄĆ WSZYSTKIE DANE? Tej operacji nie można cofnąć.')) {
-      localStorage.removeItem('hackathon_submissions');
-      localStorage.removeItem(STORAGE_KEYS.SURVEYS);
-      setRegistrations([]);
-      setSurveys([]);
-      alert('Wszystkie dane zostały usunięte.');
+  const loadData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [submissionsData, surveysData] = await Promise.all([
+        apiFetch('/api/submissions'),
+        apiFetch('/api/surveys')
+      ]);
+
+      // Map DB rows to Registration format
+      const mappedRegs: Registration[] = submissionsData.map((s: any) => ({
+        id: String(s.id),
+        name: s.name || 'Nieznany',
+        email: s.email || '',
+        type: s.type === 'company' ? 'sponsor' : s.type,
+        status: s.status === 'new' ? 'pending' : 'confirmed',
+        date: s.created_at ? s.created_at.split('T')[0] : '',
+        fullData: s.data || {}
+      }));
+      setRegistrations(mappedRegs);
+      setSurveys(surveysData);
+    } catch (err: any) {
+      setError(err.message || 'Błąd ładowania danych');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Load data
+  // Load data from API
   useEffect(() => {
-    const storedSubmissions = localStorage.getItem('hackathon_submissions');
+    loadData();
+
+    // Load local-only data (challenge resources)
     const storedResources = localStorage.getItem(STORAGE_KEYS.CHALLENGE_RESOURCES);
-    const storedSurveys = localStorage.getItem(STORAGE_KEYS.SURVEYS);
-    
     if (storedResources) setResourceLinks(JSON.parse(storedResources));
-
-    if (storedSubmissions) {
-      try {
-        const rawSubmissions = JSON.parse(storedSubmissions);
-        const mappedRegs: Registration[] = rawSubmissions.map((s: any) => ({
-          id: s.id,
-          name: `${s.data.firstName || ''} ${s.data.lastName || s.data.companyName || ''}`.trim(),
-          email: s.data.email,
-          type: s.type === 'company' ? 'sponsor' : s.type,
-          status: s.status === 'new' ? 'pending' : 'confirmed',
-          date: s.timestamp.split('T')[0],
-          fullData: s.data
-        }));
-        setRegistrations(mappedRegs);
-      } catch (e) {
-        console.error('Error parsing submissions:', e);
-      }
-    }
-
-    if (storedSurveys) setSurveys(JSON.parse(storedSurveys));
   }, []);
 
   const teams = registrations
@@ -187,7 +195,7 @@ export function AdminDashboard() {
   const exportData = (format: 'csv' | 'json') => {
     const dataToExport = activeTab === 'regs' ? registrations : activeTab === 'surveys' ? surveys : Object.values(teams).flat();
     if (dataToExport.length === 0) return;
-    
+
     if (format === 'json') {
       const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -231,6 +239,26 @@ export function AdminDashboard() {
           <p className="text-muted-foreground text-sm uppercase font-bold tracking-[0.3em]">AI KRAK HACK DASHBOARD</p>
         </div>
 
+        {/* Error / Loading states */}
+        {error && (
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-center text-sm">
+            {error}
+            <button onClick={loadData} className="ml-4 underline hover:text-red-300">Spróbuj ponownie</button>
+          </div>
+        )}
+
+        {/* Refresh button */}
+        <div className="flex justify-end">
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Ładowanie...' : 'Odśwież'}
+          </button>
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {stats.map((stat, index) => (
@@ -256,19 +284,19 @@ export function AdminDashboard() {
 
         {/* Tabs Selector */}
         <div className="flex justify-center gap-2">
-          <button 
+          <button
             onClick={() => setActiveTab('regs')}
             className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'regs' ? 'bg-indigo-500 text-white shadow-lg' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}
           >
-            Rejestracje
+            Rejestracje ({registrations.length})
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('teams')}
             className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'teams' ? 'bg-purple-500 text-white shadow-lg' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}
           >
-            Zespoły
+            Zespoły ({Object.keys(teams).length})
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('surveys')}
             className={`px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'surveys' ? 'bg-cyan-500 text-black shadow-lg' : 'bg-white/5 text-gray-500 hover:bg-white/10'}`}
           >
@@ -286,9 +314,9 @@ export function AdminDashboard() {
                 </h2>
                 <div className="relative w-64">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input 
-                    type="text" 
-                    placeholder="SZUKAJ..." 
+                  <input
+                    type="text"
+                    placeholder="SZUKAJ..."
                     className="w-full bg-white/5 border border-white/10 pl-11 pr-4 py-3 rounded-2xl focus:ring-1 focus:ring-indigo-500/50 text-xs font-bold transition-all"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -303,6 +331,7 @@ export function AdminDashboard() {
                       <tr>
                         <th className="px-8 py-6">Uczestnik</th>
                         <th className="px-8 py-6">Typ</th>
+                        <th className="px-8 py-6">Data</th>
                         <th className="px-8 py-6">Status</th>
                       </tr>
                     </thead>
@@ -320,11 +349,19 @@ export function AdminDashboard() {
                               {reg.type}
                             </span>
                           </td>
+                          <td className="px-8 py-6 text-[10px] text-gray-500 font-mono">
+                            {reg.date}
+                          </td>
                           <td className="px-8 py-6">
                             <div className={`w-2.5 h-2.5 rounded-full ${reg.status === 'confirmed' ? 'bg-green-500' : 'bg-orange-500'} shadow-[0_0_10px_currentcolor] animate-pulse`} />
                           </td>
                         </tr>
                       ))}
+                      {registrations.length === 0 && !loading && (
+                        <tr>
+                          <td colSpan={4} className="px-8 py-20 text-center text-gray-500 italic">Brak zgłoszeń w bazie danych.</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -343,12 +380,12 @@ export function AdminDashboard() {
                   ].map((c) => (
                     <div key={c.id} className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-4">
                       <p className="text-[10px] font-black uppercase text-cyan-400 tracking-[0.2em]">{c.name}</p>
-                      
+
                       <div className="space-y-3">
                         <div>
                           <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest pl-1">Materiały przygotowawcze</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             placeholder="Link do materiałów STARTOWYCH..."
                             className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold focus:ring-1 focus:ring-cyan-500/50 outline-none transition-all mt-1"
                             value={resourceLinks[c.id]?.materials || ''}
@@ -357,8 +394,8 @@ export function AdminDashboard() {
                         </div>
                         <div>
                           <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest pl-1">Zadanie (Repo/Zasoby)</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             placeholder="Link do repo/arkusza ZADANIA..."
                             className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold focus:ring-1 focus:ring-cyan-500/50 outline-none transition-all mt-1"
                             value={resourceLinks[c.id]?.task || ''}
@@ -379,7 +416,7 @@ export function AdminDashboard() {
                 <Users className="w-6 h-6 text-purple-400" /> Zarządzanie Zespołami
               </h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Object.entries(teams).map(([teamName, members]) => (
                 <div key={teamName} className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-4 hover:border-purple-500/30 transition-all">
@@ -461,7 +498,7 @@ export function AdminDashboard() {
         )}
 
         <div className="flex justify-center gap-4">
-          <button 
+          <button
             onClick={() => exportData('csv')}
             className="px-10 py-4 bg-indigo-500 hover:bg-indigo-400 text-white font-black uppercase tracking-widest text-[10px] rounded-full transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
           >

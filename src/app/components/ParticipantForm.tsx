@@ -1,7 +1,6 @@
 import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, GraduationCap, Briefcase, Send, Code } from 'lucide-react';
-import { notificationService } from '@/utils/notificationService';
 
 interface ParticipantFormData {
   firstName: string;
@@ -72,20 +71,11 @@ export function ParticipantForm() {
   const [existingTeams, setExistingTeams] = useState<string[]>([]);
 
   useEffect(() => {
-    // Collect unique team names from existing submissions to offer suggestions
-    const stored = localStorage.getItem('hackathon_submissions');
-    if (stored) {
-      try {
-        const submissions = JSON.parse(stored);
-        const teams = new Set<string>();
-        submissions.forEach((s: any) => {
-          if (s.data?.teamName) teams.add(s.data.teamName);
-        });
-        setExistingTeams(Array.from(teams));
-      } catch (e) {
-        console.error('Error loading existing teams:', e);
-      }
-    }
+    // Fetch existing team names from API for autocomplete
+    fetch('/api/teams')
+      .then(res => res.json())
+      .then(teams => setExistingTeams(teams))
+      .catch(err => console.error('Error loading teams:', err));
   }, []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,25 +100,19 @@ export function ParticipantForm() {
     setIsSubmitting(true);
 
     try {
-      // Save to localStorage (in real app, send to API)
-      const submission = {
-        id: Date.now().toString(),
-        type: 'participant' as const,
-        timestamp: new Date().toISOString(),
-        data: formData,
-        status: 'new' as const
-      };
+      const response = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'participant', data: formData })
+      });
 
-      const existing = JSON.parse(localStorage.getItem('hackathon_submissions') || '[]');
-      existing.push(submission);
-      localStorage.setItem('hackathon_submissions', JSON.stringify(existing));
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Błąd serwera');
+      }
 
-      // Send email & Teams notifications
-      await notificationService.notifyFormSubmission(formData, 'participant');
-
-      // Clear draft on submission
+      // Clear draft on successful submission
       localStorage.removeItem('participant_form_draft');
-
       setSubmitted(true);
     } catch (error) {
       console.error('Error submitting form:', error);

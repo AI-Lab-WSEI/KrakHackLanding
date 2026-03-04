@@ -1,7 +1,6 @@
 import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, Briefcase, Send, Building, Award, Clock } from 'lucide-react';
-import { notificationService } from '@/utils/notificationService';
 
 interface MentorFormData {
   firstName: string;
@@ -88,24 +87,18 @@ export function MentorForm() {
     setIsSubmitting(true);
 
     try {
-      const submission = {
-        id: Date.now().toString(),
-        type: 'mentor' as const,
-        timestamp: new Date().toISOString(),
-        data: formData,
-        status: 'new' as const
-      };
+      const response = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'mentor', data: formData })
+      });
 
-      const existing = JSON.parse(localStorage.getItem('hackathon_submissions') || '[]');
-      existing.push(submission);
-      localStorage.setItem('hackathon_submissions', JSON.stringify(existing));
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Błąd serwera');
+      }
 
-      // Send email & Teams notifications
-      await notificationService.notifyFormSubmission(formData, 'mentor');
-
-      // Clear draft on submission
       localStorage.removeItem('mentor_form_draft');
-
       setSubmitted(true);
     } catch (error) {
       console.error('Error submitting form:', error);
