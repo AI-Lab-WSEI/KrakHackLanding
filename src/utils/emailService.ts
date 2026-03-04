@@ -104,7 +104,7 @@ ${Object.entries(formData).map(([key, value]) => `${key}: ${value}`).join('\n')}
 
 Skontaktujemy się z Tobą w ciągu 3-5 dni roboczych z dalszymi informacjami.
 
-Jeśli masz pytania, napisz do nas na: kontakt@aikrakhack.pl
+Jeśli masz pytania, napisz do nas na: knai@wsei.edu.pl
 
 Pozdrawiamy,
 Zespół AI Krak Hack

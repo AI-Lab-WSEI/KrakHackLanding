@@ -62,14 +62,14 @@ export function CTABlock({ ctaUrl, showSecondary = true }: CTABlockProps) {
                 {showSecondary && (
                   <div className="flex flex-col sm:flex-row gap-4">
                     <a
-                      href="mailto:knai@microsoft.wsei.edu.pl"
+                      href="mailto:knai@wsei.edu.pl"
                       className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all border border-white/10 flex items-center gap-2 backdrop-blur-sm uppercase font-black tracking-wider text-[11px]"
                     >
                       <Mail className="w-4 h-4" />
                       <span>Zostań sponsorem</span>
                     </a>
                     <a
-                      href="mailto:knai@microsoft.wsei.edu.pl"
+                      href="mailto:knai@wsei.edu.pl"
                       className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all border border-white/10 flex items-center gap-2 backdrop-blur-sm uppercase font-black tracking-wider text-[11px]"
                     >
                       <Mail className="w-4 h-4" />

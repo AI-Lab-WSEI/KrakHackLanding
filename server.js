@@ -311,7 +311,7 @@ app.post('/api/submissions', async (req, res) => {
             </div>
 
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
-            <p style="color: #6b7280; font-size: 13px; margin: 0 0 8px;">Pytania? Napisz na: <a href="mailto:kontakt@aikrakhack.pl" style="color: #06b6d4;">kontakt@aikrakhack.pl</a></p>
+            <p style="color: #6b7280; font-size: 13px; margin: 0 0 8px;">Pytania? Napisz na: <a href="mailto:knai@wsei.edu.pl" style="color: #06b6d4;">knai@wsei.edu.pl</a></p>
             <p style="color: #6b7280; font-size: 13px; margin: 0;">Pozdrawiamy,<br><strong>Zespół AI Krak Hack</strong><br>AI Possibilities Lab &bull; WSEI Kraków</p>
           </div>
         </div>`

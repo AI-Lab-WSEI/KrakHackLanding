@@ -40,8 +40,8 @@ export function Footer() {
             <div className="space-y-3 text-gray-400">
               <div className="flex items-start gap-2">
                 <Mail className="w-5 h-5 mt-0.5 flex-shrink-0 text-cyan-400" />
-                <a href="mailto:knai@microsoft.wsei.edu.pl" className="hover:text-cyan-400 transition-colors">
-                  knai@microsoft.wsei.edu.pl
+                <a href="mailto:knai@wsei.edu.pl" className="hover:text-cyan-400 transition-colors">
+                  knai@wsei.edu.pl
                 </a>
               </div>
               <div className="flex items-start gap-2">
