@@ -127,13 +127,13 @@ export function MentorSection() {
                   </p>
                   
                   <a
-                    href="mailto:knai@microsoft.wsei.edu.pl"
+                    href="mailto:knai@wsei.edu.pl"
                     className="flex items-center gap-4 p-4 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors group"
                   >
                     <Mail className="w-6 h-6 text-pink-400 group-hover:scale-110 transition-transform" />
                     <div>
                       <div className="text-sm text-gray-400">Email</div>
-                      <div className="text-white font-medium">knai@microsoft.wsei.edu.pl</div>
+                      <div className="text-white font-medium">knai@wsei.edu.pl</div>
                     </div>
                   </a>
 
