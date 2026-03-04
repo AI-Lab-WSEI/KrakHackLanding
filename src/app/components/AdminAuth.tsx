@@ -42,6 +42,16 @@ export function AdminAuth({ children }: AdminAuthProps) {
     }
   }, []);
 
+  // Listen for forced logout from AdminDashboard (e.g. 401 on API calls)
+  useEffect(() => {
+    const handleLogout = () => {
+      setIsAuthenticated(false);
+      setPassword('');
+    };
+    window.addEventListener('admin-logout', handleLogout);
+    return () => window.removeEventListener('admin-logout', handleLogout);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
