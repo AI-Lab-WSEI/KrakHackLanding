@@ -52,10 +52,10 @@ async function apiFetch(path: string) {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   if (res.status === 401) {
-    // Token expired — force re-login
+    // Token expired — signal AdminAuth to show login again
     localStorage.removeItem('admin_api_token');
-    window.location.reload();
-    throw new Error('Sesja wygasła');
+    window.dispatchEvent(new Event('admin-logout'));
+    throw new Error('Sesja wygasła — zaloguj się ponownie');
   }
   if (!res.ok) throw new Error('Błąd API');
   return res.json();

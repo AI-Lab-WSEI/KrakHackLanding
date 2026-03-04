@@ -46,33 +46,32 @@ app.use(express.static(path.join(__dirname, 'dist')));
 // ─── Helpers ───────────────────────────────────────────────
 
 async function sendResendEmail(to, subject, html) {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('[Email] RESEND_API_KEY not set, skipping.');
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn('[Email] RESEND_API_KEY not set, skipping email to:', to);
     return false;
   }
+  const fromAddr = process.env.EMAIL_FROM || 'AI Krak Hack <onboarding@resend.dev>';
+  console.log(`[Email] Sending to: ${to}, from: ${fromAddr}, subject: ${subject}`);
   try {
+    const payload = { from: fromAddr, to, subject, html };
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        from: process.env.EMAIL_FROM || 'AI Krak Hack <onboarding@resend.dev>',
-        to,
-        subject,
-        html
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (!res.ok) {
-      console.error('[Email] Resend error:', data);
+      console.error('[Email] Resend API error:', res.status, JSON.stringify(data));
       return false;
     }
-    console.log('[Email] Sent:', data.id);
+    console.log('[Email] Sent successfully, id:', data.id);
     return true;
   } catch (err) {
-    console.error('[Email] Failed:', err);
+    console.error('[Email] Network/fetch error:', err.message || err);
     return false;
   }
 }
@@ -218,21 +217,105 @@ app.post('/api/submissions', async (req, res) => {
       sendResendEmail(
         email,
         'Potwierdzenie zgłoszenia - AI Krak Hack 2026',
-        `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-          <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">AI Krak Hack 2026</h1>
+        `<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #1f2937; background: #ffffff;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AI KRAK HACK 2026</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px;">27-28 Marca 2026 &bull; Kraków</p>
           </div>
-          <div style="padding: 30px; background: #f9fafb; border-radius: 0 0 12px 12px;">
-            <p>Cześć <strong>${name}</strong>!</p>
-            <p>Dziękujemy za zgłoszenie się jako <strong>${typeNamesPl[type] || type}</strong>.</p>
-            <p>Twoje zgłoszenie <strong>#${submissionId}</strong> zostało zarejestrowane i będzie rozpatrzone przez nasz zespół organizacyjny.</p>
-            <p>Skontaktujemy się z Tobą w ciągu 3-5 dni roboczych z dalszymi informacjami.</p>
-            <hr style="border: 1px solid #e5e7eb; margin: 24px 0;">
-            <p style="color: #6b7280; font-size: 13px;">Pytania? Napisz na: <a href="mailto:kontakt@aikrakhack.pl">kontakt@aikrakhack.pl</a></p>
-            <p style="color: #6b7280; font-size: 13px;">Pozdrawiamy,<br><strong>Zespół AI Krak Hack</strong><br>AI Possibilities Lab</p>
+
+          <div style="padding: 32px 30px;">
+            <!-- Greeting -->
+            <p style="font-size: 16px; margin: 0 0 16px;">Cześć <strong>${name}</strong>!</p>
+            <p style="margin: 0 0 16px;">Dziękujemy za zgłoszenie się jako <strong>${typeNamesPl[type] || type}</strong>. Twoje zgłoszenie <strong>#${submissionId}</strong> zostało zarejestrowane.</p>
+            <p style="margin: 0 0 24px;">Nasz zespół organizacyjny skontaktuje się z Tobą w ciągu kilku dni z dalszymi informacjami.</p>
+
+            <!-- Event Details Box -->
+            <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 24px; margin: 0 0 24px;">
+              <h2 style="margin: 0 0 16px; font-size: 18px; color: #0369a1;">Informacje o wydarzeniu</h2>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 6px 0; font-weight: 600; color: #374151; width: 120px; vertical-align: top;">Data:</td>
+                  <td style="padding: 6px 0; color: #4b5563;">27-28 marca 2026 (piątek-sobota)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-weight: 600; color: #374151; vertical-align: top;">Miejsce:</td>
+                  <td style="padding: 6px 0; color: #4b5563;">Kraków (szczegóły lokalizacji podamy wkrótce)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-weight: 600; color: #374151; vertical-align: top;">Koszt:</td>
+                  <td style="padding: 6px 0; color: #4b5563;">Udział jest <strong>całkowicie darmowy!</strong></td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-weight: 600; color: #374151; vertical-align: top;">Organizator:</td>
+                  <td style="padding: 6px 0; color: #4b5563;">Koło Naukowe AI Possibilities Lab, WSEI Kraków</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Schedule -->
+            <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 12px; padding: 24px; margin: 0 0 24px;">
+              <h2 style="margin: 0 0 16px; font-size: 18px; color: #7c3aed;">Harmonogram</h2>
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <tr>
+                  <td style="padding: 5px 0; color: #6b21a8; font-weight: 600; width: 50%;">pt 20.03, 18:00</td>
+                  <td style="padding: 5px 0; color: #4b5563;">Materiały przygotowawcze</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; color: #6b21a8; font-weight: 600;">pt 27.03, 18:00</td>
+                  <td style="padding: 5px 0; color: #4b5563;">START - udostępnienie zadań</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; color: #6b21a8; font-weight: 600;">sb 28.03, 09:00</td>
+                  <td style="padding: 5px 0; color: #4b5563;">Praca na uczelni z mentorami</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; color: #6b21a8; font-weight: 600;">sb 28.03, 13:00</td>
+                  <td style="padding: 5px 0; color: #4b5563;">Obiad + mentoring</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; color: #6b21a8; font-weight: 600;">sb 28.03, 17:30</td>
+                  <td style="padding: 5px 0; color: #4b5563;">Prezentacje finałowe</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; color: #6b21a8; font-weight: 600;">sb 28.03, 19:00</td>
+                  <td style="padding: 5px 0; color: #4b5563;">Knowledge sharing</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; color: #6b21a8; font-weight: 600;">sb 28.03, 20:00</td>
+                  <td style="padding: 5px 0; color: #4b5563;">Wyniki i nagrody</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; color: #6b21a8; font-weight: 600;">sb 28.03, 21:00</td>
+                  <td style="padding: 5px 0; color: #4b5563;">Afterparty!</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Challenges -->
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 24px; margin: 0 0 24px;">
+              <h2 style="margin: 0 0 16px; font-size: 18px; color: #15803d;">Wyzwania</h2>
+              <p style="margin: 0 0 12px; font-size: 14px;"><strong>1. Smart Infrastructure Challenge</strong> — analiza danych geoprzestrzennych, optymalizacja tras i modelowanie przestrzenne (GIS, Python, PostGIS, ML)</p>
+              <p style="margin: 0; font-size: 14px;"><strong>2. Process-to-Automation Copilot</strong> — od danych procesowych do automatyzacji workflow (Process Mining, BPMN, AI Agents, Camunda)</p>
+            </div>
+
+            <!-- What to bring -->
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; margin: 0 0 24px;">
+              <h2 style="margin: 0 0 12px; font-size: 18px; color: #b45309;">Co zabrać ze sobą?</h2>
+              <p style="margin: 0; font-size: 14px; color: #4b5563;">Laptop, ładowarkę, dobre nastawienie i chęć do nauki. Jedzenie, napoje i dostęp do wszystkich zasobów zapewniamy my!</p>
+            </div>
+
+            <!-- CTA -->
+            <div style="text-align: center; margin: 32px 0 24px;">
+              <a href="https://krakhack.info" style="display: inline-block; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 700; font-size: 14px;">Odwiedź stronę wydarzenia</a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+            <p style="color: #6b7280; font-size: 13px; margin: 0 0 8px;">Pytania? Napisz na: <a href="mailto:kontakt@aikrakhack.pl" style="color: #06b6d4;">kontakt@aikrakhack.pl</a></p>
+            <p style="color: #6b7280; font-size: 13px; margin: 0;">Pozdrawiamy,<br><strong>Zespół AI Krak Hack</strong><br>AI Possibilities Lab &bull; WSEI Kraków</p>
           </div>
         </div>`
-      ).catch(err => console.error('[Email] User confirmation error:', err));
+      ).catch(err => console.error('[Email] User confirmation error:', err.message || err));
 
       // Email notification to admin
       const adminEmail = process.env.ADMIN_EMAIL;
@@ -347,7 +430,9 @@ initDB()
     app.listen(port, () => {
       console.log(`[Server] Running on port ${port}`);
       console.log(`[Server] Database: connected`);
-      console.log(`[Server] Email: ${process.env.RESEND_API_KEY ? 'configured' : 'NOT configured (set RESEND_API_KEY)'}`);
+      console.log(`[Server] Email: ${process.env.RESEND_API_KEY ? 'configured (key: ' + process.env.RESEND_API_KEY.slice(0, 6) + '...)' : 'NOT configured (set RESEND_API_KEY)'}`);
+      console.log(`[Server] Email FROM: ${process.env.EMAIL_FROM || 'AI Krak Hack <onboarding@resend.dev> (default)'}`);
+      console.log(`[Server] Admin email: ${process.env.ADMIN_EMAIL || 'NOT configured (set ADMIN_EMAIL)'}`);
       console.log(`[Server] Teams: ${process.env.TEAMS_WEBHOOK_URL ? 'configured' : 'NOT configured (set TEAMS_WEBHOOK_URL)'}`);
     });
   })
