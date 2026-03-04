@@ -6,6 +6,7 @@ import { AdminPanel } from '@/app/pages/AdminPanel';
 import { TaskDetail } from '@/app/pages/TaskDetail';
 import { HackathonTimer } from '@/app/pages/HackathonTimer';
 import { Survey } from '@/app/pages/Survey';
+import { UnsubscribeConfirmation } from '@/app/pages/UnsubscribeConfirmation';
 import { Layout } from '@/app/Layout';
 
 export const router = createBrowserRouter([
@@ -40,6 +41,10 @@ export const router = createBrowserRouter([
       {
         path: 'zadania/:slug',
         Component: TaskDetail,
+      },
+      {
+        path: 'unsubscribe-confirmation',
+        Component: UnsubscribeConfirmation,
       },
     ],
   },
