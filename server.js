@@ -556,19 +556,24 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
     let finalMessage = bodyContent;
     /** @type {any} */
     const cr = challengeResources || {};
+    
+    // Normalize keys (handle both hyphen and underscore from different UI versions)
+    const geo = cr.geospatial || cr.challenge_1 || {};
+    const proc = cr['process-automation'] || cr.process_automation || cr.challenge_2 || {};
+
     const placeholders = {
       // Challenge 1 (Geospatial / Smart Infrastructure)
-      '{{challenge_1_name}}': (cr.challenge_1 && cr.challenge_1.name) || 'Smart Infrastructure',
-      '{{challenge_1_url}}': (cr.challenge_1 && (cr.challenge_1.materials_url || cr.challenge_1.url)) || '#', // Fallback for old templates
-      '{{challenge_1_materials_url}}': (cr.geospatial && cr.geospatial.materials) || (cr.challenge_1 && cr.challenge_1.url) || '#',
-      '{{challenge_1_task_url}}': (cr.geospatial && cr.geospatial.task) || (cr.challenge_1 && cr.challenge_1.task_url) || '#',
+      '{{challenge_1_name}}': geo.name || 'Smart Infrastructure',
+      '{{challenge_1_url}}': geo.materials || geo.url || '#',
+      '{{challenge_1_materials_url}}': geo.materials || geo.url || '#',
+      '{{challenge_1_task_url}}': geo.task || geo.task_url || '#',
       '{{challenge_1_page_url}}': 'https://krakhack.info/zadania/infrasruktura',
       
       // Challenge 2 (Process Automation / Mining)
-      '{{challenge_2_name}}': (cr.challenge_2 && cr.challenge_2.name) || 'Process-to-Automation Copilot',
-      '{{challenge_2_url}}': (cr.challenge_2 && (cr.challenge_2.materials_url || cr.challenge_2.url)) || '#', // Fallback
-      '{{challenge_2_materials_url}}': (cr.process_automation && cr.process_automation.materials) || (cr.challenge_2 && cr.challenge_2.url) || '#',
-      '{{challenge_2_task_url}}': (cr.process_automation && cr.process_automation.task) || (cr.challenge_2 && cr.challenge_2.task_url) || '#',
+      '{{challenge_2_name}}': proc.name || 'Process-to-Automation Copilot',
+      '{{challenge_2_url}}': proc.materials || proc.url || '#',
+      '{{challenge_2_materials_url}}': proc.materials || proc.url || '#',
+      '{{challenge_2_task_url}}': proc.task || proc.task_url || '#',
       '{{challenge_2_page_url}}': 'https://krakhack.info/zadania/asystent',
       '{{year}}': '2026'
     };

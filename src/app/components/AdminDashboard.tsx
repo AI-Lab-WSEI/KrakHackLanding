@@ -70,11 +70,22 @@ export function AdminDashboard() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [surveys, setSurveys] = useState<SurveyData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [resourceLinks, setResourceLinks] = useState<Record<string, ChallengeResources>>({});
+  const [resourceLinks, setResourceLinks] = useState<Record<string, ChallengeResources>>({
+    geospatial: { 
+      materials: 'https://res.cloudinary.com/dyux0lw71/image/upload/v1774013122/Smart_Infrastructure_Challenge_Materials_lwxd0z.pdf',
+      task: ''
+    },
+    'process-automation': { 
+      materials: 'https://res.cloudinary.com/dyux0lw71/image/upload/v1774013122/Process_Mining_Preparation_Materials_av7ijw.pdf',
+      task: ''
+    }
+  });
   const [activeTab, setActiveTab] = useState<'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms'>('regs');
   const [roleFilter, setRoleFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isSavingLinks, setIsSavingLinks] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Mailing state
   const [mailSubject, setMailSubject] = useState('');
@@ -238,14 +249,16 @@ export function AdminDashboard() {
       setSurveys(surveysData);
       
       // Fetch resource links for challenges
-      const res1 = await fetch('/api/config/challenge_resources');
-      if (res1.ok) {
+    const res1 = await fetch('/api/config/challenge_resources');
+    if (res1.ok) {
         const data = await res1.json();
-        const formatted: Record<string, ChallengeResources> = {};
+        const formatted: Record<string, ChallengeResources> = { ...resourceLinks };
         if (data.geospatial) formatted.geospatial = data.geospatial;
         if (data['process-automation']) formatted['process-automation'] = data['process-automation'];
+        if (data.challenge_1) (formatted as any).challenge_1 = data.challenge_1;
+        if (data.challenge_2) (formatted as any).challenge_2 = data.challenge_2;
         setResourceLinks(formatted);
-      }
+    }
     } catch (err: any) {
       setError(err.message || 'Błąd ładowania danych');
     } finally {
@@ -322,16 +335,18 @@ export function AdminDashboard() {
   };
 
   const saveAllResourceLinks = async () => {
+    setIsSavingLinks(true);
+    setSaveSuccess(false);
     try {
       const challenge_1 = { 
         name: 'Smart Infrastructure', 
-        url: resourceLinks.geospatial?.materials || '',
-        task_url: resourceLinks.geospatial?.task || ''
+        materials: resourceLinks.geospatial?.materials || '',
+        task: resourceLinks.geospatial?.task || ''
       };
       const challenge_2 = { 
         name: 'Process-to-Automation Copilot', 
-        url: resourceLinks['process-automation']?.materials || '',
-        task_url: resourceLinks['process-automation']?.task || ''
+        materials: resourceLinks['process-automation']?.materials || '',
+        task: resourceLinks['process-automation']?.task || ''
       };
 
       const res = await fetch('/api/config/challenge_resources', {
@@ -340,13 +355,23 @@ export function AdminDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${getAdminToken()}`
         },
-        body: JSON.stringify({ value: { geospatial: resourceLinks.geospatial, 'process-automation': resourceLinks['process-automation'], challenge_1, challenge_2 } })
+        body: JSON.stringify({ 
+          value: { 
+            geospatial: resourceLinks.geospatial, 
+            'process-automation': resourceLinks['process-automation'], 
+            challenge_1, 
+            challenge_2 
+          } 
+        })
       });
       if (!res.ok) throw new Error('API Error');
-      alert('Zapisano pomyślnie w bazie danych!');
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error(err);
       alert('Błąd zapisu w bazie danych.');
+    } finally {
+      setIsSavingLinks(false);
     }
   };
 
@@ -549,10 +574,15 @@ export function AdminDashboard() {
                 <div className="pt-4 border-t border-white/10 flex justify-center">
                   <button 
                     onClick={saveAllResourceLinks}
-                    className="group relative px-8 py-3 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                    disabled={isSavingLinks}
+                    className={`group relative px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg transition-all active:scale-95 flex items-center gap-2 ${saveSuccess ? 'bg-green-600' : 'bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500'} text-white`}
                   >
-                    <Save className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
-                    Zapisz Linki
+                    {saveSuccess ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
+                    )}
+                    {saveSuccess ? 'Zapisano!' : isSavingLinks ? 'Zapisywanie...' : 'Zapisz Linki'}
                   </button>
                 </div>
               </div>
