@@ -109,7 +109,7 @@ export function AdminDashboard() {
   <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px; text-align: center; color: #ffffff;">
       <h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Zestaw Startowy 🛠️</h1>
-      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.8; font-weight: 500;">Twoje materiały przygotowawcze do Krak Hack {{year}}</p>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.8; font-weight: 500;">Twoje materiały przygotowawcze do Krak Hack 2026</p>
     </div>
     
     <div style="padding: 40px; color: #334155;">
@@ -130,16 +130,16 @@ export function AdminDashboard() {
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 24px; margin-bottom: 20px;">
           <p style="margin: 0 0 12px; font-weight: 800; font-size: 14px; color: #3b82f6; text-transform: uppercase;">1. Smart Infrastructure</p>
           <div>
-            <a href="{{challenge_1_materials_url}}" style="background: #3b82f6; color: white; padding: 12px 20px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block; margin-right: 10px; margin-bottom: 10px;">Zestaw Starter Set (PDF)</a>
-            <a href="{{challenge_1_page_url}}" style="background: #ffffff; color: #3b82f6; border: 2px solid #3b82f6; padding: 10px 18px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block;">Strona Wyzwania &rarr;</a>
+            <a href="https://res.cloudinary.com/dyux0lw71/image/upload/v1774013122/Smart_Infrastructure_Challenge_Materials_lwxd0z.pdf" style="background: #3b82f6; color: white; padding: 12px 20px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block; margin-right: 10px; margin-bottom: 10px;">Zestaw Starter Set (PDF)</a>
+            <a href="https://krakhack.info/zadania/infrasruktura" style="background: #ffffff; color: #3b82f6; border: 2px solid #3b82f6; padding: 10px 18px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block;">Strona Wyzwania &rarr;</a>
           </div>
         </div>
 
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 24px;">
           <p style="margin: 0 0 12px; font-weight: 800; font-size: 14px; color: #2563eb; text-transform: uppercase;">2. Process-to-Automation Copilot</p>
           <div>
-            <a href="{{challenge_2_materials_url}}" style="background: #2563eb; color: white; padding: 12px 20px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block; margin-right: 10px; margin-bottom: 10px;">Zestaw Starter Set (PDF)</a>
-            <a href="{{challenge_2_page_url}}" style="background: #ffffff; color: #2563eb; border: 2px solid #2563eb; padding: 10px 18px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block;">Strona Wyzwania &rarr;</a>
+            <a href="https://res.cloudinary.com/dyux0lw71/image/upload/v1774013122/Process_Mining_Preparation_Materials_av7ijw.pdf" style="background: #2563eb; color: white; padding: 12px 20px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block; margin-right: 10px; margin-bottom: 10px;">Zestaw Starter Set (PDF)</a>
+            <a href="https://krakhack.info/zadania/asystent" style="background: #ffffff; color: #2563eb; border: 2px solid #2563eb; padding: 10px 18px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block;">Strona Wyzwania &rarr;</a>
           </div>
         </div>
       </div>
@@ -856,9 +856,10 @@ export function AdminDashboard() {
                                 body: JSON.stringify({ target: 'single', phone: testSmsPhone, message: smsMessage })
                               });
                               const data = await res.json();
-                              setSmsStatus({ success: data.success, message: data.success ? 'SMS testowy wysłany!' : 'Błąd wysyłki testowej.' });
-                            } catch (e) {
-                              setSmsStatus({ success: false, message: 'Błąd sieci.' });
+                              if (res.status === 401) throw new Error('Nieautoryzowany - sesja wygasła.');
+                              setSmsStatus({ success: data.success, message: data.success ? 'SMS testowy wysłany!' : `Błąd: ${data.error || 'nieznany błąd'}` });
+                            } catch (e: any) {
+                              setSmsStatus({ success: false, message: e.message || 'Błąd sieci.' });
                             } finally {
                               setIsSendingSms(false);
                             }

@@ -660,13 +660,15 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
 app.post('/api/admin/sms/send', requireAdmin, async (req, res) => {
   try {
     const { target, phone, message } = req.body;
+    console.log('[SMS] API Request received:', { target, phone: phone ? '***' : 'MISSING', message: message ? message.slice(0, 20) + '...' : 'MISSING' });
+
     if (!message) {
-      return res.status(400).json({ error: 'Brak treści wiadomości' });
+      return res.status(400).json({ success: false, error: 'Brak treści wiadomości' });
     }
 
     if (target === 'single') {
       if (!phone) {
-        return res.status(400).json({ error: 'Brak numeru telefonu' });
+        return res.status(400).json({ success: false, error: 'Brak numeru telefonu' });
       }
       const success = await sendSMSAPI(phone, message);
       return res.json({ success });
