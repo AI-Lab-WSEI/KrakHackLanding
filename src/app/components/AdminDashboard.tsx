@@ -85,48 +85,64 @@ export function AdminDashboard() {
 
   const EMAIL_TEMPLATES: Record<string, { subject: string, html: string }> = {
     PREP: {
-      subject: 'Zestaw Startowy i Potwierdzenie Udziału - AI Krak Hack 2026',
+      subject: 'Zestaw Startowy i Harmonogram - AI Krak Hack 2026',
       html: `
 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-  <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6); padding: 30px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
-    <h1 style="margin: 0; font-size: 24px;">Witaj na AI Krak Hack 2026!</h1>
+  <div style="background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 30px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
+    <h1 style="margin: 0; font-size: 24px;">Zestaw Startowy 🛠️</h1>
+    <p style="margin: 10px 0 0; opacity: 0.9;">Materiały przygotowawcze do Twojego wyzwania</p>
   </div>
+  
   <div style="padding: 30px 20px;">
-    <p style="font-size: 16px; line-height: 1.6; font-weight: bold;">Z radością potwierdzamy przyjęcie Twojego zgłoszenia!</p>
-    <p style="font-size: 16px; line-height: 1.6;">Bardzo się cieszymy, że dołączasz do grona uczestników. Nasz zespół intensywnie pracuje nad tym, aby tegoroczna edycja była dla Ciebie niezapomnianym doświadczeniem pełnym merytorycznych wyzwań.</p>
+    <p style="font-size: 16px; line-height: 1.6;">Cześć!</p>
+    <p style="font-size: 16px; line-height: 1.6;">Przyjęliśmy Twoje zgłoszenie i bardzo się cieszymy, że jesteś z nami! Przygotowujemy ten hackathon, aby był dla Ciebie niesamowitym doświadczeniem. Czuj się w pełni zaproszony!</p>
     
-    <div style="background-color: #f0f9ff; border-left: 4px solid #06b6d4; padding: 20px; margin: 25px 0;">
-      <p style="font-size: 15px; margin: 0; line-height: 1.5;">
-        <strong>Wyrównanie szans:</strong> Przed ogłoszeniem finałowych zadań, przygotowaliśmy pakiety startowe. Znajdziesz w nich najważniejsze "highlighty" i informacje o tym, jak będą wyglądać wyzwania w poszczególnych kategoriach. Polecamy zapoznanie się z nimi wcześniej – pomoże to Twojemu zespołowi lepiej przygotować się do pracy.
-      </p>
-    </div>
+    <p style="font-size: 16px; line-height: 1.6; background: #fffbeb; padding: 15px; border-left: 4px solid #f59e0b; border-radius: 4px;">
+      <strong>Nasza wskazówka:</strong> Proponujemy zrobić "domówkę", spotkać się razem z zespołem i zacząć pracować (nad koncepcją i środowiskiem) od samego początku, gdy tylko zadania zostaną odblokowane!
+    </p>
 
-    <p style="font-size: 16px; line-height: 1.6; text-align: center; font-weight: bold; margin-bottom: 20px;">Twój przewodnik po wyzwaniach:</p>
-    
+    <!-- Challenges Links -->
     <div style="margin: 30px 0;">
       <!-- Challenge 1 -->
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
-        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #06b6d4;">1. Smart Infrastructure</p>
-        <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Dla osób zainteresowanych GIS, analizą danych przestrzennych i modelowaniem miast.</p>
-        <div style="display: flex; gap: 10px;">
-          <a href="{{challenge_1_url}}" style="background: #06b6d4; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Pobierz Zestaw Startowy</a>
-          <a href="https://krakhack.info/infrasruktura" style="background: white; border: 1px solid #06b6d4; color: #06b6d4; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Szczegóły Wyzwania &rarr;</a>
+        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #3b82f6;">1. Smart Infrastructure</p>
+        <div style="margin-top: 15px;">
+          <a href="{{challenge_1_materials_url}}" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 18px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Zestaw Starter Set (PDF)</a>
+          <a href="https://krakhack.info/zadania/infrasruktura" style="display: inline-block; background: white; border: 1px solid #3b82f6; color: #3b82f6; padding: 10px 18px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona wyzwania &rarr;</a>
         </div>
       </div>
 
       <!-- Challenge 2 -->
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px;">
-        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #3b82f6;">2. Process Mining & Automation</p>
-        <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Dla fanów Process Mining, optymalizacji workflow i asystentów AI.</p>
-        <div style="display: flex; gap: 10px;">
-          <a href="{{challenge_2_url}}" style="background: #3b82f6; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Pobierz Zestaw Startowy</a>
-          <a href="https://krakhack.info/asystent" style="background: white; border: 1px solid #3b82f6; color: #3b82f6; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Szczegóły Wyzwania &rarr;</a>
+        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #2563eb;">2. Process-to-Automation Copilot</p>
+        <div style="margin-top: 15px;">
+          <a href="{{challenge_2_materials_url}}" style="display: inline-block; background: #2563eb; color: white; padding: 10px 18px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Zestaw Starter Set (PDF)</a>
+          <a href="https://krakhack.info/zadania/asystent" style="display: inline-block; background: white; border: 1px solid #2563eb; color: #2563eb; padding: 10px 18px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona wyzwania &rarr;</a>
         </div>
       </div>
     </div>
+
+    <!-- Schedule Section -->
+    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 20px; margin: 30px 0;">
+      <h3 style="margin: 0 0 15px; font-size: 16px; color: #0369a1; border-bottom: 2px solid #0ea5e9; display: inline-block; padding-bottom: 3px;">Harmonogram AI Krak Hack 2026</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4;">
+        <tr><td style="padding: 6px 0; color: #64748b; width: 110px; vertical-align: top;">27.03, 18:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Start hackathonu - Udostępnienie zadań i rozpoczęcie pracy online</td></tr>
+        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 09:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Praca na uczelni - Intensywna praca zespołowa z wsparciem mentorów</td></tr>
+        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 13:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Przerwa na obiad i sesje mentoringowe. PIZZA! 🍕</td></tr>
+        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 17:30</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Demo & Finał - Prezentacje projektów przed jury</td></tr>
+        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 19:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Knowledge sharing - Wystąpienia zaproszonych gości</td></tr>
+        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 20:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Ogłoszenie wyników i wręczenie nagród 🏆</td></tr>
+        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 21:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Afterparty & Integracja uczestników</td></tr>
+      </table>
+    </div>
     
-    <p style="font-size: 14px; color: #666; border-top: 1px solid #eee; padding-top: 25px; margin-top: 30px; text-align: center;">
-      Powodzenia! Widzimy się już niebawem.<br>
+    <div style="font-size: 13px; color: #666; background: #f9fafb; padding: 15px; border-radius: 8px; margin-top: 30px;">
+      <p style="margin: 0 0 10px;"><strong>Kontakt:</strong> W razie pytań pisz na <a href="mailto:knai@wsei.edu.pl" style="color: #3b82f6; text-decoration: none;">knai@wsei.edu.pl</a> lub dzwon na numery podane w sekcji kontakt na stronie.</p>
+      <p style="margin: 0; font-style: italic;">To jest wiadomość automatyczna. Prosimy na nią nie odpowiadać.</p>
+    </div>
+
+    <p style="font-size: 14px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+      Do zobaczenia na kodowaniu!<br>
       <strong>Zespół AI Krak Hack 2026</strong>
     </p>
   </div>
@@ -148,18 +164,18 @@ export function AdminDashboard() {
       <!-- Challenge 1 -->
       <div style="background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
         <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #16a34a;">1. Smart Infrastructure</p>
-        <div style="display: flex; gap: 10px;">
-          <a href="{{challenge_1_task_url}}" style="background: #16a34a; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Pobierz Arkusz Zadania</a>
-          <a href="https://krakhack.info/infrasruktura" style="background: white; border: 1px solid #16a34a; color: #16a34a; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona Konkursowa &rarr;</a>
+        <div style="margin-top: 15px;">
+          <a href="{{challenge_1_task_url}}" style="display: inline-block; background: #16a34a; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Arkusz Zadania</a>
+          <a href="https://krakhack.info/zadania/infrasruktura" style="display: inline-block; background: white; border: 1px solid #16a34a; color: #16a34a; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona wyzwania &rarr;</a>
         </div>
       </div>
 
       <!-- Challenge 2 -->
       <div style="background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 16px; padding: 20px;">
-        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #15803d;">2. Process Mining & Automation</p>
-        <div style="display: flex; gap: 10px;">
-          <a href="{{challenge_2_task_url}}" style="background: #15803d; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Pobierz Arkusz Zadania</a>
-          <a href="https://krakhack.info/asystent" style="background: white; border: 1px solid #15803d; color: #15803d; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona Konkursowa &rarr;</a>
+        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #15803d;">2. Process-to-Automation Copilot</p>
+        <div style="margin-top: 15px;">
+          <a href="{{challenge_2_task_url}}" style="display: inline-block; background: #15803d; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Arkusz Zadania</a>
+          <a href="https://krakhack.info/zadania/asystent" style="display: inline-block; background: white; border: 1px solid #15803d; color: #15803d; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona wyzwania &rarr;</a>
         </div>
       </div>
     </div>
@@ -306,7 +322,7 @@ export function AdminDashboard() {
         task_url: resourceLinks.geospatial?.task || ''
       };
       const challenge_2 = { 
-        name: 'Process Mining', 
+        name: 'Process-to-Automation Copilot', 
         url: resourceLinks['process-automation']?.materials || '',
         task_url: resourceLinks['process-automation']?.task || ''
       };

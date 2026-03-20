@@ -511,14 +511,14 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
       '{{challenge_1_url}}': (cr.challenge_1 && (cr.challenge_1.materials_url || cr.challenge_1.url)) || '#', // Fallback for old templates
       '{{challenge_1_materials_url}}': (cr.geospatial && cr.geospatial.materials) || (cr.challenge_1 && cr.challenge_1.url) || '#',
       '{{challenge_1_task_url}}': (cr.geospatial && cr.geospatial.task) || (cr.challenge_1 && cr.challenge_1.task_url) || '#',
-      '{{challenge_1_page_url}}': 'https://krakhack.info/infrasruktura',
+      '{{challenge_1_page_url}}': 'https://krakhack.info/zadania/infrasruktura',
       
       // Challenge 2 (Process Automation / Mining)
-      '{{challenge_2_name}}': (cr.challenge_2 && cr.challenge_2.name) || 'Process Mining',
+      '{{challenge_2_name}}': (cr.challenge_2 && cr.challenge_2.name) || 'Process-to-Automation Copilot',
       '{{challenge_2_url}}': (cr.challenge_2 && (cr.challenge_2.materials_url || cr.challenge_2.url)) || '#', // Fallback
       '{{challenge_2_materials_url}}': (cr.process_automation && cr.process_automation.materials) || (cr.challenge_2 && cr.challenge_2.url) || '#',
       '{{challenge_2_task_url}}': (cr.process_automation && cr.process_automation.task) || (cr.challenge_2 && cr.challenge_2.task_url) || '#',
-      '{{challenge_2_page_url}}': 'https://krakhack.info/asystent',
+      '{{challenge_2_page_url}}': 'https://krakhack.info/zadania/asystent',
       '{{year}}': '2026'
     };
 
