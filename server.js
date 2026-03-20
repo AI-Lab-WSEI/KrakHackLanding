@@ -91,7 +91,7 @@ async function sendResendEmail(to, subject, html) {
   }
 }
 
-async function sendSMSAPI(to, message) {
+async function sendSMSAPI(to, message, useFrom = true) {
   const token = (process.env.SMS_GATE_TOKEN || '').trim();
   const from = (process.env.SMS_SENDER || 'AIKrakHack').trim();
   
@@ -119,13 +119,15 @@ async function sendSMSAPI(to, message) {
     const params = new URLSearchParams();
     params.append('to', recipients);
     params.append('message', message);
-    params.append('from', from);
+    if (useFrom && from && from !== '' && from.toLowerCase() !== 'default') {
+      params.append('from', from);
+    }
     params.append('format', 'json');
     params.append('encoding', 'utf-8');
     params.append('normalize', '1'); // Replace Polish chars with standard ones (ą->a, etc.)
     params.append('details', '1');   // Get more details in response
 
-    console.log('[SMS] Sending request to SMSAPI...', { to: recipients });
+    console.log(`[SMS] Sending request to SMSAPI (from: ${useFrom ? from : 'default'})...`, { to: recipients });
 
     const res = await fetch('https://api.smsapi.pl/sms.do', {
       method: 'POST',
@@ -145,6 +147,12 @@ async function sendSMSAPI(to, message) {
       return { success: false, error: `Błąd odpowiedzi bramki: ${bodyText.slice(0, 50)}` };
     }
 
+    // Auto-fallback if sender name is invalid (error 14)
+    if (useFrom && (data.error === 14 || data.message?.includes('Invalid from field'))) {
+      console.warn(`[SMS] Sender ID "${from}" is not active. Falling back to default sender...`);
+      return sendSMSAPI(to, message, false); // Recursive call without 'from'
+    }
+
     if (!res.ok || data.error) {
       const errMsg = data.message || (data.error ? `Kod błędu: ${data.error}` : 'Błąd HTTP ' + res.status);
       console.error('[SMS] SMSAPI error response:', res.status, JSON.stringify(data));
@@ -159,7 +167,7 @@ async function sendSMSAPI(to, message) {
     }
     
     console.log('[SMS] Sent successfully to:', recipients, 'Internal ID:', firstMsg?.id);
-    return { success: true };
+    return { success: true, sender: useFrom ? from : 'default' };
   } catch (err) {
     console.error('[SMS] SMS Send Exception:', err.message || err);
     return { success: false, error: `Wyjątek sieciowy: ${err.message || 'Nieznany błąd'}` };
