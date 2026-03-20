@@ -94,7 +94,6 @@ export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSli
                         loading="lazy"
                       />
                     </div>
-                    {/* Captions removed per user request */}
                   </motion.div>
                 </div>
               ))}

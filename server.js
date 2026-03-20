@@ -66,7 +66,7 @@ async function sendResendEmail(to, subject, html) {
     console.warn('[Email] RESEND_API_KEY not set, skipping email to:', to);
     return false;
   }
-  const fromAddr = process.env.EMAIL_FROM || 'AI Krak Hack <onboarding@resend.dev>';
+  const fromAddr = process.env.EMAIL_FROM || 'AI Krak Hack Team <onboarding@resend.dev>';
   console.log(`[Email] Sending to: ${to}, from: ${fromAddr}, subject: ${subject}`);
   try {
     const payload = { from: fromAddr, to, subject, html };
@@ -120,6 +120,8 @@ async function sendSMSAPI(to, message) {
     params.append('format', 'json');
     params.append('encoding', 'utf-8');
 
+    console.log('[SMS] Sending request to SMSAPI...', { to: recipients });
+
     const res = await fetch('https://api.smsapi.pl/sms.do', {
       method: 'POST',
       headers: {
@@ -129,15 +131,24 @@ async function sendSMSAPI(to, message) {
       body: params.toString()
     });
 
-    const data = await res.json();
-    if (!res.ok || data.error) {
-      console.error('[SMS] SMSAPI error:', res.status, JSON.stringify(data));
+    const bodyText = await res.text();
+    let data = {};
+    try {
+      data = JSON.parse(bodyText);
+    } catch (e) {
+      console.error('[SMS] Failed to parse SMSAPI response as JSON:', bodyText);
       return false;
     }
-    console.log('[SMS] Sent successfully to:', recipients);
+
+    if (!res.ok || data.error) {
+      console.error('[SMS] SMSAPI error response:', res.status, JSON.stringify(data));
+      return false;
+    }
+    
+    console.log('[SMS] Sent successfully to:', recipients, 'Internal ID:', data.list?.[0]?.id);
     return true;
   } catch (err) {
-    console.error('[SMS] Network/fetch error:', err.message || err);
+    console.error('[SMS] SMS Send Exception:', err.message || err);
     return false;
   }
 }

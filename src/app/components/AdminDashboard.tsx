@@ -105,67 +105,68 @@ export function AdminDashboard() {
     PREP: {
       subject: 'Zestaw Startowy i Harmonogram - AI Krak Hack 2026',
       html: `
-<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-  <div style="background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 30px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
-    <h1 style="margin: 0; font-size: 24px;">Zestaw Startowy 🛠️</h1>
-    <p style="margin: 10px 0 0; opacity: 0.9;">Materiały przygotowawcze do Twojego wyzwania</p>
-  </div>
-  
-  <div style="padding: 30px 20px;">
-    <p style="font-size: 16px; line-height: 1.6;">Cześć!</p>
-    <p style="font-size: 16px; line-height: 1.6;">Przyjęliśmy Twoje zgłoszenie i bardzo się cieszymy, że jesteś z nami! Przygotowujemy ten hackathon, aby był dla Ciebie niesamowitym doświadczeniem. Czuj się w pełni zaproszony!</p>
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Zestaw Startowy 🛠️</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.8; font-weight: 500;">Twoje materiały przygotowawcze do Krak Hack {{year}}</p>
+    </div>
     
-    <p style="font-size: 16px; line-height: 1.6; background: #fffbeb; padding: 15px; border-left: 4px solid #f59e0b; border-radius: 4px;">
-      <strong>Nasza wskazówka:</strong> Proponujemy zrobić "domówkę", spotkać się razem z zespołem i zacząć pracować (nad koncepcją i środowiskiem) od samego początku, gdy tylko zadania zostaną odblokowane!
-    </p>
+    <div style="padding: 40px; color: #334155;">
+      <p style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Cześć!</p>
+      <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
+        Przyjęliśmy Twoje zgłoszenie! Cieszymy się, że będziesz z nami podczas tej edycji. To będzie intensywny czas pełen innowacji i AI.
+      </p>
+      
+      <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; border-radius: 12px; margin-bottom: 32px;">
+        <p style="margin: 0; font-size: 15px; color: #92400e; line-height: 1.5;">
+          <strong>Pro-tip:</strong> Skontaktuj się z zespołem już teraz! Przejrzyjcie materiały, skonfigurujcie środowisko i przygotujcie wstępną strategię, gdy tylko zadania zostaną odblokowane.
+        </p>
+      </div>
 
-    <!-- Challenges Links -->
-    <div style="margin: 30px 0;">
-      <!-- Challenge 1 -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
-        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #3b82f6;">1. Smart Infrastructure</p>
-        <div style="margin-top: 15px;">
-          <a href="{{challenge_1_materials_url}}" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 18px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Zestaw Starter Set (PDF)</a>
-          <a href="https://krakhack.info/zadania/infrasruktura" style="display: inline-block; background: white; border: 1px solid #3b82f6; color: #3b82f6; padding: 10px 18px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona wyzwania &rarr;</a>
+      <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 20px;">Materiały do Twojego wyzwania:</h3>
+      
+      <div style="margin-bottom: 40px;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 24px; margin-bottom: 20px;">
+          <p style="margin: 0 0 12px; font-weight: 800; font-size: 14px; color: #3b82f6; text-transform: uppercase;">1. Smart Infrastructure</p>
+          <div>
+            <a href="{{challenge_1_materials_url}}" style="background: #3b82f6; color: white; padding: 12px 20px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block; margin-right: 10px; margin-bottom: 10px;">Zestaw Starter Set (PDF)</a>
+            <a href="{{challenge_1_page_url}}" style="background: #ffffff; color: #3b82f6; border: 2px solid #3b82f6; padding: 10px 18px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block;">Strona Wyzwania &rarr;</a>
+          </div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 24px;">
+          <p style="margin: 0 0 12px; font-weight: 800; font-size: 14px; color: #2563eb; text-transform: uppercase;">2. Process-to-Automation Copilot</p>
+          <div>
+            <a href="{{challenge_2_materials_url}}" style="background: #2563eb; color: white; padding: 12px 20px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block; margin-right: 10px; margin-bottom: 10px;">Zestaw Starter Set (PDF)</a>
+            <a href="{{challenge_2_page_url}}" style="background: #ffffff; color: #2563eb; border: 2px solid #2563eb; padding: 10px 18px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 13px; display: inline-block;">Strona Wyzwania &rarr;</a>
+          </div>
         </div>
       </div>
 
-      <!-- Challenge 2 -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px;">
-        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #2563eb;">2. Process-to-Automation Copilot</p>
-        <div style="margin-top: 15px;">
-          <a href="{{challenge_2_materials_url}}" style="display: inline-block; background: #2563eb; color: white; padding: 10px 18px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Zestaw Starter Set (PDF)</a>
-          <a href="https://krakhack.info/zadania/asystent" style="display: inline-block; background: white; border: 1px solid #2563eb; color: #2563eb; padding: 10px 18px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona wyzwania &rarr;</a>
-        </div>
+      <h3 style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 20px;">Harmonogram AI Krak Hack 2026:</h3>
+      
+      <div style="background: #f1f5f9; border-radius: 20px; padding: 24px; margin-bottom: 40px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px 0; font-weight: 700; color: #0f172a; font-size: 14px;">27.03, 18:00</td><td style="padding: 12px 0; font-size: 14px; color: #475569; text-align: right;">Start hackathonu - Zadania online</td></tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px 0; font-weight: 700; color: #0f172a; font-size: 14px;">28.03, 09:00</td><td style="padding: 12px 0; font-size: 14px; color: #475569; text-align: right;">Praca na uczelni - Mentorzy</td></tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px 0; font-weight: 700; color: #0f172a; font-size: 14px;">28.03, 13:00</td><td style="padding: 12px 0; font-size: 14px; color: #475569; text-align: right;">Przerwa na obiad. PIZZA! 🍕</td></tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px 0; font-weight: 700; color: #0f172a; font-size: 14px;">28.03, 17:30</td><td style="padding: 12px 0; font-size: 14px; color: #475569; text-align: right;">Demo & Finał - Prezentacje</td></tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px 0; font-weight: 700; color: #0f172a; font-size: 14px;">28.03, 20:00</td><td style="padding: 12px 0; font-size: 14px; color: #475569; text-align: right;">Wyniki i Nagrody 🏆</td></tr>
+          <tr><td style="padding: 12px 0; font-weight: 700; color: #0f172a; font-size: 14px;">28.03, 21:00</td><td style="padding: 12px 0; font-size: 14px; color: #475569; text-align: right;">Afterparty & Integracja 🚀</td></tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; border-top: 1px solid #e2e8f0; padding-top: 32px;">
+        <p style="font-size: 13px; color: #94a3b8; margin: 0;">
+          Do zobaczenia na miejscu!<br>
+          <strong>Zespół AI Krak Hack {{year}}</strong>
+        </p>
       </div>
     </div>
-
-    <!-- Schedule Section -->
-    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 20px; margin: 30px 0;">
-      <h3 style="margin: 0 0 15px; font-size: 16px; color: #0369a1; border-bottom: 2px solid #0ea5e9; display: inline-block; padding-bottom: 3px;">Harmonogram AI Krak Hack 2026</h3>
-      <table style="width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4;">
-        <tr><td style="padding: 6px 0; color: #64748b; width: 110px; vertical-align: top;">27.03, 18:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Start hackathonu - Udostępnienie zadań i rozpoczęcie pracy online</td></tr>
-        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 09:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Praca na uczelni - Intensywna praca zespołowa z wsparciem mentorów</td></tr>
-        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 13:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Przerwa na obiad i sesje mentoringowe. PIZZA! 🍕</td></tr>
-        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 17:30</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Demo & Finał - Prezentacje projektów przed jury</td></tr>
-        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 19:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Knowledge sharing - Wystąpienia zaproszonych gości</td></tr>
-        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 20:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Ogłoszenie wyników i wręczenie nagród 🏆</td></tr>
-        <tr><td style="padding: 6px 0; color: #64748b; vertical-align: top;">28.03, 21:00</td><td style="padding: 6px 0; font-weight: bold; color: #0f172a;">Afterparty & Integracja uczestników</td></tr>
-      </table>
-    </div>
-    
-    <div style="font-size: 13px; color: #666; background: #f9fafb; padding: 15px; border-radius: 8px; margin-top: 30px;">
-      <p style="margin: 0 0 10px;"><strong>Kontakt:</strong> W razie pytań pisz na <a href="mailto:knai@wsei.edu.pl" style="color: #3b82f6; text-decoration: none;">knai@wsei.edu.pl</a> lub dzwon na numery podane w sekcji kontakt na stronie.</p>
-      <p style="margin: 0; font-style: italic;">To jest wiadomość automatyczna. Prosimy na nią nie odpowiadać.</p>
-    </div>
-
-    <p style="font-size: 14px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-      Do zobaczenia na kodowaniu!<br>
-      <strong>Zespół AI Krak Hack 2026</strong>
-    </p>
   </div>
 </div>
-      `
+`
     },
     START: {
       subject: 'STARTUJEMY! Wyzwania są już dostępne - AI Krak Hack 2026',
