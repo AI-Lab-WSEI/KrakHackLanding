@@ -16,7 +16,8 @@ import {
   FileText,
   LayoutDashboard,
   Check,
-  AlertCircle
+  AlertCircle,
+  Save
 } from 'lucide-react';
 
 interface Registration {
@@ -84,30 +85,49 @@ export function AdminDashboard() {
 
   const EMAIL_TEMPLATES: Record<string, { subject: string, html: string }> = {
     PREP: {
-      subject: 'Materiały przygotowawcze - AI Krak Hack 2026',
+      subject: 'Zestaw Startowy i Potwierdzenie Udziału - AI Krak Hack 2026',
       html: `
 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
   <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6); padding: 30px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
-    <h1 style="margin: 0; font-size: 24px;">Zestaw Startowy</h1>
+    <h1 style="margin: 0; font-size: 24px;">Witaj na AI Krak Hack 2026!</h1>
   </div>
-  <div style="padding: 20px;">
-    <p style="font-size: 16px; line-height: 1.6;">Cześć!</p>
-    <p style="font-size: 16px; line-height: 1.6;">Materiały przygotowawcze do Twojego wyzwania są już dostępne. Kliknij w odpowiedni przycisk poniżej, aby pobrać zestaw bezpośrednio z naszego CDN:</p>
+  <div style="padding: 30px 20px;">
+    <p style="font-size: 16px; line-height: 1.6; font-weight: bold;">Z radością potwierdzamy przyjęcie Twojego zgłoszenia!</p>
+    <p style="font-size: 16px; line-height: 1.6;">Bardzo się cieszymy, że dołączasz do grona uczestników. Nasz zespół intensywnie pracuje nad tym, aby tegoroczna edycja była dla Ciebie niezapomnianym doświadczeniem pełnym merytorycznych wyzwań.</p>
     
-    <div style="margin: 30px 0; text-align: center;">
-      <div style="margin-bottom: 20px;">
-        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; color: #666;">Wyzwanie 1: Smart Infrastructure</p>
-        <a href="{{challenge_1_url}}" style="display: inline-block; background: #06b6d4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px;">Pobierz Zestaw 1 (PDF)</a>
+    <div style="background-color: #f0f9ff; border-left: 4px solid #06b6d4; padding: 20px; margin: 25px 0;">
+      <p style="font-size: 15px; margin: 0; line-height: 1.5;">
+        <strong>Wyrównanie szans:</strong> Przed ogłoszeniem finałowych zadań, przygotowaliśmy pakiety startowe. Znajdziesz w nich najważniejsze "highlighty" i informacje o tym, jak będą wyglądać wyzwania w poszczególnych kategoriach. Polecamy zapoznanie się z nimi wcześniej – pomoże to Twojemu zespołowi lepiej przygotować się do pracy.
+      </p>
+    </div>
+
+    <p style="font-size: 16px; line-height: 1.6; text-align: center; font-weight: bold; margin-bottom: 20px;">Twój przewodnik po wyzwaniach:</p>
+    
+    <div style="margin: 30px 0;">
+      <!-- Challenge 1 -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
+        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #06b6d4;">1. Smart Infrastructure</p>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Dla osób zainteresowanych GIS, analizą danych przestrzennych i modelowaniem miast.</p>
+        <div style="display: flex; gap: 10px;">
+          <a href="{{challenge_1_url}}" style="background: #06b6d4; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Pobierz Zestaw Startowy</a>
+          <a href="https://krakhack.info/infrasruktura" style="background: white; border: 1px solid #06b6d4; color: #06b6d4; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Szczegóły Wyzwania &rarr;</a>
+        </div>
       </div>
-      <div>
-        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; color: #666;">Wyzwanie 2: Process Mining</p>
-        <a href="{{challenge_2_url}}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px;">Pobierz Zestaw 2 (PDF)</a>
+
+      <!-- Challenge 2 -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px;">
+        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #3b82f6;">2. Process Mining & Automation</p>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Dla fanów Process Mining, optymalizacji workflow i asystentów AI.</p>
+        <div style="display: flex; gap: 10px;">
+          <a href="{{challenge_2_url}}" style="background: #3b82f6; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Pobierz Zestaw Startowy</a>
+          <a href="https://krakhack.info/asystent" style="background: white; border: 1px solid #3b82f6; color: #3b82f6; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Szczegóły Wyzwania &rarr;</a>
+        </div>
       </div>
     </div>
     
-    <p style="font-size: 14px; color: #666; border-top: 1px solid #eee; padding-top: 20px;">
-      Zalecamy zapoznanie się z nimi przed rozpoczęciem hackathonu.<br>
-      Powodzenia! Zespół AI Krak Hack {{year}}
+    <p style="font-size: 14px; color: #666; border-top: 1px solid #eee; padding-top: 25px; margin-top: 30px; text-align: center;">
+      Powodzenia! Widzimy się już niebawem.<br>
+      <strong>Zespół AI Krak Hack 2026</strong>
     </p>
   </div>
 </div>
@@ -117,14 +137,38 @@ export function AdminDashboard() {
       subject: 'STARTUJEMY! Wyzwania są już dostępne - AI Krak Hack 2026',
       html: `
 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-  <h1 style="color: #06b6d4; margin-top: 0;">Wyzwania odblokowane!</h1>
-  <p style="font-size: 16px; line-height: 1.6;">Właśnie wystartowaliśmy! Arkusze zadań dla wszystkich kategorii są już dostępne.</p>
-  <div style="margin: 30px 0; text-align: center;">
-    <a href="{{challenge_1_url}}" style="display: inline-block; background: #06b6d4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 5px;">Zadanie 1</a>
-    <a href="{{challenge_2_url}}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 5px;">Zadanie 2</a>
+  <div style="background: linear-gradient(135deg, #22c55e, #10b981); padding: 30px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
+    <h1 style="margin: 0; font-size: 24px;">CZAS START! 🚀</h1>
   </div>
-  <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
-  <p style="font-size: 14px; color: #666;">Powodzenia!<br>Zespół AI Krak Hack {{year}}</p>
+  <div style="padding: 30px 20px;">
+    <p style="font-size: 16px; line-height: 1.6; font-weight: bold;">Właśnie wystartowaliśmy!</p>
+    <p style="font-size: 16px; line-height: 1.6;">Arkusze zadań oraz repozytoria dla wszystkich kategorii są już dostępne. Czas przełożyć pomysły na kod. Poniżej znajdziesz bezpośrednie linki do stron Twojego wyzwania:</p>
+    
+    <div style="margin: 30px 0;">
+      <!-- Challenge 1 -->
+      <div style="background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
+        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #16a34a;">1. Smart Infrastructure</p>
+        <div style="display: flex; gap: 10px;">
+          <a href="{{challenge_1_task_url}}" style="background: #16a34a; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Pobierz Arkusz Zadania</a>
+          <a href="https://krakhack.info/infrasruktura" style="background: white; border: 1px solid #16a34a; color: #16a34a; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona Konkursowa &rarr;</a>
+        </div>
+      </div>
+
+      <!-- Challenge 2 -->
+      <div style="background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 16px; padding: 20px;">
+        <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #15803d;">2. Process Mining & Automation</p>
+        <div style="display: flex; gap: 10px;">
+          <a href="{{challenge_2_task_url}}" style="background: #15803d; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Pobierz Arkusz Zadania</a>
+          <a href="https://krakhack.info/asystent" style="background: white; border: 1px solid #15803d; color: #15803d; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona Konkursowa &rarr;</a>
+        </div>
+      </div>
+    </div>
+    
+    <p style="font-size: 14px; color: #666; border-top: 1px solid #eee; padding-top: 25px; margin-top: 30px; text-align: center;">
+      Powodzenia w kodowaniu! Nie puszczamy Waszej ręki – mentorzy są dostępni na Discordzie.<br>
+      <strong>Zespół AI Krak Hack 2026</strong>
+    </p>
+  </div>
 </div>
       `
     },
@@ -139,7 +183,7 @@ export function AdminDashboard() {
     <a href="https://krakhack.info/survey" style="background: #06b6d4; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Wypełnij ankietę</a>
   </div>
   <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
-  <p style="font-size: 14px; color: #666;">Do zobaczenia za rok!<br>Zespół AI Krak Hack {{year}}</p>
+  <p style="font-size: 14px; color: #666;">Do zobaczenia za rok!<br>Zespół AI Krak Hack 2026</p>
 </div>
       `
     }
@@ -175,9 +219,8 @@ export function AdminDashboard() {
       if (res1.ok) {
         const data = await res1.json();
         const formatted: Record<string, ChallengeResources> = {};
-        if (data.challenge_1) formatted.geospatial = { materials: data.challenge_1.url, task: '' };
-        if (data.process_mining) formatted['process-automation'] = { materials: data.process_mining.url, task: '' };
-        if (data.challenge_2 && !data.process_mining) formatted['process-automation'] = { materials: data.challenge_2.url, task: '' };
+        if (data.geospatial) formatted.geospatial = data.geospatial;
+        if (data['process-automation']) formatted['process-automation'] = data['process-automation'];
         setResourceLinks(formatted);
       }
     } catch (err: any) {
@@ -255,19 +298,18 @@ export function AdminDashboard() {
     alert('Maile skopiowane do schowka (format: email; email; ...)');
   };
 
-  const saveResourceLink = async (challengeId: string, type: 'materials' | 'task', url: string) => {
-    const newLinks = {
-      ...resourceLinks,
-      [challengeId]: {
-        ...resourceLinks[challengeId],
-        [type]: url
-      }
-    };
-    
+  const saveAllResourceLinks = async () => {
     try {
-      // Save for placeholders in mailable format
-      const challenge_1 = { name: 'Smart Infrastructure', url: newLinks.geospatial?.materials || '' };
-      const challenge_2 = { name: 'Process Mining', url: newLinks['process-automation']?.materials || '' };
+      const challenge_1 = { 
+        name: 'Smart Infrastructure', 
+        url: resourceLinks.geospatial?.materials || '',
+        task_url: resourceLinks.geospatial?.task || ''
+      };
+      const challenge_2 = { 
+        name: 'Process Mining', 
+        url: resourceLinks['process-automation']?.materials || '',
+        task_url: resourceLinks['process-automation']?.task || ''
+      };
 
       const res = await fetch('/api/config/challenge_resources', {
         method: 'POST',
@@ -275,14 +317,24 @@ export function AdminDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${getAdminToken()}`
         },
-        body: JSON.stringify({ value: { challenge_1, challenge_2 } })
+        body: JSON.stringify({ value: { geospatial: resourceLinks.geospatial, 'process-automation': resourceLinks['process-automation'], challenge_1, challenge_2 } })
       });
       if (!res.ok) throw new Error('API Error');
-      setResourceLinks(newLinks);
+      alert('Zapisano pomyślnie w bazie danych!');
     } catch (err) {
       console.error(err);
       alert('Błąd zapisu w bazie danych.');
     }
+  };
+
+  const updateResourceLink = (challengeId: string, type: 'materials' | 'task', url: string) => {
+    setResourceLinks(prev => ({
+      ...prev,
+      [challengeId]: {
+        ...prev[challengeId],
+        [type]: url
+      }
+    }));
   };
 
   const applyTemplate = (key: string) => {
@@ -310,7 +362,7 @@ export function AdminDashboard() {
           target,
           email: target === 'single' ? testEmail : undefined,
           subject: mailSubject,
-          html: mailHtml
+          message: mailHtml
         })
       });
       
@@ -362,6 +414,8 @@ export function AdminDashboard() {
       }]
     };
   };
+
+  if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-cyan-500 font-black animate-pulse uppercase tracking-[0.3em]">Synchornizacja danych...</div>;
 
   return (
     <AdminAuth>
@@ -456,12 +510,27 @@ export function AdminDashboard() {
                 ].map(c => (
                   <div key={c.id} className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-4">
                     <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">{c.name}</p>
-                    <div className="space-y-2">
-                      <input type="text" placeholder="Starter Set Link..." value={resourceLinks[c.id]?.materials || ''} onChange={e => saveResourceLink(c.id, 'materials', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold" />
-                      <input type="text" placeholder="Challenge Task Link..." value={resourceLinks[c.id]?.task || ''} onChange={e => saveResourceLink(c.id, 'task', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold" />
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Zestaw Startowy (Materials)</label>
+                        <input type="text" placeholder="https://res.cloudinary.com/..." value={resourceLinks[c.id]?.materials || ''} onChange={e => updateResourceLink(c.id, 'materials', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-[11px] font-bold focus:border-cyan-500/50 outline-none transition-all" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-2">Arkusz Zadania (Task PDF/Repo)</label>
+                        <input type="text" placeholder="https://github.com/..." value={resourceLinks[c.id]?.task || ''} onChange={e => updateResourceLink(c.id, 'task', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-[11px] font-bold focus:border-indigo-500/50 outline-none transition-all" />
+                      </div>
                     </div>
                   </div>
                 ))}
+                <div className="pt-4 border-t border-white/10 flex justify-center">
+                  <button 
+                    onClick={saveAllResourceLinks}
+                    className="group relative px-8 py-3 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                  >
+                    <Save className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
+                    Zapisz Linki
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}

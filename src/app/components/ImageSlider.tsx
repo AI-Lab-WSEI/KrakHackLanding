@@ -94,11 +94,7 @@ export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSli
                         loading="lazy"
                       />
                     </div>
-                    {image.caption && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6">
-                        <p className="text-white text-lg font-medium">{image.caption}</p>
-                      </div>
-                    )}
+                    {/* Captions removed per user request */}
                   </motion.div>
                 </div>
               ))}

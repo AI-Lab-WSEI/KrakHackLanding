@@ -423,6 +423,7 @@ app.post('/api/surveys', async (req, res) => {
 });
 
 // Get surveys (admin only)
+/** @type {import('express').RequestHandler} */
 app.get('/api/surveys', requireAdmin, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM surveys ORDER BY created_at DESC');
@@ -480,8 +481,12 @@ app.post('/api/config/:key', requireAdmin, async (req, res) => {
 // Mailing endpoints (admin only)
 app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
   try {
-    const { target, email, subject, message, useTemplate } = req.body;
-    if (!message || !subject) return res.status(400).json({ error: 'Brak tematu lub treści' });
+    const { target, email, subject, message, html, useTemplate } = req.body;
+    const bodyContent = message || html;
+    if (!bodyContent || !subject) {
+      res.status(400).json({ error: 'Brak tematu lub treści' });
+      return;
+    }
 
     // Fetch challenge resources for placeholders
     let challengeResources = {};
@@ -497,15 +502,24 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
     }
 
     // Replace placeholders in message
-    let finalMessage = message;
+    let finalMessage = bodyContent;
     /** @type {any} */
     const cr = challengeResources || {};
     const placeholders = {
-      '{{challenge_1_url}}': (cr.challenge_1 && cr.challenge_1.url) || '#',
-      '{{challenge_1_name}}': (cr.challenge_1 && cr.challenge_1.name) || 'Zadanie 1',
-      '{{challenge_2_url}}': (cr.challenge_2 && cr.challenge_2.url) || '#',
-      '{{challenge_2_name}}': (cr.challenge_2 && cr.challenge_2.name) || 'Zadanie 2',
-      '{{year}}': new Date().getFullYear().toString()
+      // Challenge 1 (Geospatial / Smart Infrastructure)
+      '{{challenge_1_name}}': (cr.challenge_1 && cr.challenge_1.name) || 'Smart Infrastructure',
+      '{{challenge_1_url}}': (cr.challenge_1 && (cr.challenge_1.materials_url || cr.challenge_1.url)) || '#', // Fallback for old templates
+      '{{challenge_1_materials_url}}': (cr.geospatial && cr.geospatial.materials) || (cr.challenge_1 && cr.challenge_1.url) || '#',
+      '{{challenge_1_task_url}}': (cr.geospatial && cr.geospatial.task) || (cr.challenge_1 && cr.challenge_1.task_url) || '#',
+      '{{challenge_1_page_url}}': 'https://krakhack.info/infrasruktura',
+      
+      // Challenge 2 (Process Automation / Mining)
+      '{{challenge_2_name}}': (cr.challenge_2 && cr.challenge_2.name) || 'Process Mining',
+      '{{challenge_2_url}}': (cr.challenge_2 && (cr.challenge_2.materials_url || cr.challenge_2.url)) || '#', // Fallback
+      '{{challenge_2_materials_url}}': (cr.process_automation && cr.process_automation.materials) || (cr.challenge_2 && cr.challenge_2.url) || '#',
+      '{{challenge_2_task_url}}': (cr.process_automation && cr.process_automation.task) || (cr.challenge_2 && cr.challenge_2.task_url) || '#',
+      '{{challenge_2_page_url}}': 'https://krakhack.info/asystent',
+      '{{year}}': '2026'
     };
 
     Object.entries(placeholders).forEach(([key, val]) => {
@@ -544,26 +558,28 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
       return;
     } else if (target === 'all' || target === 'participant' || target === 'mentor' || target === 'company') {
       // Fetch target emails
-      let query = "SELECT email FROM submissions WHERE email IS NOT NULL AND email != ''";
-      const params = [];
+      const queryParams = [];
+      let queryStr = "SELECT email FROM submissions WHERE email IS NOT NULL AND email != ''";
+      
       if (target !== 'all') {
-        query += " AND type = $1";
-        params.push(target);
+        queryStr += " AND type = $1";
+        queryParams.push(target);
       }
       
-      const result = await pool.query(query, params);
+      const result = await pool.query(queryStr, queryParams);
       const emails = [...new Set(result.rows.map(r => r.email))];
 
       console.log(`[Mailing] Sending bulk email to ${emails.length} recipients (type: ${target})`);
 
-      // Batch send (sequentially for reliability/tracking)
+      // Batch send
       let sentCount = 0;
       for (const to of emails) {
         const ok = await sendResendEmail(to, subject, htmlContent);
         if (ok) sentCount++;
       }
 
-      return res.json({ success: true, sent: sentCount, total: emails.length });
+      res.json({ success: true, sent: sentCount, total: emails.length });
+      return;
     }
 
     res.status(400).json({ error: 'Nieprawidłowy cel (target)' });
