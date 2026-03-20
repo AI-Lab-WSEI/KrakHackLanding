@@ -697,14 +697,14 @@ app.post('/api/admin/sms/send', requireAdmin, async (req, res) => {
       if (!process.env.DATABASE_URL) {
         return res.status(500).json({ error: 'Baza danych niepodłączona' });
       }
-      // Fetch numbers of confirmed participants
-      const result = await pool.query("SELECT data FROM submissions WHERE status = 'confirmed'");
+      // Fetch numbers of participants (anyone who registered)
+      const result = await pool.query("SELECT data FROM submissions WHERE type = 'participant'");
       const phones = result.rows
         .map(row => row.data.phone || row.data.phoneNumber)
         .filter(p => !!p);
 
       if (phones.length === 0) {
-        return res.json({ success: true, count: 0, message: 'Brak numerów do wysyłki' });
+        return res.json({ success: true, count: 0, message: 'Brak numerów do wysyłki (upewnij się, że są zgłoszenia typu "participant")' });
       }
 
       const smsResult = await sendSMSAPI(phones, message);
