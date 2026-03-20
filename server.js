@@ -4,6 +4,13 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import path from 'path';
 
+// Load environment variables from .env
+try {
+  process.loadEnvFile();
+} catch (e) {
+  // .env file might not exist in production (secrets are set via environment)
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -21,6 +28,10 @@ const adminTokens = new Set();
 
 // Initialize database tables
 async function initDB() {
+  if (!process.env.DATABASE_URL) {
+    console.warn('[DB] DATABASE_URL not set — database features will be disabled.');
+    return;
+  }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS submissions (
       id SERIAL PRIMARY KEY,
@@ -35,6 +46,10 @@ async function initDB() {
       id SERIAL PRIMARY KEY,
       data JSONB NOT NULL,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS config (
+      key VARCHAR(50) PRIMARY KEY,
+      value JSONB NOT NULL
     );
   `);
   console.log('[DB] Tables initialized');
@@ -414,6 +429,146 @@ app.get('/api/surveys', requireAdmin, async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('[API] Fetch surveys error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// Get config (public for some keys, admin for others)
+app.get('/api/config/:key', async (req, res) => {
+  const { key } = req.params;
+  if (!process.env.DATABASE_URL) {
+    if (key === 'challenge_resources') {
+      res.json({});
+    } else {
+      res.status(404).json({ error: 'DB not connected' });
+    }
+    return;
+  }
+  try {
+    const result = await pool.query('SELECT value FROM config WHERE key = $1', [key]);
+    if (result.rows.length === 0) {
+      if (key === 'challenge_resources') {
+        res.json({});
+      } else {
+        res.status(404).json({ error: 'Nie znaleziono konfiguracji' });
+      }
+      return;
+    }
+    res.json(result.rows[0].value);
+  } catch (err) {
+    console.error('[API] Get config error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// Update config (admin only)
+app.post('/api/config/:key', requireAdmin, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value } = req.body;
+    await pool.query(
+      'INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+      [key, value]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[API] Update config error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// Mailing endpoints (admin only)
+app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
+  try {
+    const { target, email, subject, message, useTemplate } = req.body;
+    if (!message || !subject) return res.status(400).json({ error: 'Brak tematu lub treści' });
+
+    // Fetch challenge resources for placeholders
+    let challengeResources = {};
+    try {
+      if (process.env.DATABASE_URL) {
+        const configResult = await pool.query('SELECT value FROM config WHERE key = $1', ['challenge_resources']);
+        if (configResult.rows.length > 0) {
+          challengeResources = configResult.rows[0].value;
+        }
+      }
+    } catch (e) {
+      console.error('[Mailing] Error fetching challenge resources:', e);
+    }
+
+    // Replace placeholders in message
+    let finalMessage = message;
+    /** @type {any} */
+    const cr = challengeResources || {};
+    const placeholders = {
+      '{{challenge_1_url}}': (cr.challenge_1 && cr.challenge_1.url) || '#',
+      '{{challenge_1_name}}': (cr.challenge_1 && cr.challenge_1.name) || 'Zadanie 1',
+      '{{challenge_2_url}}': (cr.challenge_2 && cr.challenge_2.url) || '#',
+      '{{challenge_2_name}}': (cr.challenge_2 && cr.challenge_2.name) || 'Zadanie 2',
+      '{{year}}': new Date().getFullYear().toString()
+    };
+
+    Object.entries(placeholders).forEach(([key, val]) => {
+      finalMessage = finalMessage.split(key).join(val);
+    });
+
+    // Prepare HTML content
+    let htmlContent = finalMessage.replace(/\n/g, '<br>');
+    if (useTemplate === 'challenge_ready') {
+      htmlContent = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
+          <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6); padding: 30px; border-radius: 10px 10px 0 0; text-align: center; color: white;">
+            <h1 style="margin: 0; font-size: 24px;">AI KRAK HACK 2026</h1>
+          </div>
+          <div style="padding: 20px; color: #333;">
+            <p style="font-size: 16px; line-height: 1.6;">${finalMessage.replace(/\n/g, '<br>')}</p>
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${placeholders['{{challenge_1_url}}']}" style="display: inline-block; padding: 12px 24px; background-color: #06b6d4; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 5px;">${placeholders['{{challenge_1_name}}']} &rarr;</a>
+              <a href="${placeholders['{{challenge_2_url}}']}" style="display: inline-block; padding: 12px 24px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 5px;">${placeholders['{{challenge_2_name}}']} &rarr;</a>
+            </div>
+          </div>
+          <p style="font-size: 13px; color: #666; text-align: center; border-top: 1px solid #eee; padding-top: 20px;">
+            Pozdrawiamy,<br>Zespół AI Krak Hack ${placeholders['{{year}}']}
+          </p>
+        </div>
+      `;
+    }
+
+    if (target === 'single') {
+      if (!email) {
+        res.status(400).json({ error: 'Brak adresu email' });
+        return;
+      }
+      const success = await sendResendEmail(email, subject, htmlContent);
+      res.json({ success });
+      return;
+    } else if (target === 'all' || target === 'participant' || target === 'mentor' || target === 'company') {
+      // Fetch target emails
+      let query = "SELECT email FROM submissions WHERE email IS NOT NULL AND email != ''";
+      const params = [];
+      if (target !== 'all') {
+        query += " AND type = $1";
+        params.push(target);
+      }
+      
+      const result = await pool.query(query, params);
+      const emails = [...new Set(result.rows.map(r => r.email))];
+
+      console.log(`[Mailing] Sending bulk email to ${emails.length} recipients (type: ${target})`);
+
+      // Batch send (sequentially for reliability/tracking)
+      let sentCount = 0;
+      for (const to of emails) {
+        const ok = await sendResendEmail(to, subject, htmlContent);
+        if (ok) sentCount++;
+      }
+
+      return res.json({ success: true, sent: sentCount, total: emails.length });
+    }
+
+    res.status(400).json({ error: 'Nieprawidłowy cel (target)' });
+  } catch (err) {
+    console.error('[API] Mailing error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
   }
 });

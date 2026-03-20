@@ -23,15 +23,35 @@ export function TaskDetail() {
   const challengeId = slugIdMap[slug || ''] || slug;
   const challenge = edition2026.challenges?.find(c => c.id === challengeId);
 
+  const defaultLinks: Record<string, {materials: string}> = {
+    'process-automation': {
+      materials: 'https://res.cloudinary.com/dyux0lw71/image/upload/v1774013122/Process_Mining_Preparation_Materials_av7ijw.pdf'
+    },
+    'geospatial': {
+      materials: 'https://res.cloudinary.com/dyux0lw71/image/upload/v1774013122/Smart_Infrastructure_Challenge_Materials_lwxd0z.pdf'
+    }
+  };
+
   useEffect(() => {
     if (challengeId) {
-      const storedResources = localStorage.getItem('challenge-resources-v1');
-      if (storedResources) {
-        const resources = JSON.parse(storedResources);
-        if (resources[challengeId]) {
-          setDynamicResources(resources[challengeId]);
-        }
-      }
+      // 1. Try to fetch from API
+      fetch(`/api/config/challenge_resources`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data[challengeId]) {
+            setDynamicResources(data[challengeId]);
+          } else if (defaultLinks[challengeId]) {
+            // 2. Fallback to hardcoded defaults if not in DB
+            setDynamicResources(defaultLinks[challengeId]);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch challenge resources:', err);
+          // 3. Fallback to hardcoded defaults on error
+          if (defaultLinks[challengeId]) {
+            setDynamicResources(defaultLinks[challengeId]);
+          }
+        });
     }
   }, [challengeId]);
 
