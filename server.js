@@ -91,6 +91,57 @@ async function sendResendEmail(to, subject, html) {
   }
 }
 
+async function sendSMSAPI(to, message) {
+  const token = process.env.SMS_GATE_TOKEN;
+  if (!token) {
+    console.warn('[SMS] SMS_GATE_TOKEN not set, skipping SMS to:', to);
+    return false;
+  }
+
+  // Format numbers to 48XXXXXXXXX
+  const recipients = (Array.isArray(to) ? to : [to])
+    .map(num => {
+      let clean = String(num || '').replace(/\D/g, '');
+      if (clean.length === 9) clean = '48' + clean;
+      return clean;
+    })
+    .filter(n => n.length >= 9) // basic validation
+    .join(',');
+
+  if (!recipients) {
+    console.warn('[SMS] No valid recipients found');
+    return false;
+  }
+  
+  try {
+    const params = new URLSearchParams();
+    params.append('to', recipients);
+    params.append('message', message);
+    params.append('format', 'json');
+    params.append('encoding', 'utf-8');
+
+    const res = await fetch('https://api.smsapi.pl/sms.do', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: params.toString()
+    });
+
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      console.error('[SMS] SMSAPI error:', res.status, JSON.stringify(data));
+      return false;
+    }
+    console.log('[SMS] Sent successfully to:', recipients);
+    return true;
+  } catch (err) {
+    console.error('[SMS] Network/fetch error:', err.message || err);
+    return false;
+  }
+}
+
 async function sendTeamsNotification(message) {
   const webhookUrl = process.env.TEAMS_WEBHOOK_URL;
   if (!webhookUrl) {
@@ -584,7 +635,46 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
 
     res.status(400).json({ error: 'Nieprawidłowy cel (target)' });
   } catch (err) {
-    console.error('[API] Mailing error:', err);
+    console.error('[Mailing] Massive send error:', err);
+    res.status(500).json({ error: 'Błąd podczas wysyłki masowej' });
+  }
+});
+
+// SMS endpoints (admin only)
+app.post('/api/admin/sms/send', requireAdmin, async (req, res) => {
+  try {
+    const { target, phone, message } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: 'Brak treści wiadomości' });
+    }
+
+    if (target === 'single') {
+      if (!phone) {
+        return res.status(400).json({ error: 'Brak numeru telefonu' });
+      }
+      const success = await sendSMSAPI(phone, message);
+      return res.json({ success });
+    } else if (target === 'all') {
+      if (!process.env.DATABASE_URL) {
+        return res.status(500).json({ error: 'Baza danych niepodłączona' });
+      }
+      // Fetch numbers of confirmed participants
+      const result = await pool.query("SELECT data FROM submissions WHERE status = 'confirmed'");
+      const phones = result.rows
+        .map(row => row.data.phone || row.data.phoneNumber)
+        .filter(p => !!p);
+
+      if (phones.length === 0) {
+        return res.json({ success: true, count: 0, message: 'Brak numerów do wysyłki' });
+      }
+
+      const success = await sendSMSAPI(phones, message);
+      return res.json({ success, count: phones.length });
+    } else {
+      res.status(400).json({ error: 'Nieprawidłowy cel wysyłki' });
+    }
+  } catch (err) {
+    console.error('[SMS] API endpoint error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
   }
 });

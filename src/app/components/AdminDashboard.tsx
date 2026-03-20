@@ -17,7 +17,8 @@ import {
   LayoutDashboard,
   Check,
   AlertCircle,
-  Save
+  Save,
+  Smartphone
 } from 'lucide-react';
 
 interface Registration {
@@ -70,7 +71,7 @@ export function AdminDashboard() {
   const [surveys, setSurveys] = useState<SurveyData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [resourceLinks, setResourceLinks] = useState<Record<string, ChallengeResources>>({});
-  const [activeTab, setActiveTab] = useState<'regs' | 'surveys' | 'teams' | 'participants' | 'mailing'>('regs');
+  const [activeTab, setActiveTab] = useState<'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms'>('regs');
   const [roleFilter, setRoleFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -82,6 +83,12 @@ export function AdminDashboard() {
   const [isSendingMail, setIsSendingMail] = useState(false);
   const [mailStatus, setMailStatus] = useState<{success: boolean, message: string} | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+
+  // SMS state
+  const [smsMessage, setSmsMessage] = useState('Czesc! Twoj zestaw przygotowawczy do AI Krak Hack 2026 jest juz gotowy. Sprawdz maila oraz strone krakhack.info. Powodzenia!');
+  const [testSmsPhone, setTestSmsPhone] = useState('');
+  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [smsStatus, setSmsStatus] = useState<{success: boolean, message: string} | null>(null);
 
   const EMAIL_TEMPLATES: Record<string, { subject: string, html: string }> = {
     PREP: {
@@ -471,6 +478,7 @@ export function AdminDashboard() {
             { id: 'participants', label: 'Dane Uczestników', icon: Users },
             { id: 'teams', label: 'Zespoły', icon: Users },
             { id: 'mailing', label: 'Mailing', icon: Mail },
+            { id: 'sms', label: 'SMS', icon: Smartphone },
             { id: 'surveys', label: 'Ankiety', icon: MessageSquare }
           ].map(tab => (
             <button
@@ -752,6 +760,130 @@ export function AdminDashboard() {
                   ))}
                 </div>
              </motion.div>
+          )}
+
+          {activeTab === 'sms' && (
+            <motion.div key="sms" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="max-w-4xl mx-auto space-y-8">
+              <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-10 backdrop-blur-xl">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="p-3 bg-indigo-500/20 rounded-2xl">
+                    <Smartphone className="w-6 h-6 text-indigo-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black uppercase italic">Komunikacja SMS</h2>
+                    <p className="text-xs text-muted-foreground font-bold tracking-widest uppercase mt-1">Bramka SMSAPI Integration</p>
+                  </div>
+                </div>
+
+                {smsStatus && (
+                  <div className={`p-4 rounded-2xl mb-6 text-sm flex items-center gap-3 font-bold border ${smsStatus.success ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                    {smsStatus.success ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                    {smsStatus.message}
+                  </div>
+                )}
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 block">Treść Wiadomości (SMS)</label>
+                    <textarea 
+                      value={smsMessage}
+                      onChange={e => setSmsMessage(e.target.value)}
+                      rows={4}
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm font-medium focus:border-indigo-500/50 transition-colors resize-none mb-2"
+                      placeholder="Wpisz treść wiadomości..."
+                    />
+                    <div className="flex justify-between items-center px-1">
+                      <p className="text-[10px] text-muted-foreground font-bold">Limit: 160 znaków = 1 jednostka SMS</p>
+                      <p className={`text-[10px] font-black ${smsMessage.length > 160 ? 'text-amber-500' : 'text-indigo-400'}`}>
+                        Długość: {smsMessage.length} / {Math.ceil(smsMessage.length / 160) || 1} SMS
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-white/5">
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-indigo-400">Tryb Testowy</h3>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="Numer telefonu (np. 500100200)"
+                          value={testSmsPhone}
+                          onChange={e => setTestSmsPhone(e.target.value)}
+                          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold"
+                        />
+                        <button
+                          disabled={isSendingSms || !testSmsPhone}
+                          onClick={async () => {
+                            setIsSendingSms(true);
+                            try {
+                              const res = await fetch('/api/admin/sms/send', {
+                                method: 'POST',
+                                headers: { 
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${getAdminToken()}`
+                                },
+                                body: JSON.stringify({ target: 'single', phone: testSmsPhone, message: smsMessage })
+                              });
+                              const data = await res.json();
+                              setSmsStatus({ success: data.success, message: data.success ? 'SMS testowy wysłany!' : 'Błąd wysyłki testowej.' });
+                            } catch (e) {
+                              setSmsStatus({ success: false, message: 'Błąd sieci.' });
+                            } finally {
+                              setIsSendingSms(false);
+                            }
+                          }}
+                          className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        >
+                          Test
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-red-500">Wysyłka Masowa</h3>
+                      <button
+                        disabled={isSendingSms || !smsMessage}
+                        onClick={async () => {
+                          if (!confirm(`Czy na pewno chcesz wysłać tę wiadomość do wszystkich potwierdzonych uczestników (${registrations.filter(r => r.status === 'confirmed').length} osób)?`)) return;
+                          setIsSendingSms(true);
+                          try {
+                            const res = await fetch('/api/admin/sms/send', {
+                              method: 'POST',
+                              headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${getAdminToken()}`
+                              },
+                              body: JSON.stringify({ target: 'all', message: smsMessage })
+                            });
+                            const data = await res.json();
+                            setSmsStatus({ success: data.success, message: data.success ? `Wysłano masowo! Odbiorców: ${data.count}` : 'Błąd podczas wysyłki masowej.' });
+                          } catch (e) {
+                            setSmsStatus({ success: false, message: 'Błąd krytyczny API.' });
+                          } finally {
+                            setIsSendingSms(false);
+                          }
+                        }}
+                        className="w-full bg-red-600 hover:bg-red-500 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+                      >
+                        <Send className="w-3.5 h-3.5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                        Wyślij do wszystkich uczestników
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-3xl p-6 text-[10px] font-bold text-amber-500/80 leading-relaxed uppercase tracking-widest">
+                <div className="flex gap-4 items-start">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <p>
+                    Wiadomości SMS są wysyłane natychmiastowo. Upewnij się, że treść jest poprawna. 
+                    System automatycznie formatuje polskie numery do standardu międzynarodowego (+48). 
+                    Pamiętaj o limicie znaków, aby uniknąć podwójnych kosztów za jedną wiadomość.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
