@@ -160,7 +160,7 @@ export function AdminDashboard() {
       <div style="text-align: center; border-top: 1px solid #e2e8f0; padding-top: 32px;">
         <p style="font-size: 13px; color: #94a3b8; margin: 0;">
           Do zobaczenia na miejscu!<br>
-          <strong>Zespół AI Krak Hack {{year}}</strong>
+          <strong>Zespół AI Krak Hack 2026</strong>
         </p>
       </div>
     </div>
@@ -184,7 +184,7 @@ export function AdminDashboard() {
       <div style="background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
         <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #16a34a;">1. Smart Infrastructure</p>
         <div style="margin-top: 15px;">
-          <a href="{{challenge_1_task_url}}" style="display: inline-block; background: #16a34a; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Arkusz Zadania</a>
+          <a href="https://github.com/AI-Lab-WSEI/KrakHack2026-Smart-Infrastructure" style="display: inline-block; background: #16a34a; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Arkusz Zadania</a>
           <a href="https://krakhack.info/zadania/infrasruktura" style="display: inline-block; background: white; border: 1px solid #16a34a; color: #16a34a; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona wyzwania &rarr;</a>
         </div>
       </div>
@@ -193,7 +193,7 @@ export function AdminDashboard() {
       <div style="background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 16px; padding: 20px;">
         <p style="margin: 0 0 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #15803d;">2. Process-to-Automation Copilot</p>
         <div style="margin-top: 15px;">
-          <a href="{{challenge_2_task_url}}" style="display: inline-block; background: #15803d; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Arkusz Zadania</a>
+          <a href="https://github.com/AI-Lab-WSEI/KrakHack2026-Process-Automation-Copilot" style="display: inline-block; background: #15803d; color: white; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px; margin-right: 12px;">Pobierz Arkusz Zadania</a>
           <a href="https://krakhack.info/zadania/asystent" style="display: inline-block; background: white; border: 1px solid #15803d; color: #15803d; padding: 10px 16px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 12px;">Strona wyzwania &rarr;</a>
         </div>
       </div>

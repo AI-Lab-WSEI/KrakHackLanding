@@ -92,10 +92,12 @@ async function sendResendEmail(to, subject, html) {
 }
 
 async function sendSMSAPI(to, message) {
-  const token = process.env.SMS_GATE_TOKEN;
+  const token = (process.env.SMS_GATE_TOKEN || '').trim();
+  const from = (process.env.SMS_SENDER || 'AIKrakHack').trim();
+  
   if (!token) {
     console.warn('[SMS] SMS_GATE_TOKEN not set, skipping SMS to:', to);
-    return false;
+    return { success: false, error: 'Brak tokenu SMS_GATE_TOKEN w konfiguracji serwera.' };
   }
 
   // Format numbers to 48XXXXXXXXX
@@ -110,15 +112,18 @@ async function sendSMSAPI(to, message) {
 
   if (!recipients) {
     console.warn('[SMS] No valid recipients found');
-    return false;
+    return { success: false, error: 'Nieprawidłowy numer telefonu.' };
   }
   
   try {
     const params = new URLSearchParams();
     params.append('to', recipients);
     params.append('message', message);
+    params.append('from', from);
     params.append('format', 'json');
     params.append('encoding', 'utf-8');
+    params.append('normalize', '1'); // Replace Polish chars with standard ones (ą->a, etc.)
+    params.append('details', '1');   // Get more details in response
 
     console.log('[SMS] Sending request to SMSAPI...', { to: recipients });
 
@@ -137,19 +142,27 @@ async function sendSMSAPI(to, message) {
       data = JSON.parse(bodyText);
     } catch (e) {
       console.error('[SMS] Failed to parse SMSAPI response as JSON:', bodyText);
-      return false;
+      return { success: false, error: `Błąd odpowiedzi bramki: ${bodyText.slice(0, 50)}` };
     }
 
     if (!res.ok || data.error) {
+      const errMsg = data.message || (data.error ? `Kod błędu: ${data.error}` : 'Błąd HTTP ' + res.status);
       console.error('[SMS] SMSAPI error response:', res.status, JSON.stringify(data));
-      return false;
+      return { success: false, error: errMsg };
+    }
+
+    // Check individual message status if available
+    const firstMsg = data.list?.[0];
+    if (firstMsg && firstMsg.error) {
+       console.error('[SMS] SMSAPI individual error:', firstMsg.error);
+       return { success: false, error: `Błąd numeru: ${firstMsg.error}` };
     }
     
-    console.log('[SMS] Sent successfully to:', recipients, 'Internal ID:', data.list?.[0]?.id);
-    return true;
+    console.log('[SMS] Sent successfully to:', recipients, 'Internal ID:', firstMsg?.id);
+    return { success: true };
   } catch (err) {
     console.error('[SMS] SMS Send Exception:', err.message || err);
-    return false;
+    return { success: false, error: `Wyjątek sieciowy: ${err.message || 'Nieznany błąd'}` };
   }
 }
 
@@ -670,8 +683,8 @@ app.post('/api/admin/sms/send', requireAdmin, async (req, res) => {
       if (!phone) {
         return res.status(400).json({ success: false, error: 'Brak numeru telefonu' });
       }
-      const success = await sendSMSAPI(phone, message);
-      return res.json({ success });
+      const result = await sendSMSAPI(phone, message);
+      return res.json(result);
     } else if (target === 'all') {
       if (!process.env.DATABASE_URL) {
         return res.status(500).json({ error: 'Baza danych niepodłączona' });
@@ -686,8 +699,8 @@ app.post('/api/admin/sms/send', requireAdmin, async (req, res) => {
         return res.json({ success: true, count: 0, message: 'Brak numerów do wysyłki' });
       }
 
-      const success = await sendSMSAPI(phones, message);
-      return res.json({ success, count: phones.length });
+      const smsResult = await sendSMSAPI(phones, message);
+      return res.json({ ...smsResult, count: phones.length });
     } else {
       res.status(400).json({ error: 'Nieprawidłowy cel wysyłki' });
     }
