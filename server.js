@@ -872,41 +872,20 @@ app.get('/api/certificates', requireAdmin, async (req, res) => {
   }
 });
 
-// Bulk-generate draft certificates from confirmed attendees
+// Bulk-generate draft certificates from all registered participants
 app.post('/api/certificates/generate', requireAdmin, async (req, res) => {
   try {
-    // source=all generates for ALL participants, source=confirmed (default) only for confirmed teams
-    const source = req.body.source || 'confirmed';
-
-    let query;
-    if (source === 'all') {
-      query = `
-        SELECT
-          s.id as submission_id,
-          s.data::jsonb->>'firstName' as first_name,
-          s.data::jsonb->>'lastName' as last_name,
-          s.data::jsonb->>'email' as email,
-          s.data::jsonb->>'university' as university,
-          s.data::jsonb->>'teamName' as team_name
-        FROM submissions s
-        WHERE s.type = 'participant'
-      `;
-    } else {
-      query = `
-        SELECT
-          s.id as submission_id,
-          s.data::jsonb->>'firstName' as first_name,
-          s.data::jsonb->>'lastName' as last_name,
-          s.data::jsonb->>'email' as email,
-          s.data::jsonb->>'university' as university,
-          s.data::jsonb->>'teamName' as team_name
-        FROM submissions s
-        JOIN attendance a ON a.team_name = (s.data::jsonb->>'teamName')
-        WHERE s.type = 'participant'
-          AND a.status = 'confirmed'
-      `;
-    }
-    const participants = await pool.query(query);
+    const participants = await pool.query(`
+      SELECT
+        s.id as submission_id,
+        s.data::jsonb->>'firstName' as first_name,
+        s.data::jsonb->>'lastName' as last_name,
+        s.data::jsonb->>'email' as email,
+        s.data::jsonb->>'university' as university,
+        s.data::jsonb->>'teamName' as team_name
+      FROM submissions s
+      WHERE s.type = 'participant'
+    `);
 
     let created = 0;
     let skipped = 0;
@@ -1271,6 +1250,18 @@ app.delete('/api/certificates/:id', requireAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[Certs] Delete error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Delete all certificates for a team (admin)
+app.delete('/api/certificates/team/:teamName', requireAdmin, async (req, res) => {
+  try {
+    const { teamName } = req.params;
+    const result = await pool.query('DELETE FROM certificates WHERE team_name = $1 RETURNING id', [teamName]);
+    res.json({ success: true, deleted: result.rows.length });
+  } catch (err) {
+    console.error('[Certs] Delete team error:', err);
     res.status(500).json({ error: 'Blad serwera' });
   }
 });

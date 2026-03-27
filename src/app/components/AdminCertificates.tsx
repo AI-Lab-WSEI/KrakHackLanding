@@ -103,13 +103,10 @@ export function AdminCertificates() {
     setTimeout(() => setActionStatus(null), 4000);
   };
 
-  const generateCertificates = async (source: 'confirmed' | 'all' = 'confirmed') => {
+  const generateCertificates = async () => {
     setIsGenerating(true);
     try {
-      const result = await certFetch('/api/certificates/generate', {
-        method: 'POST',
-        body: JSON.stringify({ source }),
-      });
+      const result = await certFetch('/api/certificates/generate', { method: 'POST' });
       showStatus('success', `Wygenerowano ${result.created} certyfikatow (pominieto ${result.skipped} istniejacych)`);
       loadCertificates();
     } catch (err: unknown) {
@@ -156,6 +153,16 @@ export function AdminCertificates() {
       loadCertificates();
     } catch (err: unknown) {
       showStatus('error', err instanceof Error ? err.message : 'Blad usuwania');
+    }
+  };
+
+  const deleteTeam = async (teamName: string) => {
+    try {
+      const result = await certFetch(`/api/certificates/team/${encodeURIComponent(teamName)}`, { method: 'DELETE' });
+      showStatus('success', `Usunieto ${result.deleted} certyfikatow zespolu "${teamName}"`);
+      loadCertificates();
+    } catch (err: unknown) {
+      showStatus('error', err instanceof Error ? err.message : 'Blad usuwania zespolu');
     }
   };
 
@@ -317,11 +324,8 @@ export function AdminCertificates() {
           <button onClick={loadCertificates} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Odswiez
           </button>
-          <button onClick={() => generateCertificates('confirmed')} disabled={isGenerating} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-50">
-            <FileText className="w-3.5 h-3.5" /> {isGenerating ? 'Generowanie...' : 'Generuj (potwierdzone)'}
-          </button>
-          <button onClick={() => generateCertificates('all')} disabled={isGenerating} className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-50">
-            <FileText className="w-3.5 h-3.5" /> {isGenerating ? 'Generowanie...' : 'Generuj (wszyscy)'}
+          <button onClick={generateCertificates} disabled={isGenerating} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-50">
+            <FileText className="w-3.5 h-3.5" /> {isGenerating ? 'Generowanie...' : 'Generuj certyfikaty'}
           </button>
         </div>
       </div>
@@ -358,6 +362,29 @@ export function AdminCertificates() {
           <Download className="w-3.5 h-3.5" /> Eksport CSV
         </button>
       </div>
+
+      {/* Delete by Team */}
+      {certificates.length > 0 && (() => {
+        const teams = [...new Set(certificates.map(c => c.team_name))].sort();
+        return (
+          <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-3 flex items-center gap-2">
+              <Trash2 className="w-3 h-3" /> Usun zespol (nie zjawil sie)
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {teams.map(t => (
+                <button
+                  key={t}
+                  onClick={() => { if (confirm(`Usunac wszystkie certyfikaty zespolu "${t}"?`)) deleteTeam(t); }}
+                  className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all"
+                >
+                  <X className="w-3 h-3" /> {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap items-center">
