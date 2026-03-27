@@ -101,8 +101,50 @@ export function AdminDashboard() {
   const [testSmsPhone, setTestSmsPhone] = useState('');
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [smsStatus, setSmsStatus] = useState<{success: boolean, message: string} | null>(null);
+  const [mailTarget, setMailTarget] = useState<'all' | 'attendance' | 'participant' | 'mentor' | 'company'>('all');
 
   const EMAIL_TEMPLATES: Record<string, { subject: string, html: string }> = {
+    ATTENDANCE: {
+      subject: 'POTWIERDZENIE PRZYJAZDU: AI Krak Hack 2026',
+      html: `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
+    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Potwierdź obecność 🚀</h1>
+      <p style="margin: 10px 0 0; font-size: 14px; opacity: 0.8;">Zespół: <strong>{{team_name}}</strong></p>
+    </div>
+    
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Cześć!</p>
+      <p style="font-size: 16px; margin-bottom: 24px;">
+        Przygotowania do AI Krak Hack 2026 idą pełną parą. Abyśmy mogli zarezerwować dla Was miejsca, pakiety powitalne oraz catering, potrzebujemy ostatecznego potwierdzenia przyjazdu Twojego zespołu.
+      </p>
+      
+      <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 12px; margin-bottom: 32px;">
+        <p style="margin: 0; font-size: 14px; color: #1e40af; line-height: 1.5;">
+          <strong>Uwaga:</strong> Potwierdzenie jest wymagane do jutra (28.03) do godziny 12:00. Teams, które nie potwierdzą udziału, mogą zostać usunięte z listy uczestników ze względu na limit miejsc.
+        </p>
+      </div>
+
+      <div style="margin: 40px 0; text-align: center;">
+        <a href="{{confirm_url}}" style="background: #3b82f6; color: white; padding: 18px 36px; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px; display: inline-block; box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);">POTWIERDZAM PRZYJAZD &rarr;</a>
+      </div>
+
+      <p style="font-size: 13px; color: #64748b; text-align: center; margin-top: 32px;">
+        Jeśli wiecie już teraz, że nie dacie rady dotrzeć, prosimy o kliknięcie w przycisk powyżej i wybranie opcji "Nie dotrzemy". Dzięki temu zwolnicie miejsce innym chętnym osobom.
+      </p>
+
+      <div style="text-align: center; border-top: 1px solid #e2e8f0; padding-top: 32px; margin-top: 32px;">
+        <p style="font-size: 13px; color: #94a3b8; margin: 0;">
+          Do zobaczenia w Krakowie!<br>
+          <strong>Zespół AI Krak Hack 2026</strong>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+      `
+    },
     PREP: {
       subject: 'Zestaw Startowy i Harmonogram - AI Krak Hack 2026',
       html: `
@@ -409,7 +451,7 @@ export function AdminDashboard() {
           'Authorization': `Bearer ${getAdminToken()}`
         },
         body: JSON.stringify({
-          target,
+          target: target === 'single' ? 'single' : mailTarget,
           email: target === 'single' ? testEmail : undefined,
           subject: mailSubject,
           message: mailHtml
@@ -690,6 +732,7 @@ export function AdminDashboard() {
 
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
+                    { id: 'ATTENDANCE', label: 'Potwierdzenie Przychodu', color: 'border-blue-500/30 text-blue-400' },
                     { id: 'PREP', label: 'Zestaw Startowy', color: 'border-orange-500/30 text-orange-400' },
                     { id: 'START', label: 'Start Hackathonu', color: 'border-green-500/30 text-green-400' },
                     { id: 'SURVEY', label: 'Ankieta Końcowa', color: 'border-cyan-500/30 text-cyan-400' }
@@ -711,14 +754,32 @@ export function AdminDashboard() {
                   </div>
 
                   <div className="pt-6 border-t border-white/5 flex flex-wrap items-center justify-between gap-6">
-                    <div className="flex items-center gap-4 flex-1 min-w-[300px]">
-                       <input type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="Email testowy..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold" />
-                       <button onClick={() => sendMail('single')} disabled={isSendingMail || !testEmail} className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
-                          <Send className="w-3.5 h-3.5" /> Test
-                       </button>
+                    <div className="flex flex-wrap gap-4 items-center flex-1 min-w-[300px]">
+                       <div className="flex flex-col gap-1 min-w-[150px]">
+                         <label className="text-[9px] uppercase font-black text-gray-500 ml-1">Cel wysyłki</label>
+                         <select 
+                          value={mailTarget} 
+                          onChange={(e: any) => setMailTarget(e.target.value)}
+                          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold outline-none"
+                         >
+                            <option value="all">WSZYSCY</option>
+                            <option value="attendance">TYLKO UCZESTNICY (PERSONALNIE)</option>
+                            <option value="participant">UCZESTNICY (MASOWO)</option>
+                            <option value="mentor">MENTORZY</option>
+                         </select>
+                       </div>
+                       <div className="flex-1 flex flex-col gap-1">
+                         <label className="text-[9px] uppercase font-black text-gray-500 ml-1">Testuj na adresie</label>
+                         <div className="flex gap-2">
+                           <input type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="Email..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold" />
+                           <button onClick={() => sendMail('single')} disabled={isSendingMail || !testEmail} className="px-5 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                              {isSendingMail ? '...' : <Send className="w-3 h-3" />}
+                           </button>
+                         </div>
+                       </div>
                     </div>
-                    <button onClick={() => sendMail('all')} disabled={isSendingMail || !mailSubject} className="px-10 py-5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs flex items-center gap-3 shadow-[0_0_30px_rgba(99,102,241,0.4)] disabled:opacity-50">
-                       <Mail className="w-4 h-4" /> WYŚLIJ DO WSZYSTKICH ({registrations.filter(r => r.type === 'participant').length})
+                    <button onClick={() => sendMail('all')} disabled={isSendingMail || !mailSubject} className="h-fit px-10 py-5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs flex items-center gap-3 shadow-[0_0_30px_rgba(99,102,241,0.4)] disabled:opacity-50">
+                       <Mail className="w-4 h-4" /> WYŚLIJ MASOWO
                     </button>
                   </div>
 

@@ -669,29 +669,56 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
       const success = await sendResendEmail(email, subject, htmlContent);
       res.json({ success });
       return;
-    } else if (target === 'all' || target === 'participant' || target === 'mentor' || target === 'company') {
-      // Fetch target emails
+    } else if (target === 'all' || target === 'attendance' || target === 'participant' || target === 'mentor' || target === 'company') {
+      // Fetch target emails and personal data for placeholders
+      let queryStr = "";
       const queryParams = [];
-      let queryStr = "SELECT email FROM submissions WHERE email IS NOT NULL AND email != ''";
-      
-      if (target !== 'all') {
-        queryStr += " AND type = $1";
-        queryParams.push(target);
+
+      if (target === 'attendance') {
+        // Special query to join with attendance table for tokens
+        queryStr = `
+          SELECT DISTINCT ON (s.email) 
+            s.email, 
+            a.confirm_token, 
+            s.data->>'teamName' as team_name 
+          FROM submissions s 
+          JOIN attendance a ON s.data->>'teamName' = a.team_name 
+          WHERE s.email IS NOT NULL AND s.email != '' AND s.type = 'participant'
+        `;
+      } else {
+        queryStr = "SELECT DISTINCT ON (email) email FROM submissions WHERE email IS NOT NULL AND email != ''";
+        if (target !== 'all') {
+          queryStr += " AND type = $1";
+          queryParams.push(target);
+        }
       }
       
       const result = await pool.query(queryStr, queryParams);
-      const emails = [...new Set(result.rows.map(r => r.email))];
+      const recipients = result.rows;
 
-      console.log(`[Mailing] Sending bulk email to ${emails.length} recipients (type: ${target})`);
+      console.log(`[Mailing] Sending personalized bulk email to ${recipients.length} recipients (target: ${target})`);
 
-      // Batch send
+      // Batch send with personalization
       let sentCount = 0;
-      for (const to of emails) {
-        const ok = await sendResendEmail(to, subject, htmlContent);
+      const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+
+      for (const recipient of recipients) {
+        let personalizedHtml = htmlContent;
+        
+        // Replace per-recipient placeholders if they exist
+        if (recipient.confirm_token) {
+          const confirmUrl = `${baseUrl}/confirm/${recipient.confirm_token}`;
+          personalizedHtml = personalizedHtml.split('{{confirm_url}}').join(confirmUrl);
+        }
+        if (recipient.team_name) {
+          personalizedHtml = personalizedHtml.split('{{team_name}}').join(recipient.team_name);
+        }
+
+        const ok = await sendResendEmail(recipient.email, subject, personalizedHtml);
         if (ok) sentCount++;
       }
 
-      res.json({ success: true, sent: sentCount, total: emails.length });
+      res.json({ success: true, sent: sentCount, total: recipients.length });
       return;
     }
 
