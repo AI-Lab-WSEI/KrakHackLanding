@@ -13,7 +13,7 @@ export interface Phase {
 export const SITE_LAUNCH = new Date('2026-01-20T11:00:00');
 export const PREP_BASE_UNLOCK = new Date('2026-03-20T18:00:00');
 export const HACKATHON_START = new Date('2026-03-27T18:00:00');
-export const HACKATHON_END = new Date('2026-03-28T21:00:00');
+export const HACKATHON_END = new Date('2026-03-28T18:00:00');
 export const HACK_START = HACKATHON_START; // Compatibility alias
 export const HACK_END = HACKATHON_END;     // Compatibility alias
 export const HACKATHON_DURATION = HACKATHON_END.getTime() - HACKATHON_START.getTime();

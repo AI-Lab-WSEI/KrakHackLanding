@@ -117,7 +117,9 @@ export function SimpleCountdown() {
               { v: timeRemaining.hours, l: 'godz' },
               { v: timeRemaining.minutes, l: 'min' },
               { v: timeRemaining.seconds, l: 'sek' }
-            ].map((t, i) => (
+            ]
+            .filter(t => t.l !== 'dni' || t.v > 0)
+            .map((t, i) => (
               <div key={i} className="flex flex-col items-center min-w-[80px] relative group/num">
                 <div className="absolute inset-0 bg-white/5 rounded-2xl scale-110 opacity-0 group-hover/num:opacity-100 transition-opacity duration-500" />
                 <motion.div 
