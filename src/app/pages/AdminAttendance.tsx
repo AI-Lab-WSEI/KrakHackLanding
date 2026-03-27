@@ -18,7 +18,7 @@ export function AdminAttendance() {
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('admin_token');
+    const token = localStorage.getItem('admin_api_token');
     getAttendanceData(token || undefined).then(setTeams);
   }, []);
 
