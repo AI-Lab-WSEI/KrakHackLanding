@@ -1,8 +1,16 @@
 import express from 'express';
 import pg from 'pg';
 import crypto from 'crypto';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import QRCode from 'qrcode';
+import {
+  createCertificateHash,
+  signCertificate,
+  verifyCertificate,
+  extractSignableFields,
+} from './lib/certificates.js';
 
 // Load environment variables from .env
 try {
@@ -57,6 +65,26 @@ async function initDB() {
       status VARCHAR(20) DEFAULT 'pending', -- pending, confirmed, declined
       confirm_token VARCHAR(64) UNIQUE NOT NULL,
       confirmed_at TIMESTAMP WITH TIME ZONE,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS certificates (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      hash VARCHAR(64) UNIQUE,
+      signature VARCHAR(128),
+      participant_name VARCHAR(255) NOT NULL,
+      team_name VARCHAR(255) NOT NULL,
+      project_name VARCHAR(255) DEFAULT '',
+      university VARCHAR(255) DEFAULT '',
+      certificate_type VARCHAR(20) DEFAULT 'participation',
+      event_name VARCHAR(255) DEFAULT 'AI Krak Hack 2026',
+      event_dates VARCHAR(100) DEFAULT '27-28 marca 2026',
+      status VARCHAR(20) DEFAULT 'draft',
+      approved_by VARCHAR(255),
+      approved_at TIMESTAMP WITH TIME ZONE,
+      issued_at TIMESTAMP WITH TIME ZONE,
+      metadata JSONB DEFAULT '{}',
+      submission_id INTEGER REFERENCES submissions(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
   `);
@@ -828,9 +856,499 @@ app.post('/api/attendance/confirm', async (req, res) => {
   }
 });
 
-// SPA fallback — all non-API routes serve index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+// ─── Certificate Endpoints ─────────────────────────────────
+
+const CERT_SECRET = process.env.CERTIFICATE_SECRET || 'dev-secret-change-me-in-production';
+
+// List all certificates (admin)
+app.get('/api/certificates', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM certificates ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[Certs] List error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Bulk-generate draft certificates from confirmed attendees
+app.post('/api/certificates/generate', requireAdmin, async (req, res) => {
+  try {
+    // Get confirmed teams with their members
+    const teams = await pool.query(`
+      SELECT
+        a.team_name,
+        jsonb_agg(
+          jsonb_build_object(
+            'name', s.data->>'firstName' || ' ' || s.data->>'lastName',
+            'email', s.data->>'email',
+            'university', s.data->>'university',
+            'submission_id', s.id
+          )
+        ) as members
+      FROM attendance a
+      JOIN submissions s ON s.data->>'teamName' = a.team_name AND s.type = 'participant'
+      WHERE a.status = 'confirmed'
+      GROUP BY a.team_name
+    `);
+
+    let created = 0;
+    let skipped = 0;
+
+    for (const team of teams.rows) {
+      for (const member of team.members) {
+        // Check if certificate already exists for this participant+team
+        const existing = await pool.query(
+          'SELECT id FROM certificates WHERE participant_name = $1 AND team_name = $2',
+          [member.name, team.team_name]
+        );
+        if (existing.rows.length > 0) {
+          skipped++;
+          continue;
+        }
+
+        await pool.query(
+          `INSERT INTO certificates (participant_name, team_name, university, submission_id)
+           VALUES ($1, $2, $3, $4)`,
+          [member.name, team.team_name, member.university || '', member.submission_id || null]
+        );
+        created++;
+      }
+    }
+
+    res.json({ success: true, created, skipped });
+  } catch (err) {
+    console.error('[Certs] Generate error:', err);
+    res.status(500).json({ error: 'Blad generowania certyfikatow' });
+  }
+});
+
+// Get single certificate (admin)
+app.get('/api/certificates/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM certificates WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono certyfikatu' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Certs] Get error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Update certificate data (admin)
+app.patch('/api/certificates/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { participant_name, team_name, project_name, university, certificate_type, metadata } = req.body;
+
+    const result = await pool.query(
+      `UPDATE certificates SET
+        participant_name = COALESCE($1, participant_name),
+        team_name = COALESCE($2, team_name),
+        project_name = COALESCE($3, project_name),
+        university = COALESCE($4, university),
+        certificate_type = COALESCE($5, certificate_type),
+        metadata = COALESCE($6, metadata),
+        updated_at = NOW()
+      WHERE id = $7 RETURNING *`,
+      [participant_name, team_name, project_name, university, certificate_type, metadata ? JSON.stringify(metadata) : null, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono certyfikatu' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Certs] Update error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Approve certificate (admin)
+app.post('/api/certificates/:id/approve', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE certificates SET status = 'approved', approved_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND status = 'draft' RETURNING *`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Certyfikat nie jest w statusie draft' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Certs] Approve error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Issue certificate — signs it cryptographically (admin)
+app.post('/api/certificates/:id/issue', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const certResult = await pool.query('SELECT * FROM certificates WHERE id = $1', [id]);
+    if (certResult.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono certyfikatu' });
+
+    const cert = certResult.rows[0];
+    if (cert.status !== 'approved') {
+      return res.status(400).json({ error: 'Certyfikat musi byc zatwierdzony (approved) przed wydaniem' });
+    }
+
+    const signableData = extractSignableFields(cert);
+    const hash = createCertificateHash(signableData, CERT_SECRET);
+    const signature = signCertificate(signableData, hash, CERT_SECRET);
+
+    const result = await pool.query(
+      `UPDATE certificates SET hash = $1, signature = $2, status = 'issued', issued_at = NOW(), updated_at = NOW()
+       WHERE id = $3 RETURNING *`,
+      [hash, signature, id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Certs] Issue error:', err);
+    res.status(500).json({ error: 'Blad wydawania certyfikatu' });
+  }
+});
+
+// Revoke certificate (admin)
+app.post('/api/certificates/:id/revoke', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `UPDATE certificates SET status = 'revoked', updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono certyfikatu' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Certs] Revoke error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Bulk approve all drafts (admin)
+app.post('/api/certificates/bulk-approve', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE certificates SET status = 'approved', approved_at = NOW(), updated_at = NOW()
+       WHERE status = 'draft' RETURNING id`
+    );
+    res.json({ success: true, count: result.rows.length });
+  } catch (err) {
+    console.error('[Certs] Bulk approve error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Bulk issue all approved certificates (admin)
+app.post('/api/certificates/bulk-issue', requireAdmin, async (req, res) => {
+  try {
+    const certs = await pool.query("SELECT * FROM certificates WHERE status = 'approved'");
+    let issued = 0;
+
+    for (const cert of certs.rows) {
+      const signableData = extractSignableFields(cert);
+      const hash = createCertificateHash(signableData, CERT_SECRET);
+      const signature = signCertificate(signableData, hash, CERT_SECRET);
+
+      await pool.query(
+        `UPDATE certificates SET hash = $1, signature = $2, status = 'issued', issued_at = NOW(), updated_at = NOW()
+         WHERE id = $3`,
+        [hash, signature, cert.id]
+      );
+      issued++;
+    }
+
+    res.json({ success: true, issued });
+  } catch (err) {
+    console.error('[Certs] Bulk issue error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Generate QR code for a certificate (admin)
+app.get('/api/certificates/:id/qr', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT hash FROM certificates WHERE id = $1 AND status = $2', [id, 'issued']);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Certyfikat nie zostal jeszcze wydany' });
+
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const verifyUrl = `${baseUrl}/verify/${result.rows[0].hash}`;
+
+    const format = req.query.format || 'png';
+    if (format === 'svg') {
+      const svg = await QRCode.toString(verifyUrl, {
+        type: 'svg',
+        color: { dark: '#030213', light: '#00000000' },
+        margin: 1,
+        width: 300,
+      });
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.send(svg);
+    } else {
+      const png = await QRCode.toBuffer(verifyUrl, {
+        type: 'png',
+        color: { dark: '#030213', light: '#ffffff' },
+        margin: 2,
+        width: 400,
+        errorCorrectionLevel: 'H',
+      });
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', `inline; filename="cert-${result.rows[0].hash.slice(0, 8)}.png"`);
+      res.send(png);
+    }
+  } catch (err) {
+    console.error('[Certs] QR error:', err);
+    res.status(500).json({ error: 'Blad generowania QR' });
+  }
+});
+
+// Send certificate email to participant (admin)
+app.post('/api/certificates/:id/send-email', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const certResult = await pool.query(
+      `SELECT c.*, s.data->>'email' as participant_email
+       FROM certificates c
+       LEFT JOIN submissions s ON s.id = c.submission_id
+       WHERE c.id = $1 AND c.status = 'issued'`,
+      [id]
+    );
+    if (certResult.rows.length === 0) return res.status(400).json({ error: 'Certyfikat musi byc wydany (issued)' });
+
+    const cert = certResult.rows[0];
+    const email = req.body.email || cert.participant_email;
+    if (!email) return res.status(400).json({ error: 'Brak adresu email' });
+
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const verifyUrl = `${baseUrl}/verify/${cert.hash}`;
+    const isWinner = cert.certificate_type === 'winner';
+
+    const html = `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, ${isWinner ? '#f59e0b, #ef4444' : '#06b6d4, #3b82f6, #8b5cf6'}); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI KRAK HACK 2026</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'}</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Czesc ${cert.participant_name}!</p>
+      <p>${isWinner
+        ? `Gratulacje! Twoj zespol <strong>${cert.team_name}</strong> zwyciezyl w AI Krak Hack 2026!`
+        : `Dziekujemy za udzial w AI Krak Hack 2026 w zespole <strong>${cert.team_name}</strong>!`
+      }</p>
+      ${cert.project_name ? `<p>Projekt: <strong>${cert.project_name}</strong></p>` : ''}
+      <p>Twoj certyfikat jest dostepny online i mozesz go udostepnic na LinkedIn:</p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${verifyUrl}" style="display: inline-block; padding: 16px 32px; background: ${isWinner ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : 'linear-gradient(135deg, #06b6d4, #3b82f6)'}; color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Zobacz certyfikat &rarr;</a>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center; margin: 20px 0;">
+        <p style="font-size: 12px; color: #64748b; margin: 0 0 4px;">Hash weryfikacyjny</p>
+        <code style="font-size: 14px; color: #0f172a; font-weight: 600;">${cert.hash}</code>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Pozdrawiamy,<br><strong>Zespol AI Krak Hack 2026</strong><br>AI Possibilities Lab &bull; WSEI Krakow
+      </p>
+    </div>
+  </div>
+</div>`;
+
+    const success = await sendResendEmail(
+      email,
+      `${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'} - AI Krak Hack 2026`,
+      html
+    );
+    res.json({ success });
+  } catch (err) {
+    console.error('[Certs] Email error:', err);
+    res.status(500).json({ error: 'Blad wysylki emaila' });
+  }
+});
+
+// Bulk send certificate emails (admin)
+app.post('/api/certificates/bulk-send-email', requireAdmin, async (req, res) => {
+  try {
+    const certs = await pool.query(`
+      SELECT c.*, s.data->>'email' as participant_email
+      FROM certificates c
+      LEFT JOIN submissions s ON s.id = c.submission_id
+      WHERE c.status = 'issued' AND c.hash IS NOT NULL
+    `);
+
+    let sent = 0;
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+
+    for (const cert of certs.rows) {
+      const email = cert.participant_email;
+      if (!email) continue;
+
+      const verifyUrl = `${baseUrl}/verify/${cert.hash}`;
+      const isWinner = cert.certificate_type === 'winner';
+
+      const html = `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, ${isWinner ? '#f59e0b, #ef4444' : '#06b6d4, #3b82f6, #8b5cf6'}); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI KRAK HACK 2026</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'}</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Czesc ${cert.participant_name}!</p>
+      <p>${isWinner
+        ? `Gratulacje! Twoj zespol <strong>${cert.team_name}</strong> zwyciezyl w AI Krak Hack 2026!`
+        : `Dziekujemy za udzial w AI Krak Hack 2026 w zespole <strong>${cert.team_name}</strong>!`
+      }</p>
+      ${cert.project_name ? `<p>Projekt: <strong>${cert.project_name}</strong></p>` : ''}
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${verifyUrl}" style="display: inline-block; padding: 16px 32px; background: ${isWinner ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : 'linear-gradient(135deg, #06b6d4, #3b82f6)'}; color: white; text-decoration: none; border-radius: 12px; font-weight: 700;">Zobacz certyfikat &rarr;</a>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">Zespol AI Krak Hack 2026</p>
+    </div>
+  </div>
+</div>`;
+
+      const ok = await sendResendEmail(
+        email,
+        `${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'} - AI Krak Hack 2026`,
+        html
+      );
+      if (ok) sent++;
+    }
+
+    res.json({ success: true, sent, total: certs.rows.length });
+  } catch (err) {
+    console.error('[Certs] Bulk email error:', err);
+    res.status(500).json({ error: 'Blad wysylki masowej' });
+  }
+});
+
+// Export certificates for physical printing (admin)
+app.get('/api/certificates/export', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM certificates WHERE status = 'issued' ORDER BY team_name, participant_name");
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const exportData = result.rows.map(c => ({
+      participant_name: c.participant_name,
+      team_name: c.team_name,
+      project_name: c.project_name,
+      university: c.university,
+      certificate_type: c.certificate_type,
+      event_name: c.event_name,
+      event_dates: c.event_dates,
+      hash: c.hash,
+      verify_url: `${baseUrl}/verify/${c.hash}`,
+      issued_at: c.issued_at,
+      metadata: c.metadata,
+    }));
+    res.json(exportData);
+  } catch (err) {
+    console.error('[Certs] Export error:', err);
+    res.status(500).json({ error: 'Blad eksportu' });
+  }
+});
+
+// Delete certificate (admin)
+app.delete('/api/certificates/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM certificates WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono certyfikatu' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Certs] Delete error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// ─── Public Certificate Verification ───────────────────────
+
+app.get('/api/verify/:hash', async (req, res) => {
+  try {
+    const { hash } = req.params;
+    const result = await pool.query(
+      "SELECT * FROM certificates WHERE hash = $1 AND status = 'issued'",
+      [hash]
+    );
+
+    if (result.rows.length === 0) {
+      // Check if it was revoked
+      const revoked = await pool.query(
+        "SELECT id FROM certificates WHERE hash = $1 AND status = 'revoked'",
+        [hash]
+      );
+      if (revoked.rows.length > 0) {
+        return res.json({ valid: false, reason: 'revoked' });
+      }
+      return res.json({ valid: false, reason: 'not_found' });
+    }
+
+    const cert = result.rows[0];
+    const signableData = extractSignableFields(cert);
+    const verification = verifyCertificate(signableData, cert.hash, cert.signature, CERT_SECRET);
+
+    res.json({
+      valid: verification.valid,
+      certificate: {
+        participant_name: cert.participant_name,
+        team_name: cert.team_name,
+        project_name: cert.project_name,
+        university: cert.university,
+        certificate_type: cert.certificate_type,
+        event_name: cert.event_name,
+        event_dates: cert.event_dates,
+        issued_at: cert.issued_at,
+        hash: cert.hash,
+        metadata: cert.metadata,
+      },
+    });
+  } catch (err) {
+    console.error('[Certs] Verify error:', err);
+    res.status(500).json({ error: 'Blad weryfikacji' });
+  }
+});
+
+// SPA fallback with OG meta tag injection for certificate pages
+app.get('*', async (req, res) => {
+  const indexPath = path.join(__dirname, 'dist', 'index.html');
+
+  // Inject OG meta tags for /verify/:hash URLs
+  const verifyMatch = req.path.match(/^\/verify\/([a-f0-9]{32,64})$/);
+  if (verifyMatch && process.env.DATABASE_URL) {
+    try {
+      const certResult = await pool.query(
+        "SELECT * FROM certificates WHERE hash = $1 AND status = 'issued'",
+        [verifyMatch[1]]
+      );
+      if (certResult.rows.length > 0) {
+        const c = certResult.rows[0];
+        let html = fs.readFileSync(indexPath, 'utf8');
+
+        const isWinner = c.certificate_type === 'winner';
+        const title = isWinner
+          ? `AI Krak Hack 2026 — Zwyciezca: ${c.participant_name}`
+          : `AI Krak Hack 2026 — Certyfikat: ${c.participant_name}`;
+        const desc = isWinner
+          ? `${c.participant_name} zwyciezyl/a w AI Krak Hack 2026 z projektem "${c.project_name}" w zespole ${c.team_name}. Certyfikat zweryfikowany kryptograficznie.`
+          : `${c.participant_name} wzial/a udzial w AI Krak Hack 2026 w zespole ${c.team_name}. Certyfikat zweryfikowany kryptograficznie.`;
+
+        const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+        const ogTags = `
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${desc}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${baseUrl}/verify/${c.hash}" />
+    <meta property="og:site_name" content="AI Krak Hack 2026 — Certyfikaty" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="${title}" />
+    <meta name="twitter:description" content="${desc}" />`;
+
+        html = html.replace('</head>', ogTags + '\n  </head>');
+        return res.send(html);
+      }
+    } catch (err) {
+      console.error('[OG] Error injecting meta tags:', err);
+    }
+  }
+
+  res.sendFile(indexPath);
 });
 
 // ─── Start ─────────────────────────────────────────────────

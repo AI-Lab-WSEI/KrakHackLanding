@@ -9,6 +9,8 @@ import { Survey } from '@/app/pages/Survey';
 import { UnsubscribeConfirmation } from '@/app/pages/UnsubscribeConfirmation';
 import { AdminAttendance } from '@/app/pages/AdminAttendance';
 import { ConfirmAttendance } from '@/app/pages/ConfirmAttendance';
+import { CertificateVerify } from '@/app/pages/CertificateVerify';
+import { CertificateView } from '@/app/pages/CertificateView';
 import { Layout } from '@/app/Layout';
 
 export const router = createBrowserRouter([
@@ -51,6 +53,14 @@ export const router = createBrowserRouter([
       {
         path: 'zadania/:slug',
         Component: TaskDetail,
+      },
+      {
+        path: 'verify',
+        Component: CertificateVerify,
+      },
+      {
+        path: 'verify/:hash',
+        Component: CertificateView,
       },
       {
         path: 'unsubscribe-confirmation',

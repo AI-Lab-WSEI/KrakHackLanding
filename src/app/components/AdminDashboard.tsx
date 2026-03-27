@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AdminAuth, getAdminToken } from './AdminAuth';
 import { AdminAttendance } from '@/app/pages/AdminAttendance';
+import { AdminCertificates } from './AdminCertificates';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactEcharts from 'echarts-for-react';
 import {
@@ -19,7 +20,8 @@ import {
   Check,
   AlertCircle,
   Save,
-  Smartphone
+  Smartphone,
+  Award,
 } from 'lucide-react';
 
 interface Registration {
@@ -81,7 +83,7 @@ export function AdminDashboard() {
       task: ''
     }
   });
-  const [activeTab, setActiveTab] = useState<'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance'>('regs');
+  const [activeTab, setActiveTab] = useState<'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates'>('regs');
   const [roleFilter, setRoleFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -549,6 +551,7 @@ export function AdminDashboard() {
             { id: 'mailing', label: 'Mailing', icon: Mail },
             { id: 'sms', label: 'SMS', icon: Smartphone },
             { id: 'attendance', label: 'Obecność', icon: Check },
+            { id: 'certificates', label: 'Certyfikaty', icon: Award },
             { id: 'surveys', label: 'Ankiety', icon: MessageSquare }
           ].map(tab => (
             <button
@@ -827,6 +830,10 @@ export function AdminDashboard() {
             <motion.div key="attendance" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <AdminAttendance />
             </motion.div>
+          )}
+
+          {activeTab === 'certificates' && (
+            <AdminCertificates />
           )}
 
           {activeTab === 'surveys' && (
