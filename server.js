@@ -875,22 +875,38 @@ app.get('/api/certificates', requireAdmin, async (req, res) => {
 // Bulk-generate draft certificates from confirmed attendees
 app.post('/api/certificates/generate', requireAdmin, async (req, res) => {
   try {
-    // Get confirmed teams' participants with simple query
-    const participants = await pool.query(`
-      SELECT
-        s.id as submission_id,
-        s.data->>'firstName' as first_name,
-        s.data->>'lastName' as last_name,
-        s.data->>'email' as email,
-        s.data->>'university' as university,
-        s.data->>'teamName' as team_name
-      FROM submissions s
-      JOIN attendance a ON a.team_name = s.data->>'teamName'
-      WHERE s.type = 'participant'
-        AND a.status = 'confirmed'
-        AND s.data->>'teamName' IS NOT NULL
-        AND s.data->>'teamName' != ''
-    `);
+    // source=all generates for ALL participants, source=confirmed (default) only for confirmed teams
+    const source = req.body.source || 'confirmed';
+
+    let query;
+    if (source === 'all') {
+      query = `
+        SELECT
+          s.id as submission_id,
+          s.data::jsonb->>'firstName' as first_name,
+          s.data::jsonb->>'lastName' as last_name,
+          s.data::jsonb->>'email' as email,
+          s.data::jsonb->>'university' as university,
+          s.data::jsonb->>'teamName' as team_name
+        FROM submissions s
+        WHERE s.type = 'participant'
+      `;
+    } else {
+      query = `
+        SELECT
+          s.id as submission_id,
+          s.data::jsonb->>'firstName' as first_name,
+          s.data::jsonb->>'lastName' as last_name,
+          s.data::jsonb->>'email' as email,
+          s.data::jsonb->>'university' as university,
+          s.data::jsonb->>'teamName' as team_name
+        FROM submissions s
+        JOIN attendance a ON a.team_name = (s.data::jsonb->>'teamName')
+        WHERE s.type = 'participant'
+          AND a.status = 'confirmed'
+      `;
+    }
+    const participants = await pool.query(query);
 
     let created = 0;
     let skipped = 0;

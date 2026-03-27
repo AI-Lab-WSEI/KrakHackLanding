@@ -103,10 +103,13 @@ export function AdminCertificates() {
     setTimeout(() => setActionStatus(null), 4000);
   };
 
-  const generateCertificates = async () => {
+  const generateCertificates = async (source: 'confirmed' | 'all' = 'confirmed') => {
     setIsGenerating(true);
     try {
-      const result = await certFetch('/api/certificates/generate', { method: 'POST' });
+      const result = await certFetch('/api/certificates/generate', {
+        method: 'POST',
+        body: JSON.stringify({ source }),
+      });
       showStatus('success', `Wygenerowano ${result.created} certyfikatow (pominieto ${result.skipped} istniejacych)`);
       loadCertificates();
     } catch (err: unknown) {
@@ -314,8 +317,11 @@ export function AdminCertificates() {
           <button onClick={loadCertificates} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Odswiez
           </button>
-          <button onClick={generateCertificates} disabled={isGenerating} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-50">
-            <FileText className="w-3.5 h-3.5" /> {isGenerating ? 'Generowanie...' : 'Generuj certyfikaty'}
+          <button onClick={() => generateCertificates('confirmed')} disabled={isGenerating} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-50">
+            <FileText className="w-3.5 h-3.5" /> {isGenerating ? 'Generowanie...' : 'Generuj (potwierdzone)'}
+          </button>
+          <button onClick={() => generateCertificates('all')} disabled={isGenerating} className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-50">
+            <FileText className="w-3.5 h-3.5" /> {isGenerating ? 'Generowanie...' : 'Generuj (wszyscy)'}
           </button>
         </div>
       </div>
