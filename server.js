@@ -51,7 +51,32 @@ async function initDB() {
       key VARCHAR(50) PRIMARY KEY,
       value JSONB NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS attendance (
+      id SERIAL PRIMARY KEY,
+      team_name VARCHAR(255) UNIQUE NOT NULL,
+      status VARCHAR(20) DEFAULT 'pending', -- pending, confirmed, declined
+      confirm_token VARCHAR(64) UNIQUE NOT NULL,
+      confirmed_at TIMESTAMP WITH TIME ZONE,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
   `);
+  
+  // Auto-sync teams from submissions if they don't exist in attendance
+  try {
+    const teamsResult = await pool.query(
+      "SELECT DISTINCT data->>'teamName' as team_name FROM submissions WHERE type = 'participant' AND data->>'teamName' IS NOT NULL AND data->>'teamName' != ''"
+    );
+    for (const row of teamsResult.rows) {
+      await pool.query(
+        "INSERT INTO attendance (team_name, confirm_token) VALUES ($1, $2) ON CONFLICT (team_name) DO NOTHING",
+        [row.team_name, crypto.randomBytes(16).toString('hex')]
+      );
+    }
+    console.log('[DB] Attendance sync completed');
+  } catch (err) {
+    console.error('[DB] Attendance sync failed:', err);
+  }
+  
   console.log('[DB] Tables initialized');
 }
 
@@ -714,6 +739,64 @@ app.post('/api/admin/sms/send', requireAdmin, async (req, res) => {
     }
   } catch (err) {
     console.error('[SMS] API endpoint error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// Attendance Endpoints
+app.get('/api/attendance', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        a.*,
+        (
+          SELECT jsonb_agg(DISTINCT (data->>'firstName' || ' ' || data->>'lastName'))
+          FROM submissions s 
+          WHERE s.data->>'teamName' = a.team_name AND s.type = 'participant'
+        ) as members,
+        (
+          SELECT data->>'email'
+          FROM submissions s 
+          WHERE s.data->>'teamName' = a.team_name AND s.type = 'participant'
+          LIMIT 1
+        ) as contact_email
+      FROM attendance a
+      ORDER BY a.team_name
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[API] Fetch attendance error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.get('/api/attendance/token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const result = await pool.query('SELECT * FROM attendance WHERE confirm_token = $1', [token]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nieprawidłowy token' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[API] Fetch team by token error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.post('/api/attendance/confirm', async (req, res) => {
+  try {
+    const { token, status } = req.body;
+    if (!token || !status) return res.status(400).json({ error: 'Brak tokenu lub statusu' });
+    if (!['confirmed', 'declined'].includes(status)) return res.status(400).json({ error: 'Nieprawidłowy status' });
+
+    const result = await pool.query(
+      'UPDATE attendance SET status = $1, confirmed_at = CASE WHEN $1 = \'confirmed\' THEN NOW() ELSE NULL END, updated_at = NOW() WHERE confirm_token = $2 RETURNING *',
+      [status, token]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono zespołu' });
+    res.json({ success: true, team: result.rows[0] });
+  } catch (err) {
+    console.error('[API] Confirm attendance error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
   }
 });

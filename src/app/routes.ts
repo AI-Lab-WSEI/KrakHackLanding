@@ -7,6 +7,8 @@ import { TaskDetail } from '@/app/pages/TaskDetail';
 import { HackathonTimer } from '@/app/pages/HackathonTimer';
 import { Survey } from '@/app/pages/Survey';
 import { UnsubscribeConfirmation } from '@/app/pages/UnsubscribeConfirmation';
+import { AdminAttendance } from '@/app/pages/AdminAttendance';
+import { ConfirmAttendance } from '@/app/pages/ConfirmAttendance';
 import { Layout } from '@/app/Layout';
 
 export const router = createBrowserRouter([
@@ -33,6 +35,14 @@ export const router = createBrowserRouter([
       {
         path: 'admin',
         Component: AdminPanel,
+      },
+      {
+        path: 'admin/attendance',
+        Component: AdminAttendance,
+      },
+      {
+        path: 'confirm/:id',
+        Component: ConfirmAttendance,
       },
       {
         path: 'feedback',
