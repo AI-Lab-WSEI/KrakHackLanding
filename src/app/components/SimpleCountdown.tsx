@@ -3,15 +3,17 @@ import { motion } from 'motion/react';
 import { Clock, Calendar, Zap } from 'lucide-react';
 import { Link } from 'react-router';
 import { cn } from '@/app/components/ui/utils';
+import {
+  SITE_LAUNCH,
+  PREP_BASE_UNLOCK,
+  HACKATHON_START,
+  HACKATHON_END,
+  getGlobalProgress,
+  getHackathonStatus
+} from '@/utils/hackathonPhases';
 
 export function SimpleCountdown() {
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  // siteLaunchDate set to Jan 20, 2026 to ensure ~33% progress on Feb 12, 2026
-  const siteLaunchDate = new Date('2026-01-20T11:00:00');
-  const preparationUnlockDate = new Date('2026-03-20T18:00:00');
-  const hackathonStartDate = new Date('2026-03-27T18:00:00');
-  const hackathonEndDate = new Date('2026-03-28T21:00:00');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -32,48 +34,21 @@ export function SimpleCountdown() {
     return { days, hours, minutes, seconds };
   };
 
-  const getPhase = () => {
-    const now = currentTime.getTime();
-    if (now < siteLaunchDate.getTime()) return 'waiting';
-    if (now < preparationUnlockDate.getTime()) return 'recruitment';
-    if (now < hackathonStartDate.getTime()) return 'preparation';
-    if (now < hackathonEndDate.getTime()) return 'hackathon';
-    return 'ended';
-  };
-
-  const getOverallProgress = () => {
-    const now = currentTime.getTime();
-    const start = siteLaunchDate.getTime();
-    const end = hackathonEndDate.getTime();
-    if (now < start) return 0;
-    if (now > end) return 100;
-    return ((now - start) / (end - start)) * 100;
-  };
-
-  const phase = getPhase();
-  const overallProgress = getOverallProgress();
+  const phase = getHackathonStatus(currentTime);
+  const overallProgress = getGlobalProgress(currentTime);
 
   const milestones = [
-    { date: siteLaunchDate, label: 'Start', desc: 'Dołącz do oficjalnego otwarcia!' },
-    { date: preparationUnlockDate, label: 'Baza', desc: 'Sprawdź bazę wiedzy i materiały!' },
-    { date: hackathonStartDate, label: 'Live', desc: 'Rozpocznij 24h intensywnego kodowania!' },
-    { date: hackathonEndDate, label: 'Meta', desc: 'Zobacz prezentacje i wielki finał!' }
+    { date: SITE_LAUNCH, label: 'Start', desc: 'Dołącz do oficjalnego otwarcia!' },
+    { date: PREP_BASE_UNLOCK, label: 'Baza', desc: 'Sprawdź bazę wiedzy i materiały!' },
+    { date: HACKATHON_START, label: 'Live', desc: 'Rozpocznij 24h intensywnego kodowania!' },
+    { date: HACKATHON_END, label: 'Meta', desc: 'Zobacz prezentacje i wielki finał!' }
   ];
 
-  // Non-linear scaling to prevent point overlap during the final week
-  const getScaledPosition = (date: Date) => {
-    const now = currentTime.getTime();
-    const start = siteLaunchDate.getTime();
-    const end = hackathonEndDate.getTime();
-    const originalPos = ((date.getTime() - start) / (end - start)) * 100;
-    
-    const zoomThreshold = hackathonStartDate.getTime() - (7 * 24 * 60 * 60 * 1000);
-    if (now > zoomThreshold) {
-      if (originalPos < 60) return originalPos * 0.7;
-      return 42 + (originalPos - 42) * 1.3;
-    }
-    
-    return originalPos;
+  // Strictly linear position
+  const getLinearPosition = (date: Date) => {
+    const start = SITE_LAUNCH.getTime();
+    const end = HACKATHON_END.getTime();
+    return Math.min(Math.max(((date.getTime() - start) / (end - start)) * 100, 0), 100);
   };
 
   const renderCountdown = () => {
@@ -83,20 +58,28 @@ export function SimpleCountdown() {
     let progressColor: string;
 
     switch (phase) {
-      case 'recruitment':
-        targetDate = preparationUnlockDate;
+      case 'before': // Special case for before SITE_LAUNCH
+        targetDate = SITE_LAUNCH;
+        message = 'Do startu wydarzenia';
+        icon = <Calendar className="w-5 h-5" />;
+        progressColor = 'from-gray-500 to-gray-400';
+        break;
+      case 'waiting': // Added for robustness if status logic differs
+      case 'recruitment': // Should align with 'before' in getHackathonStatus if before start
+        targetDate = PREP_BASE_UNLOCK;
         message = 'Do bazy wiedzy';
         icon = <Calendar className="w-5 h-5" />;
         progressColor = 'from-purple-500 to-cyan-500';
         break;
       case 'preparation':
-        targetDate = hackathonStartDate;
+        targetDate = HACKATHON_START;
         message = 'Do startu 24h';
         icon = <Clock className="w-5 h-5" />;
         progressColor = 'from-cyan-500 to-blue-500';
         break;
       case 'hackathon':
-        targetDate = hackathonEndDate;
+      case 'during':
+        targetDate = HACKATHON_END;
         message = 'Do oddania projektów';
         icon = <Zap className="w-5 h-5" />;
         progressColor = 'from-red-500 to-orange-500';
@@ -169,7 +152,7 @@ export function SimpleCountdown() {
             />
 
             {milestones.map((ms, idx) => {
-              const pos = getScaledPosition(ms.date);
+              const pos = getLinearPosition(ms.date);
               const isReached = currentTime >= ms.date;
               
               return (

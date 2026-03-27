@@ -10,9 +10,14 @@ export interface Phase {
   proTips: string[];
 }
 
+export const SITE_LAUNCH = new Date('2026-01-20T11:00:00');
+export const PREP_BASE_UNLOCK = new Date('2026-03-20T18:00:00');
 export const HACKATHON_START = new Date('2026-03-27T18:00:00');
 export const HACKATHON_END = new Date('2026-03-28T21:00:00');
-export const HACKATHON_DURATION = 24 * 60 * 60 * 1000; // 24 hours in ms
+export const HACK_START = HACKATHON_START; // Compatibility alias
+export const HACK_END = HACKATHON_END;     // Compatibility alias
+export const HACKATHON_DURATION = HACKATHON_END.getTime() - HACKATHON_START.getTime();
+export const TOTAL_PROJECT_DURATION = HACKATHON_END.getTime() - SITE_LAUNCH.getTime();
 
 export const phases: Phase[] = [
   {
@@ -124,7 +129,7 @@ export interface PhaseState {
   phaseElapsed: number;
 }
 
-export type HackathonStatus = 'before' | 'during' | 'after';
+export type HackathonStatus = 'waiting' | 'recruitment' | 'preparation' | 'hackathon' | 'during' | 'after' | 'before';
 
 // Set to null for production, or a Date for mocking (e.g. middle of hackathon)
 export const MOCK_DATE: Date | null = null;
@@ -201,15 +206,22 @@ export function formatTime(ms: number): { days: number; hours: number; minutes: 
   };
 }
 
-export function getOverallProgress(now: Date): number {
+export function getGlobalProgress(now: Date): number {
   const effectiveNow = getEffectiveNow(now);
-  const elapsed = effectiveNow.getTime() - HACKATHON_START.getTime();
-  return Math.min(Math.max((elapsed / HACKATHON_DURATION) * 100, 0), 100);
+  const start = SITE_LAUNCH.getTime();
+  const end = HACKATHON_END.getTime();
+  const elapsed = effectiveNow.getTime() - start;
+  const total = end - start;
+  return Math.min(Math.max((elapsed / total) * 100, 0), 100);
 }
 
 export function getHackathonStatus(now: Date): HackathonStatus {
   const effectiveNow = getEffectiveNow(now);
-  if (effectiveNow < HACKATHON_START) return 'before';
-  if (effectiveNow > HACKATHON_END) return 'after';
-  return 'during';
+  const time = effectiveNow.getTime();
+  
+  if (time < SITE_LAUNCH.getTime()) return 'waiting';
+  if (time < PREP_BASE_UNLOCK.getTime()) return 'recruitment';
+  if (time < HACKATHON_START.getTime()) return 'preparation';
+  if (time < HACKATHON_END.getTime()) return 'during';
+  return 'after';
 }

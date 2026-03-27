@@ -3,18 +3,22 @@ import { motion } from 'motion/react';
 import { Calendar, Clock } from 'lucide-react';
 import { Progress } from '@/app/components/ui/progress';
 import { cn } from '@/app/components/ui/utils';
+import {
+  SITE_LAUNCH,
+  PREP_BASE_UNLOCK,
+  HACKATHON_START,
+  HACKATHON_END,
+  getGlobalProgress,
+  getHackathonStatus
+} from '@/utils/hackathonPhases';
 
 interface CountdownProgressProps {
   variant?: 'main' | 'task';
   taskType?: 'preparation' | 'tasks';
 }
 
-export function CountdownProgress({ variant = 'main', taskType = 'preparation' }: CountdownProgressProps) {
+export function CountdownProgress({ variant = 'main' }: CountdownProgressProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  const preparationUnlockDate = new Date('2026-03-20T18:00:00');
-  const hackathonStartDate = new Date('2026-03-27T18:00:00');
-  const hackathonEndDate = new Date('2026-03-28T21:00:00');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -22,18 +26,6 @@ export function CountdownProgress({ variant = 'main', taskType = 'preparation' }
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
-  const calculateProgress = () => {
-    const now = currentTime.getTime();
-    const prepStart = preparationUnlockDate.getTime();
-    const hackStart = hackathonStartDate.getTime();
-    const hackEnd = hackathonEndDate.getTime();
-
-    const totalDuration = hackEnd - (prepStart - 7 * 24 * 60 * 60 * 1000);
-    const elapsed = now - (prepStart - 7 * 24 * 60 * 60 * 1000);
-
-    return Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100);
-  };
 
   const getTimeRemaining = (targetDate: Date) => {
     const diff = targetDate.getTime() - currentTime.getTime();
@@ -47,16 +39,8 @@ export function CountdownProgress({ variant = 'main', taskType = 'preparation' }
     return { days, hours, minutes, seconds };
   };
 
-  const getPhase = () => {
-    const now = currentTime.getTime();
-    if (now < preparationUnlockDate.getTime()) return 'waiting';
-    if (now < hackathonStartDate.getTime()) return 'preparation';
-    if (now < hackathonEndDate.getTime()) return 'hackathon';
-    return 'ended';
-  };
-
-  const phase = getPhase();
-  const progress = calculateProgress();
+  const phase = getHackathonStatus(currentTime);
+  const progress = getGlobalProgress(currentTime);
 
   const renderCountdown = () => {
     let targetDate: Date;
@@ -64,18 +48,20 @@ export function CountdownProgress({ variant = 'main', taskType = 'preparation' }
     let icon: React.ReactNode;
 
     switch (phase) {
+      case 'before':
       case 'waiting':
-        targetDate = preparationUnlockDate;
+        targetDate = PREP_BASE_UNLOCK;
         message = 'Do odblokowania materiałów przygotowawczych';
         icon = <Calendar className="w-5 h-5" />;
         break;
       case 'preparation':
-        targetDate = hackathonStartDate;
+        targetDate = HACKATHON_START;
         message = 'Do rozpoczęcia hackathonu';
         icon = <Clock className="w-5 h-5" />;
         break;
       case 'hackathon':
-        targetDate = hackathonEndDate;
+      case 'during':
+        targetDate = HACKATHON_END;
         message = 'Do końca hackathonu';
         icon = <Clock className="w-5 h-5 text-red-400" />;
         break;
@@ -127,20 +113,26 @@ export function CountdownProgress({ variant = 'main', taskType = 'preparation' }
     );
   };
 
+  const getLinearPosition = (date: Date) => {
+    const start = SITE_LAUNCH.getTime();
+    const end = HACKATHON_END.getTime();
+    return Math.min(Math.max(((date.getTime() - start) / (end - start)) * 100, 0), 100);
+  };
+
   const renderProgressSection = () => {
     const milestones = [
       {
-        position: 25,
+        position: getLinearPosition(PREP_BASE_UNLOCK),
         label: 'Materiały przygotowawcze',
-        date: '20.03.2026 18:00',
-        active: phase !== 'waiting',
+        date: PREP_BASE_UNLOCK.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+        active: currentTime >= PREP_BASE_UNLOCK,
         icon: '📚'
       },
       {
-        position: 75,
+        position: getLinearPosition(HACKATHON_START),
         label: 'Start hackathonu',
-        date: '27.03.2026 18:00',
-        active: phase === 'hackathon' || phase === 'ended',
+        date: HACKATHON_START.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+        active: phase === 'hackathon' || phase === 'during' || currentTime >= HACKATHON_START,
         icon: '🚀'
       }
     ];
@@ -160,8 +152,8 @@ export function CountdownProgress({ variant = 'main', taskType = 'preparation' }
               className="h-4 bg-muted/30"
             />
 
-            {/* Custom progress indicator with gradient */}
-            <div className="absolute top-8 left-0 right-0 h-4 rounded-full overflow-hidden bg-muted/30">
+            {/* Custom progress indicator consumed by Progress component above, but we keep the visual enhancement */}
+            <div className="absolute top-8 left-0 right-0 h-4 rounded-full overflow-hidden bg-muted/30 pointer-events-none">
               <motion.div
                 className="h-full bg-gradient-to-r from-cyan-500 via-purple-500 to-fuchsia-500 relative"
                 style={{ width: `${progress}%` }}
@@ -169,14 +161,13 @@ export function CountdownProgress({ variant = 'main', taskType = 'preparation' }
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 2, ease: "easeOut" }}
               >
-                {/* Animated shine effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-100%] animate-[shimmer_3s_ease-in-out_infinite]" />
               </motion.div>
             </div>
           </div>
 
           {/* Milestones */}
-          <div className="relative">
+          <div className="relative h-20">
             {milestones.map((milestone, index) => (
               <div
                 key={index}
@@ -227,10 +218,10 @@ export function CountdownProgress({ variant = 'main', taskType = 'preparation' }
   };
 
   const renderDuringHackathon = () => {
-    if (phase !== 'hackathon') return null;
+    if (phase !== 'hackathon' && phase !== 'during') return null;
 
-    const elapsed = currentTime.getTime() - hackathonStartDate.getTime();
-    const totalDuration = hackathonEndDate.getTime() - hackathonStartDate.getTime();
+    const elapsed = currentTime.getTime() - HACKATHON_START.getTime();
+    const totalDuration = HACKATHON_END.getTime() - HACKATHON_START.getTime();
     const hackathonProgress = (elapsed / totalDuration) * 100;
 
     return (

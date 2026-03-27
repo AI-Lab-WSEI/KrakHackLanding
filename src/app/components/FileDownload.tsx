@@ -7,6 +7,7 @@ interface FileDownloadProps {
   fileTitle: string;
   fileDescription: string;
   unlockDate?: Date;
+  expiryDate?: Date;
   fileSize?: string;
   externalUrl?: string;
 }
@@ -16,49 +17,55 @@ export function FileDownload({
   fileTitle,
   fileDescription,
   unlockDate,
+  expiryDate,
   fileSize = '1.5 MB',
   externalUrl
 }: FileDownloadProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isExpired, setIsExpired] = useState(false);
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
-    if (!unlockDate) {
-      setIsUnlocked(true);
-      return;
-    }
-
     const timer = setInterval(() => {
       const now = new Date();
-      if (now >= unlockDate) {
-        setIsUnlocked(true);
-        clearInterval(timer);
-      } else {
-        const diff = unlockDate.getTime() - now.getTime();
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      // 1. Check if it should be unlocked
+      const unlocked = !unlockDate || now >= unlockDate;
+      
+      // 2. Check if it has expired
+      const expired = expiryDate ? now > expiryDate : false;
+      
+      setIsUnlocked(unlocked && !expired);
+      setIsExpired(expired);
 
-        let timeString = '';
-        if (days > 0) {
-          timeString += `${days} ${days === 1 ? 'dzień' : 'dni'} `;
-        }
-        if (hours > 0 || days > 0) { // Show hours if days exist or hours are present
-          timeString += `${hours}h `;
-        }
-        timeString += `${minutes}min`;
-        if (days === 0 && hours === 0) { // Only show seconds if it's less than an hour
-          timeString += ` ${seconds}s`;
-        }
-        setTimeLeft(timeString.trim());
+      if (!unlocked && unlockDate) {
+        const diff = unlockDate.getTime() - now.getTime();
+        setTimeLeft(formatTime(diff));
+      } else if (expired) {
+        setTimeLeft('Wygasło');
+      } else {
+        clearInterval(timer);
       }
     }, 1000);
 
+    const formatTime = (diff: number) => {
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      let timeString = '';
+      if (days > 0) timeString += `${days} ${days === 1 ? 'dzień' : 'dni'} `;
+      if (hours > 0 || days > 0) timeString += `${hours}h `;
+      timeString += `${minutes}min`;
+      if (days === 0 && hours === 0) timeString += ` ${seconds}s`;
+      return timeString.trim();
+    };
+
     return () => clearInterval(timer);
-  }, [unlockDate]);
+  }, [unlockDate, expiryDate]);
 
   const handleDownload = () => {
     if (!isUnlocked) {
@@ -96,7 +103,9 @@ export function FileDownload({
         relative p-6 rounded-xl cursor-pointer transition-all duration-300 min-h-[280px] flex flex-col
         ${isUnlocked
           ? 'bg-card/60 backdrop-blur-sm border border-cyan-500/30 hover:border-cyan-400/50 hover:shadow-xl hover:shadow-cyan-500/20'
-          : 'bg-card/40 backdrop-blur-sm border border-purple-500/30 hover:border-purple-400/50'
+          : isExpired
+            ? 'bg-card/20 backdrop-blur-sm border border-red-500/20 cursor-not-allowed grayscale'
+            : 'bg-card/40 backdrop-blur-sm border border-purple-500/30 hover:border-purple-400/50'
         }
       `}
     >
@@ -160,6 +169,10 @@ export function FileDownload({
         >
           Dostępne
         </motion.div>
+      ) : isExpired ? (
+        <div className="absolute top-4 right-4 px-3 py-1 bg-red-500/80 text-white text-xs font-bold rounded-full">
+          Wygasło
+        </div>
       ) : (
         <div className="absolute top-4 right-4 px-3 py-1 bg-purple-500/80 text-white text-xs font-bold rounded-full">
           Zablokowane

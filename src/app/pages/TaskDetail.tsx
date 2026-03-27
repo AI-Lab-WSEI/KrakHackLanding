@@ -1,7 +1,7 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, ExternalLink, Globe, Shield, Terminal, Zap, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Globe, Shield, Terminal, Zap, CheckCircle } from 'lucide-react';
 import { FileDownload } from '@/app/components/FileDownload';
 import { editions } from '@/data/editions';
 import { Header } from '@/app/components/Header';
@@ -209,33 +209,25 @@ export function TaskDetail() {
                    />
                    <FileDownload
                      fileName={`${slug}_zadanie.pdf`}
-                     fileTitle="Arkusz Zadania"
+                     fileTitle="Pobierz paczkę zadań"
+                      expiryDate={new Date('2026-03-28T18:00:00')}
                      fileDescription="PDF • 1.2 MB"
                      externalUrl={dynamicResources?.task}
                      unlockDate={new Date('2026-03-27T18:00:00')}
                      fileSize="1.2 MB"
+                    />
+                    <FileDownload
+                      fileName={`${slug}_rozwiazanie`}
+                      fileTitle="Wyślij rozwiązanie"
+                      fileDescription="Link do folderu Google Drive"
+                      externalUrl="https://drive.google.com/drive/u/0/folders/1Ezwc0q3JuOy0L1a35Z-zjlcOGNV-Wc6l"
+                      unlockDate={new Date('2026-03-28T18:00:00')}
+                      fileSize="Folder Cloud"
                    />
                  </div>
                </div>
             </div>
 
-            {/* Quick Link (CMS Glue) */}
-            {(dynamicResources?.task || challenge.externalUrl) && (
-              <a 
-                href={dynamicResources?.task || challenge.externalUrl} 
-                target="_blank" 
-                rel="noreferrer"
-                className="block p-8 bg-white/5 border border-white/10 rounded-3xl hover:border-cyan-500 transition-all group shadow-[0_0_30px_rgba(6,182,212,0.1)]"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="block font-black uppercase tracking-widest text-[10px] text-cyan-400 group-hover:text-white transition-colors mb-1">Repozytorium / Zadanie</span>
-                    <span className="text-[9px] text-gray-500 font-bold uppercase">Link zewnętrzny (GitHub/Drive)</span>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
-                </div>
-              </a>
-            )}
           </motion.div>
         </div>
       </div>

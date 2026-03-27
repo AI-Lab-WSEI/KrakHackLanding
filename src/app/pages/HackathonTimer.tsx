@@ -9,7 +9,7 @@ import {
   getCurrentPhase,
   getPhaseStartTime,
   formatTime,
-  getOverallProgress,
+  getGlobalProgress,
   getHackathonStatus,
   HACKATHON_START,
   HACKATHON_END,
@@ -88,7 +88,7 @@ export function HackathonTimer() {
 
   const status = getHackathonStatus(now);
   const phaseState = getCurrentPhase(now);
-  const overallProgress = getOverallProgress(now);
+  const overallProgress = getGlobalProgress(now);
   const elapsed = now.getTime() - HACKATHON_START.getTime();
   const breakReminder = status === 'during' ? getBreakReminder(elapsed) : null;
 
@@ -482,7 +482,7 @@ function DuringHackathon({
       </motion.div>
 
       {/* Mission Control Map (Progress & Timeline) */}
-      <MissionControlMap progress={overallProgress} phaseState={phaseState} />
+      <MissionControlMap progress={overallProgress} phaseState={phaseState} now={now} />
 
       {/* Break Reminder */}
       {breakReminder && <BreakReminderCard reminder={breakReminder} now={now} />}
