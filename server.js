@@ -67,6 +67,7 @@ async function initDB() {
       confirmed_at TIMESTAMP WITH TIME ZONE,
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
     CREATE TABLE IF NOT EXISTS certificates (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       hash VARCHAR(64) UNIQUE,
