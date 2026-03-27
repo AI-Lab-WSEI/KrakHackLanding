@@ -120,14 +120,24 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-2 px-6 py-2 bg-green-500/10 backdrop-blur-xl border border-green-500/30 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.1)] mb-8"
+                className={`inline-flex items-center gap-2 px-6 py-2 backdrop-blur-xl border rounded-full shadow-lg mb-8 ${
+                  new Date() >= new Date('2026-03-27T18:00:00')
+                    ? 'bg-red-500/10 border-red-500/30 shadow-red-500/10'
+                    : 'bg-green-500/10 border-green-500/30 border shadow-green-500/10'
+                }`}
               >
                 <motion.div
                   animate={{ scale: [1, 1.2, 1], opacity: [1, 0.5, 1] }}
                   transition={{ duration: 2, repeat: Infinity }}
-                  className="w-2 h-2 bg-green-400 rounded-full"
+                  className={`w-2 h-2 rounded-full ${
+                    new Date() >= new Date('2026-03-27T18:00:00') ? 'bg-red-400' : 'bg-green-400'
+                  }`}
                 ></motion.div>
-                <span className="text-green-300 font-bold uppercase tracking-[0.2em] text-[10px]">Rekrutacja otwarta</span>
+                <span className={`font-bold uppercase tracking-[0.2em] text-[10px] ${
+                  new Date() >= new Date('2026-03-27T18:00:00') ? 'text-red-300' : 'text-green-300'
+                }`}>
+                  {new Date() >= new Date('2026-03-27T18:00:00') ? 'Rekrutacja uczestników zamknięta' : 'Rekrutacja otwarta'}
+                </span>
               </motion.div>
             )}
 

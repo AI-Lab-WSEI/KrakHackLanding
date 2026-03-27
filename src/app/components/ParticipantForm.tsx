@@ -122,6 +122,37 @@ export function ParticipantForm() {
     }
   };
 
+  const isRegistrationClosed = new Date() >= new Date('2026-03-27T18:00:00');
+
+  if (isRegistrationClosed) {
+    return (
+      <section className="py-20 bg-gradient-to-b from-gray-900 to-black min-h-[60vh] flex items-center">
+        <div className="container mx-auto px-4 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-2xl mx-auto bg-gray-800/40 backdrop-blur-xl p-12 rounded-3xl border border-red-500/20 shadow-2xl shadow-red-500/5"
+          >
+            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-red-500/20">
+              <Code className="w-10 h-10 text-red-500" />
+            </div>
+            <h3 className="text-3xl font-black text-white mb-6 uppercase tracking-tight">Rejestracja dla uczestników zakończona</h3>
+            <p className="text-gray-400 mb-10 text-lg leading-relaxed">
+              Przykro nam, ale termin nadsyłania zgłoszeń dla uczestników AI Krak Hack 2026 minął o godzinie 18:00. 
+              <br /><br />
+              Wciąż możesz dołączyć do nas jako <span className="text-purple-400 font-bold">Mentor</span> lub <span className="text-green-400 font-bold">Partner/Sponsor</span>, wybierając odpowiednią zakładkę powyżej.
+            </p>
+            <div className="flex justify-center gap-4">
+               <div className="px-6 py-2 bg-white/5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-gray-500">
+                 Koniec rekrutacji: 27 marca, 18:00
+               </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+    );
+  }
+
   if (submitted) {
     return (
       <section className="py-20 bg-gradient-to-b from-gray-900 to-black">

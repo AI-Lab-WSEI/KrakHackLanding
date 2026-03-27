@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
 import { Users, GraduationCap, Building, ArrowLeft } from 'lucide-react';
@@ -10,15 +10,23 @@ type FormType = 'participant' | 'mentor' | 'company';
 
 export function Forms() {
   const [activeForm, setActiveForm] = useState<FormType>('participant');
+  const isParticipantClosed = new Date() >= new Date('2026-03-27T18:00:00');
+
+  useEffect(() => {
+    if (isParticipantClosed && activeForm === 'participant') {
+      setActiveForm('mentor');
+    }
+  }, [activeForm, isParticipantClosed]);
 
   const formTypes = [
     {
       id: 'participant' as FormType,
       title: 'Uczestnik',
-      description: 'Zgłoś się jako uczestnik hackathonu',
+      description: isParticipantClosed ? 'Rejestracja zakończona' : 'Zgłoś się jako uczestnik hackathonu',
       icon: Users,
       color: 'from-cyan-500 to-blue-600',
-      hoverColor: 'hover:from-cyan-400 hover:to-blue-500'
+      hoverColor: 'hover:from-cyan-400 hover:to-blue-500',
+      disabled: isParticipantClosed
     },
     {
       id: 'mentor' as FormType,
@@ -26,7 +34,8 @@ export function Forms() {
       description: 'Zostań mentorem i wspieraj uczestników',
       icon: GraduationCap,
       color: 'from-purple-500 to-pink-600',
-      hoverColor: 'hover:from-purple-400 hover:to-pink-500'
+      hoverColor: 'hover:from-purple-400 hover:to-pink-500',
+      disabled: false
     },
     {
       id: 'company' as FormType,
@@ -34,7 +43,8 @@ export function Forms() {
       description: 'Współpracuj z nami jako firma',
       icon: Building,
       color: 'from-green-500 to-emerald-600',
-      hoverColor: 'hover:from-green-400 hover:to-emerald-500'
+      hoverColor: 'hover:from-green-400 hover:to-emerald-500',
+      disabled: false
     }
   ];
 
@@ -91,6 +101,7 @@ export function Forms() {
               return (
                 <button
                   key={type.id}
+                  disabled={type.id === 'participant' && type.disabled}
                   onClick={() => setActiveForm(type.id)}
                   className={`
                     flex items-center gap-3 px-6 py-4 rounded-xl transition-all duration-300 min-w-[200px]
@@ -98,6 +109,7 @@ export function Forms() {
                       ? `bg-gradient-to-r ${type.color} text-white shadow-lg transform scale-105` 
                       : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
                     }
+                    ${type.id === 'participant' && type.disabled ? 'opacity-50 cursor-not-allowed grayscale' : ''}
                   `}
                 >
                   <Icon className="w-6 h-6" />

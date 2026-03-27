@@ -221,7 +221,8 @@ export function TaskDetail() {
                       fileTitle="Wyślij rozwiązanie"
                       fileDescription="Link do folderu Google Drive"
                       externalUrl="https://drive.google.com/drive/u/0/folders/1Ezwc0q3JuOy0L1a35Z-zjlcOGNV-Wc6l"
-                      unlockDate={new Date('2026-03-28T18:00:00')}
+                      unlockDate={new Date('2026-03-27T18:00:00')}
+                      expiryDate={new Date('2026-03-28T18:00:00')}
                       fileSize="Folder Cloud"
                    />
                  </div>
