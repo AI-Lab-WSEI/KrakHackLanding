@@ -875,46 +875,46 @@ app.get('/api/certificates', requireAdmin, async (req, res) => {
 // Bulk-generate draft certificates from confirmed attendees
 app.post('/api/certificates/generate', requireAdmin, async (req, res) => {
   try {
-    // Get confirmed teams with their members
-    const teams = await pool.query(`
+    // Get confirmed teams' participants with simple query
+    const participants = await pool.query(`
       SELECT
-        a.team_name,
-        jsonb_agg(
-          jsonb_build_object(
-            'name', s.data->>'firstName' || ' ' || s.data->>'lastName',
-            'email', s.data->>'email',
-            'university', s.data->>'university',
-            'submission_id', s.id
-          )
-        ) as members
-      FROM attendance a
-      JOIN submissions s ON s.data->>'teamName' = a.team_name AND s.type = 'participant'
-      WHERE a.status = 'confirmed'
-      GROUP BY a.team_name
+        s.id as submission_id,
+        s.data->>'firstName' as first_name,
+        s.data->>'lastName' as last_name,
+        s.data->>'email' as email,
+        s.data->>'university' as university,
+        s.data->>'teamName' as team_name
+      FROM submissions s
+      JOIN attendance a ON a.team_name = s.data->>'teamName'
+      WHERE s.type = 'participant'
+        AND a.status = 'confirmed'
+        AND s.data->>'teamName' IS NOT NULL
+        AND s.data->>'teamName' != ''
     `);
 
     let created = 0;
     let skipped = 0;
 
-    for (const team of teams.rows) {
-      for (const member of team.members) {
-        // Check if certificate already exists for this participant+team
-        const existing = await pool.query(
-          'SELECT id FROM certificates WHERE participant_name = $1 AND team_name = $2',
-          [member.name, team.team_name]
-        );
-        if (existing.rows.length > 0) {
-          skipped++;
-          continue;
-        }
+    for (const p of participants.rows) {
+      const fullName = ((p.first_name || '') + ' ' + (p.last_name || '')).trim();
+      if (!fullName || !p.team_name) { skipped++; continue; }
 
-        await pool.query(
-          `INSERT INTO certificates (participant_name, team_name, university, submission_id)
-           VALUES ($1, $2, $3, $4)`,
-          [member.name, team.team_name, member.university || '', member.submission_id || null]
-        );
-        created++;
+      // Check if certificate already exists for this participant+team
+      const existing = await pool.query(
+        'SELECT id FROM certificates WHERE participant_name = $1 AND team_name = $2',
+        [fullName, p.team_name]
+      );
+      if (existing.rows.length > 0) {
+        skipped++;
+        continue;
       }
+
+      await pool.query(
+        `INSERT INTO certificates (participant_name, team_name, university, submission_id)
+         VALUES ($1, $2, $3, $4)`,
+        [fullName, p.team_name, p.university || '', p.submission_id]
+      );
+      created++;
     }
 
     res.json({ success: true, created, skipped });
