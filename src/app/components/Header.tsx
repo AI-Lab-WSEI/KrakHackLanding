@@ -77,11 +77,11 @@ export function Header() {
           {isLab ? (
             /* LAB MODE: section scroll links + Hackathon external + Dołącz */
             <div className="flex items-center gap-1">
-              <a href="/#dlaczego-warto" className={linkClass}>Dlaczego warto</a>
+              <a href="/#dlaczego-warto" className={linkClass}>Co oferujemy</a>
               <a href="/#galeria" className={linkClass}>Galeria</a>
               <a href="/#dla-kogo" className={linkClass}>Dla kogo</a>
               <a href="/#wspolpraca" className={linkClass}>Współpraca</a>
-              <a href="/#wizja" className={linkClass}>Wizja</a>
+              <a href="/#wizja" className={linkClass}>Misja</a>
               <div className="w-px h-4 bg-white/20 mx-1" />
               <a
                 href={hackathonUrl}
@@ -198,7 +198,7 @@ export function Header() {
             {isLab ? (
               <>
                 <a href="/#dlaczego-warto" onClick={() => setMobileMenuOpen(false)}
-                  className="text-gray-300 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 font-medium text-sm">Dlaczego warto</a>
+                  className="text-gray-300 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 font-medium text-sm">Co oferujemy</a>
                 <a href="/#galeria" onClick={() => setMobileMenuOpen(false)}
                   className="text-gray-300 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 font-medium text-sm">Galeria</a>
                 <a href="/#dla-kogo" onClick={() => setMobileMenuOpen(false)}
@@ -206,7 +206,7 @@ export function Header() {
                 <a href="/#wspolpraca" onClick={() => setMobileMenuOpen(false)}
                   className="text-gray-300 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 font-medium text-sm">Współpraca</a>
                 <a href="/#wizja" onClick={() => setMobileMenuOpen(false)}
-                  className="text-gray-300 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 font-medium text-sm">Wizja</a>
+                  className="text-gray-300 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 font-medium text-sm">Misja</a>
                 <a href={hackathonUrl} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2 text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
                   Hackathon <ExternalLink className="w-3 h-3 opacity-50" />

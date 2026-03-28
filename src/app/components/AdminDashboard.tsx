@@ -107,6 +107,12 @@ export function AdminDashboard() {
   const [smsStatus, setSmsStatus] = useState<{success: boolean, message: string} | null>(null);
   const [mailTarget, setMailTarget] = useState<'all' | 'attendance' | 'participant' | 'mentor' | 'company'>('all');
 
+  // Scheduled mailing state
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [scheduleStep, setScheduleStep] = useState(0); // 0=form, 1=confirm1, 2=confirm2, 3=confirm3
+
   const EMAIL_TEMPLATES: Record<string, { subject: string, html: string }> = {
     ATTENDANCE: {
       subject: 'POTWIERDZENIE PRZYJAZDU: AI Krak Hack 2026',
@@ -762,11 +768,28 @@ export function AdminDashboard() {
                                <td className="px-6 py-4 truncate max-w-[200px] text-[10px] text-gray-400">
                                  {reg.type === 'company' ? reg.fullData?.position : (reg.fullData?.university || '-')}
                                </td>
-                               <td className="px-6 py-4">
-                                 <button 
+                               <td className="px-6 py-4 flex items-center gap-2">
+                                 <button
                                   onClick={() => updateSubmissionStatus(reg.id, reg.status === 'confirmed' ? 'pending' : 'confirmed')}
-                                  className={`w-2 h-2 rounded-full cursor-pointer transition-all hover:scale-125 ${reg.status === 'confirmed' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-orange-500 shadow-[0_0_8px_#f97316]'}`} 
+                                  className={`w-2 h-2 rounded-full cursor-pointer transition-all hover:scale-125 ${reg.status === 'confirmed' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-orange-500 shadow-[0_0_8px_#f97316]'}`}
                                  />
+                                 <button
+                                  onClick={async () => {
+                                    if (!confirm(`Usunąć ${reg.name}? Certyfikaty też zostaną usunięte.`)) return;
+                                    try {
+                                      const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
+                                      await fetch(`${apiBase}/api/submissions/${reg.id}`, {
+                                        method: 'DELETE',
+                                        headers: { 'Authorization': `Bearer ${getAdminToken()}` }
+                                      });
+                                      fetchData();
+                                    } catch { alert('Błąd usuwania'); }
+                                  }}
+                                  className="text-red-500/50 hover:text-red-400 transition-colors ml-2"
+                                  title="Usuń uczestnika"
+                                 >
+                                   <X className="w-3 h-3" />
+                                 </button>
                                </td>
                             </tr>
                          ))}
@@ -839,6 +862,9 @@ export function AdminDashboard() {
                     <button onClick={() => sendMail('all')} disabled={isSendingMail || !mailSubject} className="h-fit px-10 py-5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs flex items-center gap-3 shadow-[0_0_30px_rgba(99,102,241,0.4)] disabled:opacity-50">
                        <Mail className="w-4 h-4" /> WYŚLIJ MASOWO
                     </button>
+                    <button onClick={() => setShowScheduleForm(!showScheduleForm)} disabled={!mailSubject || !mailHtml} className="h-fit px-6 py-5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-black uppercase tracking-[0.2em] text-xs flex items-center gap-3 disabled:opacity-50">
+                       <Download className="w-4 h-4" /> ZAPLANUJ
+                    </button>
                   </div>
 
                   {mailStatus && (
@@ -848,6 +874,87 @@ export function AdminDashboard() {
                     </motion.div>
                   )}
                </div>
+
+               {/* Scheduled Mailing Form */}
+               {showScheduleForm && (
+                 <div className="bg-orange-500/5 border border-orange-500/20 rounded-[2rem] p-8 space-y-4">
+                   <h3 className="text-lg font-black uppercase tracking-widest text-orange-400">Zaplanuj wysyłkę</h3>
+                   <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <label className="text-[9px] uppercase font-black text-gray-500 ml-1">Data</label>
+                       <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
+                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                     </div>
+                     <div>
+                       <label className="text-[9px] uppercase font-black text-gray-500 ml-1">Godzina</label>
+                       <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
+                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                     </div>
+                   </div>
+                   <p className="text-xs text-gray-500">
+                     Temat: <strong className="text-white">{mailSubject}</strong> | Cel: <strong className="text-white">{mailTarget}</strong>
+                     {scheduleDate && scheduleTime && ` | Wysyłka: ${scheduleDate} o ${scheduleTime}`}
+                   </p>
+
+                   {scheduleStep === 0 && (
+                     <button onClick={() => setScheduleStep(1)} disabled={!scheduleDate || !scheduleTime}
+                       className="px-6 py-3 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-bold text-xs disabled:opacity-50">
+                       Krok 1/3: Potwierdź treść
+                     </button>
+                   )}
+                   {scheduleStep === 1 && (
+                     <div className="space-y-2">
+                       <p className="text-orange-400 text-sm font-bold">Czy treść wiadomości jest poprawna i przetestowana?</p>
+                       <div className="flex gap-2">
+                         <button onClick={() => setScheduleStep(2)} className="px-6 py-3 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-bold text-xs">
+                           Tak, treść OK — Krok 2/3
+                         </button>
+                         <button onClick={() => setScheduleStep(0)} className="px-4 py-3 bg-white/5 text-gray-400 rounded-xl text-xs">Anuluj</button>
+                       </div>
+                     </div>
+                   )}
+                   {scheduleStep === 2 && (
+                     <div className="space-y-2">
+                       <p className="text-orange-400 text-sm font-bold">Czy na pewno wysłać do WSZYSTKICH ({mailTarget})? To jest mass mailing.</p>
+                       <div className="flex gap-2">
+                         <button onClick={() => setScheduleStep(3)} className="px-6 py-3 bg-orange-500 hover:bg-orange-400 text-white rounded-xl font-bold text-xs">
+                           Tak, do wszystkich — Krok 3/3
+                         </button>
+                         <button onClick={() => setScheduleStep(0)} className="px-4 py-3 bg-white/5 text-gray-400 rounded-xl text-xs">Anuluj</button>
+                       </div>
+                     </div>
+                   )}
+                   {scheduleStep === 3 && (
+                     <div className="space-y-2">
+                       <p className="text-red-400 text-sm font-bold">OSTATNIE POTWIERDZENIE: Zaplanować wysyłkę na {scheduleDate} o {scheduleTime}?</p>
+                       <div className="flex gap-2">
+                         <button onClick={async () => {
+                           try {
+                             const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString();
+                             const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
+                             const res = await fetch(`${apiBase}/api/admin/mail/schedule`, {
+                               method: 'POST',
+                               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getAdminToken()}` },
+                               body: JSON.stringify({ subject: mailSubject, html: mailHtml, target: mailTarget, scheduledAt }),
+                             });
+                             const data = await res.json();
+                             if (data.success) {
+                               setMailStatus({ success: true, message: `Zaplanowano wysyłkę na ${scheduleDate} o ${scheduleTime}` });
+                               setShowScheduleForm(false);
+                               setScheduleStep(0);
+                             } else {
+                               setMailStatus({ success: false, message: data.error });
+                             }
+                           } catch (err: any) { setMailStatus({ success: false, message: err.message }); }
+                         }} className="px-8 py-3 bg-red-500 hover:bg-red-400 text-white rounded-xl font-bold text-xs">
+                           ZAPLANUJ WYSYŁKĘ
+                         </button>
+                         <button onClick={() => setScheduleStep(0)} className="px-4 py-3 bg-white/5 text-gray-400 rounded-xl text-xs">Anuluj</button>
+                       </div>
+                     </div>
+                   )}
+                 </div>
+               )}
 
                {mailHtml && (
                  <div className="space-y-4">

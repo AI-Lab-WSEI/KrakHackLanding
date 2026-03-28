@@ -51,10 +51,15 @@ export function AboutPage() {
 
         {/* Right side: Marble texture + content overlay */}
         <div className="hidden lg:block w-1/2 relative overflow-hidden">
-          <img
-            src="/assets/marble-texture.png"
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover scale-110 -translate-x-8"
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: 'url(/assets/marble-texture.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundAttachment: 'fixed',
+              transform: 'scale(1.1) translateX(-8px)',
+            }}
           />
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
           {/* Left edge gradient blend */}
@@ -278,7 +283,15 @@ export function AboutPage() {
       {/* ═══ WIZJA ═══ */}
       <section id="wizja" className="relative py-24 overflow-hidden">
         <div className="absolute inset-0">
-          <img src="/assets/marble-texture.png" alt="" className="w-full h-full object-cover" />
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: 'url(/assets/marble-texture.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundAttachment: 'fixed',
+            }}
+          />
           <div className="absolute inset-0 bg-black/70" />
         </div>
         <div className="container mx-auto px-4 relative z-10">
