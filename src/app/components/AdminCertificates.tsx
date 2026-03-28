@@ -367,11 +367,11 @@ export function AdminCertificates() {
           rel="noopener noreferrer"
           className="px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
           onClick={(e) => {
-            // Add auth token as query param for the request
             e.preventDefault();
-            const token = getAdminToken();
+            const pw = prompt('Podaj hasło admina:');
+            if (!pw) return;
             const base = import.meta.env.DEV ? 'http://localhost:3000' : '';
-            window.open(`${base}/api/certificates/bulk-qr?token=${token}`, '_blank');
+            window.open(`${base}/api/certificates/bulk-qr?pw=${encodeURIComponent(pw)}`, '_blank');
           }}
         >
           <QrCode className="w-3.5 h-3.5" /> Drukuj QR kody
