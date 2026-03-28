@@ -60,6 +60,10 @@ export const router = createBrowserRouter([
         Component: Survey,
       },
       {
+        path: 'survey',
+        Component: Survey,
+      },
+      {
         path: 'zadania/:slug',
         Component: TaskDetail,
       },
