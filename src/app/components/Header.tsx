@@ -55,21 +55,19 @@ export function Header() {
             alt="AI Possibilities Lab"
             className="h-8 w-auto"
           />
-          <div className="text-xl font-bold">
-            {isLab ? (
-              <>
-                <span className="text-white">AI </span>
-                <span className="text-cyan-400">Possibilities</span>
-                <span className="text-pink-400"> Lab</span>
-              </>
-            ) : (
-              <>
-                <span className="text-white">AI </span>
-                <span className="text-cyan-400">KRAK</span>
-                <span className="text-pink-400"> HACK</span>
-              </>
-            )}
-          </div>
+          {isLab ? (
+            <img
+              src="/assets/ai-lab-text-logo.png"
+              alt="AI Possibilities Lab"
+              className="h-8 w-auto"
+            />
+          ) : (
+            <div className="text-xl font-bold">
+              <span className="text-white">AI </span>
+              <span className="text-cyan-400">KRAK</span>
+              <span className="text-pink-400"> HACK</span>
+            </div>
+          )}
         </Link>
 
         {/* Desktop Navigation */}
