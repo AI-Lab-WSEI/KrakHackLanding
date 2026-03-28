@@ -1,0 +1,148 @@
+{
+  "sciezka-naukowa": {
+    "title": "Ścieżka naukowa",
+    "images": [
+      {
+        "id": "ainow-2025",
+        "url": "TODO: wrzuć zdjęcie z AINOW 2025",
+        "alt": "Prezentacja na konferencji AINOW 2025",
+        "caption": "Członkowie AI Possibilities Lab na AINOW 2025"
+      },
+      {
+        "id": "zeszyty-naukowe",
+        "url": "TODO: zdjęcie okładki Zeszytów Naukowych WSEI",
+        "alt": "Zeszyty Naukowe WSEI",
+        "caption": "Publikacje członków koła w Zeszytach Naukowych WSEI"
+      },
+      {
+        "id": "paper-reading",
+        "url": "TODO: zdjęcie z paper reading group",
+        "alt": "Paper reading group",
+        "caption": "Wspólna analiza najnowszych publikacji AI"
+      }
+    ],
+    "publications": [
+      {
+        "title": "TODO: Tytuł artykułu 1",
+        "authors": "TODO: Autorzy",
+        "journal": "Zeszyty Naukowe WSEI",
+        "year": "2026",
+        "url": "TODO: link do publikacji"
+      }
+    ],
+    "conferences": [
+      {
+        "name": "AINOW 2025",
+        "description": "Konferencja AI w Polsce — prezentacja PSL Translator",
+        "url": "TODO: link"
+      }
+    ],
+    "partners": {
+      "zeszyty_naukowe_wsei": {
+        "name": "Zeszyty Naukowe WSEI",
+        "description": "Recenzowane czasopismo naukowe Wyższej Szkoły Ekonomii i Informatyki w Krakowie",
+        "url": "TODO: link do strony zeszytów"
+      }
+    }
+  },
+
+  "praca-dyplomowa": {
+    "title": "Pomysł na pracę dyplomową",
+    "images": [
+      {
+        "id": "mentoring-session",
+        "url": "TODO: zdjęcie z sesji mentoringowej",
+        "alt": "Sesja mentoringowa",
+        "caption": "Mentoring przy wyborze tematu pracy dyplomowej"
+      }
+    ],
+    "thesis_ideas": [
+      {
+        "title": "TODO: Przykładowy temat 1",
+        "area": "Machine Learning",
+        "difficulty": "inżynierska",
+        "description": "TODO: krótki opis"
+      }
+    ]
+  },
+
+  "community": {
+    "title": "Community na Discordzie",
+    "images": [
+      {
+        "id": "discord-meetup",
+        "url": "TODO: screenshot z Discorda lub zdjęcie ze spotkania",
+        "alt": "Spotkanie community",
+        "caption": "Otwarte spotkanie społeczności AI Possibilities Lab"
+      }
+    ],
+    "discord_invite_url": "TODO: link zaproszeniowy do Discorda"
+  },
+
+  "firmy-rekruterzy": {
+    "title": "Dla firm i rekruterów",
+    "images": [
+      {
+        "id": "networking",
+        "url": "TODO: zdjęcie z networkingu z firmami",
+        "alt": "Networking z firmami partnerskimi",
+        "caption": "Spotkania członków koła z przedstawicielami firm"
+      }
+    ],
+    "companies": [
+      {
+        "name": "Heineken",
+        "logo": "TODO: logo Heineken",
+        "description": "FMCG — analiza danych, optymalizacja łańcucha dostaw"
+      },
+      {
+        "name": "KYP",
+        "logo": "TODO: logo KYP",
+        "description": "Technologia — przetwarzanie danych, automatyzacja"
+      }
+    ]
+  },
+
+  "wspolpraca": {
+    "title": "Współpraca z marką",
+    "images": [
+      {
+        "id": "event-booth",
+        "url": "TODO: zdjęcie stoiska AI Possibilities Lab",
+        "alt": "Stoisko na konferencji",
+        "caption": "AI Possibilities Lab na konferencji branżowej"
+      }
+    ]
+  },
+
+  "projekty": {
+    "title": "Projekty i hackathony",
+    "images": [
+      {
+        "id": "hackathon-teams",
+        "url": "TODO: zdjęcie zespołów na AI Krak Hack",
+        "alt": "Zespoły na hackathonie",
+        "caption": "Uczestnicy AI Krak Hack 2026 w akcji"
+      }
+    ],
+    "past_projects": [
+      {
+        "name": "PSL Translator",
+        "description": "Tłumacz Polskiego Języka Migowego — PyQt, PyTorch, Transformers",
+        "github": "https://github.com/AI-LAB-AGH/PSL-Translator",
+        "conference": "AINOW 2025"
+      },
+      {
+        "name": "Speech Error Detector",
+        "description": "Wykrywanie błędów mowy — Django, PyTorch, NLP",
+        "github": "https://github.com/Speaklitycs"
+      }
+    ]
+  },
+
+  "_meta": {
+    "instructions": "Ten plik JSON jest źródłem treści do edycji. Zamień pola 'TODO:' na realne dane. Zdjęcia wrzuć do Cloudinary i wklej URL. Plik jest importowany w komponentach — po zmianie treści strona odświeży się automatycznie.",
+    "last_updated": "2026-03-28",
+    "updated_by": "AI Possibilities Lab team"
+  }
+}

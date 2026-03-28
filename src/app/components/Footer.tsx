@@ -1,4 +1,5 @@
 import { Mail, MapPin, Phone, Linkedin } from 'lucide-react';
+import { Link } from 'react-router';
 
 export function Footer() {
   return (
@@ -31,6 +32,8 @@ export function Footer() {
               <li><a href="#sponsorzy" className="hover:text-cyan-400 transition-colors">Dla sponsorów</a></li>
               <li><a href="#mentorzy" className="hover:text-cyan-400 transition-colors">Dla mentorów</a></li>
               <li><a href="#zgloszenie" className="hover:text-cyan-400 transition-colors">Zgłoś się</a></li>
+              <li><Link to="/o-nas" className="hover:text-cyan-400 transition-colors">O nas</Link></li>
+              <li><Link to="/dolacz" className="hover:text-pink-400 transition-colors font-medium">Dołącz do koła</Link></li>
             </ul>
           </div>
 

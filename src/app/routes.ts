@@ -11,6 +11,10 @@ import { AdminAttendance } from '@/app/pages/AdminAttendance';
 import { ConfirmAttendance } from '@/app/pages/ConfirmAttendance';
 import { CertificateVerify } from '@/app/pages/CertificateVerify';
 import { CertificateView } from '@/app/pages/CertificateView';
+import { AboutPage } from '@/app/pages/AboutPage';
+import { ValueDetailPage } from '@/app/pages/ValueDetailPage';
+import { CollaborationDetailPage } from '@/app/pages/CollaborationDetailPage';
+import { MembershipForm } from '@/app/pages/MembershipForm';
 import { Layout } from '@/app/Layout';
 
 export const router = createBrowserRouter([
@@ -65,6 +69,22 @@ export const router = createBrowserRouter([
       {
         path: 'unsubscribe-confirmation',
         Component: UnsubscribeConfirmation,
+      },
+      {
+        path: 'o-nas',
+        Component: AboutPage,
+      },
+      {
+        path: 'o-nas/:slug',
+        Component: ValueDetailPage,
+      },
+      {
+        path: 'wspolpraca/:slug',
+        Component: CollaborationDetailPage,
+      },
+      {
+        path: 'dolacz',
+        Component: MembershipForm,
       },
     ],
   },

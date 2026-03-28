@@ -88,8 +88,30 @@ async function initDB() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS membership_applications (
+      id SERIAL PRIMARY KEY,
+      first_name VARCHAR(255) NOT NULL,
+      last_name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      university VARCHAR(255) DEFAULT '',
+      field_of_study VARCHAR(255) DEFAULT '',
+      year_or_status VARCHAR(50) DEFAULT '',
+      is_wsei BOOLEAN DEFAULT false,
+      attend_meetings BOOLEAN DEFAULT false,
+      attend_in_person BOOLEAN DEFAULT false,
+      monthly_hours INTEGER DEFAULT 5,
+      competencies JSONB DEFAULT '{}',
+      what_you_bring TEXT DEFAULT '',
+      expectations TEXT DEFAULT '',
+      values_resonance TEXT DEFAULT '',
+      engagement_types TEXT[] DEFAULT '{}',
+      status VARCHAR(30) DEFAULT 'nowe',
+      admin_notes TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
   `);
-  
+
   // Auto-sync teams from submissions if they don't exist in attendance
   try {
     const teamsResult = await pool.query(
@@ -1310,6 +1332,394 @@ app.get('/api/verify/:hash', async (req, res) => {
   } catch (err) {
     console.error('[Certs] Verify error:', err);
     res.status(500).json({ error: 'Blad weryfikacji' });
+  }
+});
+
+// ─── Membership Application Email Templates ─────────────────────────────
+
+function buildMembershipConfirmationEmail(name) {
+  const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+  return `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI POSSIBILITIES LAB</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Potwierdzenie zgłoszenia</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Cześć ${name}!</p>
+      <p>Dziękujemy za zgłoszenie do koła naukowego <strong>AI Possibilities Lab</strong>. Otrzymaliśmy Twoje zgłoszenie i wkrótce się z Tobą skontaktujemy.</p>
+      <p>Chcemy Cię poznać — umówimy się na krótką, niezobowiązującą rozmowę, żebyśmy mogli pokazać Ci, jak działa nasze koło. Dajemy Ci czas — żadnego pośpiechu.</p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${baseUrl}/o-nas" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Poznaj nas bliżej &rarr;</a>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Pozdrawiamy,<br><strong>Zespół AI Possibilities Lab</strong><br>WSEI Kraków
+      </p>
+    </div>
+  </div>
+</div>`;
+}
+
+function buildInterviewInviteEmail(name) {
+  return `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI POSSIBILITIES LAB</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Zaproszenie na rozmowę</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Cześć ${name}!</p>
+      <p>Przejrzeliśmy Twoje zgłoszenie i chcielibyśmy Cię poznać osobiście! Zapraszamy na krótką, niezobowiązującą rozmowę.</p>
+      <p>To nie jest żaden egzamin — chcemy po prostu porozmawiać o Twoich zainteresowaniach i pokazać, czym się zajmujemy. Rozmowa trwa ok. 15-20 minut.</p>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0;">
+        <p style="margin: 0; font-weight: 600;">Jak się umówić?</p>
+        <p style="margin: 8px 0 0;">Odpisz na tego maila z propozycją terminu lub napisz do nas na naszych social mediach. Znajdziemy czas, który Ci pasuje.</p>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Do zobaczenia!<br><strong>Zespół AI Possibilities Lab</strong><br>WSEI Kraków
+      </p>
+    </div>
+  </div>
+</div>`;
+}
+
+function buildSurveyInviteEmail(name, surveyUrl) {
+  return `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI POSSIBILITIES LAB</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Zaproszenie do ankiety</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Cześć ${name}!</p>
+      <p>Chcielibyśmy poznać Twoje zdanie — wypełnij krótką ankietę, która pomoże nam lepiej planować nasze działania.</p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${surveyUrl}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Wypełnij ankietę &rarr;</a>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Pozdrawiamy,<br><strong>Zespół AI Possibilities Lab</strong><br>WSEI Kraków
+      </p>
+    </div>
+  </div>
+</div>`;
+}
+
+function buildWelcomeEmail(name) {
+  const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+  return `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #10b981, #06b6d4, #3b82f6); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">WITAMY W AI POSSIBILITIES LAB! 🎉</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Oficjalnie jesteś z nami</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Cześć ${name}!</p>
+      <p>Z ogromną radością informujemy, że zostałeś/aś <strong>przyjęty/a do koła naukowego AI Possibilities Lab</strong>!</p>
+      <p>Oto co Cię czeka:</p>
+      <ul style="padding-left: 20px;">
+        <li>Dostęp do naszych projektów i zasobów</li>
+        <li>Spotkania i warsztaty z innymi członkami</li>
+        <li>Możliwość udziału w hackathonach i konferencjach</li>
+        <li>Wsparcie merytoryczne od doświadczonych członków</li>
+      </ul>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${baseUrl}/o-nas" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #10b981, #06b6d4); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Poznaj nasze koło &rarr;</a>
+      </div>
+      <p>Wkrótce skontaktujemy się z Tobą ze szczegółami dotyczącymi najbliższych spotkań i projektów.</p>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Do zobaczenia!<br><strong>Zespół AI Possibilities Lab</strong><br>WSEI Kraków
+      </p>
+    </div>
+  </div>
+</div>`;
+}
+
+function buildClubInviteEmailWSEI(firstName) {
+  const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+  return `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI POSSIBILITIES LAB</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Rozwijaj sie z nami na WSEI</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Czesc ${firstName}!</p>
+      <p>Dziekujemy za udzial w <strong>AI Krak Hack 2026</strong>! Jako student/ka WSEI masz unikalna okazje — dolacz do <strong>AI Possibilities Lab</strong> jako czlonek kola naukowego.</p>
+
+      <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0; font-weight: 600; color: #1e40af;">Szukasz pomyslu na prace dyplomowa?</p>
+        <p style="margin: 8px 0 0; color: #334155;">Mamy baze pomyslow i mentorow z doswiadczeniem, ktorzy pomoga Ci wybrac i zrealizowac temat na inzynierke lub magisterke.</p>
+      </div>
+
+      <p><strong>Co jeszcze zyskujesz?</strong></p>
+      <ul style="padding-left: 20px;">
+        <li>Rady i wsparcie przy projektach na studia</li>
+        <li>Bridging do konferencji naukowych i publikacji</li>
+        <li>Regularne spotkania, warsztaty i hackathony</li>
+        <li>Mentoring od doswiadczonych czlonkow i ekspertow z branzy</li>
+        <li>Wpis do CV — kolo naukowe to realny atut</li>
+      </ul>
+
+      <p>Widzisz sie w sciezce naukowej? Chcesz miec projekt, ktory wyrozni Cie na rynku pracy? Dolacz do nas — pokaz Ci jak zaczac.</p>
+
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${baseUrl}/dolacz" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Zglos sie do kola &rarr;</a>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Pozdrawiamy,<br><strong>Zespol AI Possibilities Lab</strong><br>WSEI Krakow
+      </p>
+    </div>
+  </div>
+</div>`;
+}
+
+function buildClubInviteEmailExternal(firstName) {
+  const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+  return `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI POSSIBILITIES LAB</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Dolacz do naszej spolecznosci!</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Czesc ${firstName}!</p>
+      <p>Dziekujemy za udzial w <strong>AI Krak Hack 2026</strong>! Widzimy, ze interesujesz sie AI — zapraszamy Cie do naszej <strong>spolecznosci AI Possibilities Lab</strong>.</p>
+
+      <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 0; font-weight: 600; color: #065f46;">Dolacz do community na Discordzie</p>
+        <p style="margin: 8px 0 0; color: #334155;">Otwarta spolecznosc pasjonatow AI — wymieniaj sie doswiadczeniami, realizuj projekty w wolnym czasie, poznawaj ludzi z branzy.</p>
+      </div>
+
+      <p><strong>Jak mozesz sie zaangazowac?</strong></p>
+      <ul style="padding-left: 20px;">
+        <li>Dolacz do Discorda i wymieniaj sie doswiadczeniami</li>
+        <li>Realizuj projekty AI z innymi czlonkami spolecznosci</li>
+        <li>Jesli jestes z branzy — podziel sie wiedza i znajdz talenty</li>
+        <li>Organizujesz eventy? Dzialajmy razem!</li>
+        <li>Bierz udzial w hackathonach, warsztatach i meetupach</li>
+      </ul>
+
+      <p>Mamy marke, kierunek i projekty — szukamy ludzi, ktorzy chcieliby z nami wspolpracowac i tworzyc wartosc. Chetnie przyjmiemy wiedze z Twojej strony.</p>
+
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${baseUrl}/o-nas" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Poznaj AI Possibilities Lab &rarr;</a>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Pozdrawiamy,<br><strong>Zespol AI Possibilities Lab</strong><br>WSEI Krakow
+      </p>
+    </div>
+  </div>
+</div>`;
+}
+
+// ─── Membership Application API ──────────────────────────────────────
+
+// Submit membership application (public)
+app.post('/api/membership-applications', async (req, res) => {
+  try {
+    if (!process.env.DATABASE_URL) return res.status(500).json({ error: 'Baza danych niepodłączona' });
+
+    const { firstName, lastName, email, university, fieldOfStudy, yearOrStatus,
+            attendMeetings, attendInPerson, monthlyHours, competencies,
+            whatYouBring, expectations, valuesResonance, engagementTypes } = req.body;
+
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({ error: 'Imię, nazwisko i email są wymagane' });
+    }
+
+    const isWsei = (university || '').toLowerCase().includes('wsei');
+
+    const result = await pool.query(
+      `INSERT INTO membership_applications
+        (first_name, last_name, email, university, field_of_study, year_or_status,
+         is_wsei, attend_meetings, attend_in_person, monthly_hours, competencies,
+         what_you_bring, expectations, values_resonance, engagement_types)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15)
+       RETURNING id`,
+      [firstName, lastName, email, university || '', fieldOfStudy || '', yearOrStatus || '',
+       isWsei, !!attendMeetings, !!attendInPerson, monthlyHours || 5,
+       JSON.stringify(competencies || {}),
+       whatYouBring || '', expectations || '', valuesResonance || '',
+       engagementTypes || []]
+    );
+
+    // Send confirmation email
+    try {
+      await sendResendEmail(email, 'Potwierdzenie zgłoszenia — AI Possibilities Lab', buildMembershipConfirmationEmail(firstName));
+    } catch (emailErr) {
+      console.error('[Membership] Confirmation email failed:', emailErr);
+    }
+
+    // Teams notification
+    if (process.env.TEAMS_WEBHOOK_URL) {
+      try {
+        await fetch(process.env.TEAMS_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: `📋 Nowe zgłoszenie do koła: ${firstName} ${lastName} (${email}) — ${university || 'brak uczelni'} — ${isWsei ? 'WSEI' : 'zewnętrzny'}`
+          })
+        });
+      } catch (e) { /* silent */ }
+    }
+
+    res.json({ success: true, id: result.rows[0].id });
+  } catch (err) {
+    console.error('[Membership] Submit error:', err);
+    res.status(500).json({ error: 'Błąd zapisu zgłoszenia' });
+  }
+});
+
+// List membership applications (admin)
+app.get('/api/membership-applications', requireAdmin, async (req, res) => {
+  try {
+    const { status, is_wsei, engagement_type, limit = 50, offset = 0 } = req.query;
+    let query = 'SELECT * FROM membership_applications WHERE 1=1';
+    const params = [];
+    let paramIdx = 1;
+
+    if (status) { query += ` AND status = $${paramIdx++}`; params.push(status); }
+    if (is_wsei !== undefined) { query += ` AND is_wsei = $${paramIdx++}`; params.push(is_wsei === 'true'); }
+    if (engagement_type) { query += ` AND $${paramIdx++} = ANY(engagement_types)`; params.push(engagement_type); }
+
+    query += ` ORDER BY created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
+    params.push(parseInt(limit), parseInt(offset));
+
+    const result = await pool.query(query, params);
+    const countResult = await pool.query('SELECT COUNT(*) FROM membership_applications');
+
+    res.json({ applications: result.rows, total: parseInt(countResult.rows[0].count) });
+  } catch (err) {
+    console.error('[Membership] List error:', err);
+    res.status(500).json({ error: 'Błąd pobierania zgłoszeń' });
+  }
+});
+
+// Get single membership application (admin)
+app.get('/api/membership-applications/:id', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM membership_applications WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Membership] Get error:', err);
+    res.status(500).json({ error: 'Błąd pobierania zgłoszenia' });
+  }
+});
+
+// Update membership application status (admin)
+app.patch('/api/membership-applications/:id', requireAdmin, async (req, res) => {
+  try {
+    const { status, admin_notes } = req.body;
+    const updates = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (status) { updates.push(`status = $${paramIdx++}`); params.push(status); }
+    if (admin_notes !== undefined) { updates.push(`admin_notes = $${paramIdx++}`); params.push(admin_notes); }
+    updates.push(`updated_at = NOW()`);
+
+    params.push(req.params.id);
+    const result = await pool.query(
+      `UPDATE membership_applications SET ${updates.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      params
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+
+    const app_data = result.rows[0];
+
+    // Auto-send welcome email when accepted
+    if (status === 'przyjęty') {
+      try {
+        await sendResendEmail(app_data.email, 'Witamy w AI Possibilities Lab! 🎉', buildWelcomeEmail(app_data.first_name));
+      } catch (emailErr) {
+        console.error('[Membership] Welcome email failed:', emailErr);
+      }
+    }
+
+    res.json({ success: true, application: app_data });
+  } catch (err) {
+    console.error('[Membership] Update error:', err);
+    res.status(500).json({ error: 'Błąd aktualizacji' });
+  }
+});
+
+// Send interview invitation (admin)
+app.post('/api/membership-applications/:id/invite', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM membership_applications WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+
+    const app_data = result.rows[0];
+    const success = await sendResendEmail(
+      app_data.email,
+      'Zaproszenie na rozmowę — AI Possibilities Lab',
+      buildInterviewInviteEmail(app_data.first_name)
+    );
+
+    // Update status to rozmowa_umówiona
+    await pool.query(
+      "UPDATE membership_applications SET status = 'rozmowa_umówiona', updated_at = NOW() WHERE id = $1",
+      [req.params.id]
+    );
+
+    res.json({ success });
+  } catch (err) {
+    console.error('[Membership] Invite error:', err);
+    res.status(500).json({ error: 'Błąd wysyłki zaproszenia' });
+  }
+});
+
+// Send survey invitation to multiple (admin)
+app.post('/api/membership-applications/survey-invite', requireAdmin, async (req, res) => {
+  try {
+    const { emails, survey_url } = req.body;
+    if (!emails || !survey_url) return res.status(400).json({ error: 'Brak emails lub survey_url' });
+
+    let sent = 0;
+    for (const email of emails) {
+      const ok = await sendResendEmail(email, 'Zaproszenie do ankiety — AI Possibilities Lab', buildSurveyInviteEmail('', survey_url));
+      if (ok) sent++;
+    }
+    res.json({ success: true, sent, total: emails.length });
+  } catch (err) {
+    console.error('[Membership] Survey invite error:', err);
+    res.status(500).json({ error: 'Błąd wysyłki ankiety' });
+  }
+});
+
+// Club invite mailing — sends WSEI vs non-WSEI variants (admin)
+app.post('/api/admin/mail/club-invite', requireAdmin, async (req, res) => {
+  try {
+    if (!process.env.DATABASE_URL) return res.status(500).json({ error: 'Baza danych niepodłączona' });
+
+    const participants = await pool.query(
+      "SELECT DISTINCT ON (email) email, data->>'firstName' as first_name, data->>'university' as university FROM submissions WHERE type = 'participant' AND email IS NOT NULL AND email != ''"
+    );
+
+    let sentWsei = 0, sentExternal = 0;
+    for (const p of participants.rows) {
+      const isWsei = (p.university || '').toLowerCase().includes('wsei');
+      const html = isWsei
+        ? buildClubInviteEmailWSEI(p.first_name || '')
+        : buildClubInviteEmailExternal(p.first_name || '');
+      const subject = isWsei
+        ? 'Dołącz do AI Possibilities Lab! 🚀'
+        : 'Współpracuj z AI Possibilities Lab!';
+      const ok = await sendResendEmail(p.email, subject, html);
+      if (ok) { isWsei ? sentWsei++ : sentExternal++; }
+    }
+
+    res.json({ success: true, sentWsei, sentExternal, total: participants.rows.length });
+  } catch (err) {
+    console.error('[Mailing] Club invite error:', err);
+    res.status(500).json({ error: 'Błąd wysyłki zaproszeń do koła' });
   }
 });
 

@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import useEmblaCarousel from 'embla-carousel-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { GalleryImage } from '@/types/edition';
 
@@ -10,20 +10,45 @@ interface ImageSliderProps {
 }
 
 export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSliderProps) {
-  const [emblaRef, emblaApi] = useEmblaCarousel({ 
+  const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
     align: 'center',
     skipSnaps: false,
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const autoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startAutoplay = useCallback(() => {
+    if (autoplayRef.current) clearInterval(autoplayRef.current);
+    autoplayRef.current = setInterval(() => {
+      emblaApi?.scrollNext();
+    }, 5000);
+  }, [emblaApi]);
+
+  const debounceAutoplay = useCallback(() => {
+    // Stop autoplay, wait 3s after manual interaction before restarting
+    if (autoplayRef.current) clearInterval(autoplayRef.current);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      startAutoplay();
+    }, 3000);
+  }, [startAutoplay]);
 
   const scrollPrev = useCallback(() => {
     if (emblaApi) emblaApi.scrollPrev();
-  }, [emblaApi]);
+    debounceAutoplay();
+  }, [emblaApi, debounceAutoplay]);
 
   const scrollNext = useCallback(() => {
     if (emblaApi) emblaApi.scrollNext();
-  }, [emblaApi]);
+    debounceAutoplay();
+  }, [emblaApi, debounceAutoplay]);
+
+  const scrollTo = useCallback((index: number) => {
+    if (emblaApi) emblaApi.scrollTo(index);
+    debounceAutoplay();
+  }, [emblaApi, debounceAutoplay]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -35,18 +60,15 @@ export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSli
     onSelect();
     emblaApi.on('select', onSelect);
     emblaApi.on('reInit', onSelect);
-
-    // Auto-play
-    const autoplay = setInterval(() => {
-      emblaApi.scrollNext();
-    }, 4000);
+    startAutoplay();
 
     return () => {
-      clearInterval(autoplay);
+      if (autoplayRef.current) clearInterval(autoplayRef.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       emblaApi.off('select', onSelect);
       emblaApi.off('reInit', onSelect);
     };
-  }, [emblaApi, onSelect]);
+  }, [emblaApi, onSelect, startAutoplay]);
 
   if (!images || images.length === 0) return null;
 
@@ -71,6 +93,10 @@ export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSli
         </motion.div>
 
         <div className="max-w-5xl mx-auto relative">
+          {/* Gradient fade edges */}
+          <div className="absolute inset-y-0 left-0 w-20 md:w-32 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-20 md:w-32 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+
           {/* Carousel */}
           <div className="overflow-hidden" ref={emblaRef}>
             <div className="flex">
@@ -121,7 +147,7 @@ export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSli
             {images.map((_, index) => (
               <button
                 key={index}
-                onClick={() => emblaApi?.scrollTo(index)}
+                onClick={() => scrollTo(index)}
                 className={`w-2 h-2 rounded-full transition-all ${
                   index === selectedIndex
                     ? 'bg-gradient-to-r from-cyan-400 to-pink-400 w-8'

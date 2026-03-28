@@ -10,7 +10,7 @@ interface HeroProps {
 
 export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
   return (
-    <section id="info" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
+    <section id="info" className="relative flex flex-col items-center justify-center overflow-hidden bg-black" style={{ minHeight: '100dvh' }}>
       {/* Background Image - Dark Purple Futuristic */}
       <div className="absolute inset-0 z-0">
         <img
@@ -89,7 +89,7 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 container mx-auto px-4 text-center pt-4 pb-12">
+      <div className="relative z-10 container mx-auto px-4 text-center pt-8 pb-8 flex-1 flex flex-col justify-center">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -206,25 +206,22 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
         </motion.div>
       </div>
 
-      {/* Scroll indicator & Status */}
+      {/* Scroll indicator — in flow, not absolute */}
       {!isArchive && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.5, duration: 0.8 }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10"
+          className="relative z-10 pb-6 flex justify-center"
         >
-          <div className="flex flex-col items-center gap-4">
-            {/* Scroll Mouse Indicator */}
-            <div className="flex flex-col items-center gap-3">
-              <span className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Przewiń w dół</span>
-              <div className="w-6 h-10 border-2 border-white/10 rounded-full flex items-start justify-center p-1.5 backdrop-blur-md bg-white/5">
-                <motion.div
-                  animate={{ y: [0, 12, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                  className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]"
-                ></motion.div>
-              </div>
+          <div className="flex flex-col items-center gap-3">
+            <span className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Przewiń w dół</span>
+            <div className="w-6 h-10 border-2 border-white/10 rounded-full flex items-start justify-center p-1.5 backdrop-blur-md bg-white/5">
+              <motion.div
+                animate={{ y: [0, 12, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]"
+              ></motion.div>
             </div>
           </div>
         </motion.div>
