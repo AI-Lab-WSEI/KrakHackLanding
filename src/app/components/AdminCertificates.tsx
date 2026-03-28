@@ -361,6 +361,21 @@ export function AdminCertificates() {
         <button onClick={exportCerts} className="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
           <Download className="w-3.5 h-3.5" /> Eksport CSV
         </button>
+        <a
+          href={`${import.meta.env.DEV ? 'http://localhost:3000' : ''}/api/certificates/bulk-qr`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+          onClick={(e) => {
+            // Add auth token as query param for the request
+            e.preventDefault();
+            const token = getAdminToken();
+            const base = import.meta.env.DEV ? 'http://localhost:3000' : '';
+            window.open(`${base}/api/certificates/bulk-qr?token=${token}`, '_blank');
+          }}
+        >
+          <QrCode className="w-3.5 h-3.5" /> Drukuj QR kody
+        </a>
       </div>
 
       {/* Delete by Team */}

@@ -37,6 +37,9 @@ const adminTokens = new Set();
 // Survey IP rate limiting — max 1 survey per IP per 24h
 const surveyIpMap = new Map(); // ip -> timestamp
 
+// Scheduled mailings — in-memory (cleared on restart, that's OK for simple scheduling)
+const scheduledMailings = new Map(); // id -> { id, subject, html, target, scheduledAt, status, timeoutId }
+
 // Initialize database tables
 async function initDB() {
   if (!process.env.DATABASE_URL) {
@@ -810,6 +813,102 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── Scheduled Mailing ────────────────────────────────────────
+
+// Schedule a mailing for later (admin)
+app.post('/api/admin/mail/schedule', requireAdmin, async (req, res) => {
+  try {
+    const { subject, html, target, scheduledAt, useTemplate } = req.body;
+    if (!subject || !html || !scheduledAt) {
+      return res.status(400).json({ error: 'Brak tematu, treści lub daty' });
+    }
+
+    const sendTime = new Date(scheduledAt);
+    if (sendTime <= new Date()) {
+      return res.status(400).json({ error: 'Data wysyłki musi być w przyszłości' });
+    }
+
+    const id = crypto.randomUUID();
+    const delayMs = sendTime.getTime() - Date.now();
+
+    const timeoutId = setTimeout(async () => {
+      const entry = scheduledMailings.get(id);
+      if (!entry || entry.status === 'cancelled') return;
+      entry.status = 'sending';
+      console.log(`[Scheduled] Sending mailing ${id}: "${subject}" to ${target}`);
+
+      try {
+        // Reuse the same logic as /api/admin/mail/send
+        const fakeReq = { body: { target, subject, message: html, useTemplate }, headers: { authorization: `Bearer admin` } };
+        let queryStr = "SELECT DISTINCT ON (email) email, data->>'firstName' as first_name, data->>'teamName' as team_name FROM submissions WHERE email IS NOT NULL AND email != ''";
+        const queryParams = [];
+        if (target !== 'all' && target !== 'attendance') {
+          queryStr += " AND type = $1";
+          queryParams.push(target);
+        }
+        const result = await pool.query(queryStr, queryParams);
+        let sent = 0;
+        for (const recipient of result.rows) {
+          const ok = await sendResendEmail(recipient.email, subject, html);
+          if (ok) sent++;
+        }
+        entry.status = 'sent';
+        entry.sentCount = sent;
+        console.log(`[Scheduled] Mailing ${id} sent to ${sent} recipients`);
+      } catch (err) {
+        entry.status = 'failed';
+        entry.error = err.message;
+        console.error(`[Scheduled] Mailing ${id} failed:`, err);
+      }
+    }, delayMs);
+
+    scheduledMailings.set(id, {
+      id, subject, target, scheduledAt: sendTime.toISOString(),
+      status: 'scheduled', timeoutId, useTemplate,
+      createdAt: new Date().toISOString(),
+    });
+
+    res.json({ success: true, id, scheduledAt: sendTime.toISOString() });
+  } catch (err) {
+    console.error('[Scheduled] Error:', err);
+    res.status(500).json({ error: 'Błąd planowania wysyłki' });
+  }
+});
+
+// List scheduled mailings (admin)
+app.get('/api/admin/mail/scheduled', requireAdmin, async (req, res) => {
+  const list = [...scheduledMailings.values()].map(({ timeoutId, ...rest }) => rest);
+  res.json(list);
+});
+
+// Cancel scheduled mailing (admin)
+app.delete('/api/admin/mail/scheduled/:id', requireAdmin, async (req, res) => {
+  const entry = scheduledMailings.get(req.params.id);
+  if (!entry) return res.status(404).json({ error: 'Nie znaleziono' });
+  if (entry.status !== 'scheduled') return res.status(400).json({ error: 'Nie można anulować — status: ' + entry.status });
+  clearTimeout(entry.timeoutId);
+  entry.status = 'cancelled';
+  res.json({ success: true });
+});
+
+// ─── Participant Deletion ─────────────────────────────────────
+
+// Delete participant submission + cascade to certs (admin)
+app.delete('/api/submissions/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Delete associated certificates first
+    await pool.query('DELETE FROM certificates WHERE submission_id = $1', [id]);
+    // Delete submission
+    const result = await pool.query('DELETE FROM submissions WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+    res.json({ success: true, deleted: result.rows[0] });
+  } catch (err) {
+    console.error('[Admin] Delete submission error:', err);
+    res.status(500).json({ error: 'Błąd usuwania' });
+  }
+});
+
 // SMS endpoints (admin only)
 app.post('/api/admin/sms/send', requireAdmin, async (req, res) => {
   try {
@@ -1290,6 +1389,84 @@ app.get('/api/certificates/export', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[Certs] Export error:', err);
     res.status(500).json({ error: 'Blad eksportu' });
+  }
+});
+
+// Bulk QR codes — printable HTML page with all issued certificates (admin)
+// Accepts token via query param (for opening in new tab) or Bearer header
+app.get('/api/certificates/bulk-qr', (req, res, next) => {
+  // Allow token via query param for new-tab access
+  if (req.query.token && adminTokens.has(req.query.token)) return next();
+  return requireAdmin(req, res, next);
+}, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM certificates WHERE status = 'issued' AND hash IS NOT NULL ORDER BY team_name, participant_name");
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+
+    const qrPromises = result.rows.map(async (cert) => {
+      const verifyUrl = `${baseUrl}/verify/${cert.hash}`;
+      const qrSvg = await QRCode.toString(verifyUrl, { type: 'svg', width: 200, margin: 1 });
+      return { ...cert, qrSvg, verifyUrl };
+    });
+
+    const certs = await Promise.all(qrPromises);
+
+    // Generate printable HTML page
+    const html = `<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Kody Certyfikatow - AI Krak Hack 2026</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #fff; color: #000; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 20px; }
+    .card { border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; text-align: center; page-break-inside: avoid; }
+    .card svg { width: 150px; height: 150px; margin: 0 auto 8px; display: block; }
+    .name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+    .team { font-size: 12px; color: #666; margin-bottom: 4px; }
+    .uni { font-size: 11px; color: #999; margin-bottom: 4px; }
+    .hash { font-size: 9px; color: #aaa; font-family: monospace; word-break: break-all; }
+    .type { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .type.winner { color: #f59e0b; }
+    .type.participation { color: #06b6d4; }
+    @media print {
+      .no-print { display: none; }
+      .grid { gap: 10px; padding: 10px; }
+      .card { border: 1px solid #ccc; }
+    }
+    .header { text-align: center; padding: 20px; border-bottom: 2px solid #000; margin-bottom: 20px; }
+    .header h1 { font-size: 24px; }
+    .header p { color: #666; font-size: 14px; }
+    .btn { display: inline-block; padding: 12px 24px; background: #06b6d4; color: #fff; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin: 10px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>QR Kody Certyfikatow</h1>
+    <p>AI Krak Hack 2026 &bull; ${certs.length} certyfikatow</p>
+    <button class="btn no-print" onclick="window.print()">Drukuj / Zapisz PDF</button>
+  </div>
+  <div class="grid">
+    ${certs.map(c => `
+      <div class="card">
+        <div class="type ${c.certificate_type}">${c.certificate_type === 'winner' ? 'Zwyciezca' : 'Uczestnik'}</div>
+        ${c.qrSvg}
+        <div class="name">${c.participant_name}</div>
+        <div class="team">${c.team_name}</div>
+        ${c.university ? `<div class="uni">${c.university}</div>` : ''}
+        <div class="hash">${c.hash}</div>
+      </div>
+    `).join('')}
+  </div>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (err) {
+    console.error('[Certs] Bulk QR error:', err);
+    res.status(500).json({ error: 'Blad generowania QR kodow' });
   }
 });
 
