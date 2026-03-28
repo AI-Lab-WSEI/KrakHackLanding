@@ -56,9 +56,19 @@ export function Header() {
             className="h-8 w-auto"
           />
           <div className="text-xl font-bold">
-            <span className="text-white">AI </span>
-            <span className="text-cyan-400">KRAK</span>
-            <span className="text-pink-400"> HACK</span>
+            {isLab ? (
+              <>
+                <span className="text-white">AI </span>
+                <span className="text-cyan-400">Possibilities</span>
+                <span className="text-pink-400"> Lab</span>
+              </>
+            ) : (
+              <>
+                <span className="text-white">AI </span>
+                <span className="text-cyan-400">KRAK</span>
+                <span className="text-pink-400"> HACK</span>
+              </>
+            )}
           </div>
         </Link>
 

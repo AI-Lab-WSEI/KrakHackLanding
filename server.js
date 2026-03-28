@@ -1800,15 +1800,32 @@ app.get('*', async (req, res) => {
     }
   }
 
-  // Inject site config into HTML so frontend knows mode instantly (no fetch needed)
+  // Inject site config + mode-specific meta tags into HTML
   try {
     let html = fs.readFileSync(indexPath, 'utf8');
+    const mode = process.env.SITE_MODE || 'hackathon';
     const siteConfig = JSON.stringify({
-      mode: process.env.SITE_MODE || 'hackathon',
+      mode,
       hackathonUrl: process.env.HACKATHON_URL || 'https://krakhack.info',
       labUrl: process.env.LAB_URL || (process.env.BASE_URL || 'http://localhost:5175'),
     });
-    html = html.replace('</head>', `<script>window.__SITE_CONFIG__=${siteConfig}</script>\n  </head>`);
+
+    let injections = `<script>window.__SITE_CONFIG__=${siteConfig}</script>`;
+
+    // In lab mode, replace hackathon meta tags with lab-specific ones
+    if (mode === 'lab') {
+      const labUrl = process.env.LAB_URL || 'https://possibilitieslab.org';
+      html = html.replace(/<title>[^<]*<\/title>/, '<title>AI Possibilities Lab — Koło Naukowe AI | WSEI Kraków</title>');
+      html = html.replace(/content="AI KrakHack 2026 - Hackathon AI \| WSEI Kraków"/g, 'content="AI Possibilities Lab — Koło Naukowe AI | WSEI Kraków"');
+      html = html.replace(/content="Dołącz do AI KrakHack 2026![^"]*"/g, 'content="Koło Naukowe AI przy WSEI w Krakowie. Projekty, hackathony, community i współpraca z biznesem. Dołącz do nas!"');
+      html = html.replace(/content="https:\/\/krakhack\.info\/"/g, `content="${labUrl}/"`);
+      html = html.replace(/content="https:\/\/krakhack\.info\/image\.png"/g, `content="${labUrl}/favicon-lab.png"`);
+      injections += `\n  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-lab-32.png" />`;
+      injections += `\n  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-lab.png" />`;
+      injections += `\n  <link rel="apple-touch-icon" href="/apple-touch-icon-lab.png" />`;
+    }
+
+    html = html.replace('</head>', `  ${injections}\n  </head>`);
     res.send(html);
   } catch (err) {
     res.sendFile(indexPath);
