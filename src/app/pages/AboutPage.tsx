@@ -99,7 +99,7 @@ export function AboutPage() {
       </section>
 
       {/* ═══ VALUES: 6 kart — 3 filary ═══ */}
-      <section className="relative py-24 overflow-hidden">
+      <section id="dlaczego-warto" className="relative py-24 overflow-hidden">
         <div className="absolute top-0 right-0 w-2/3 h-full opacity-10 pointer-events-none">
           <img src="/assets/marble-texture.png" alt="" className="w-full h-full object-cover" />
         </div>
@@ -157,10 +157,12 @@ export function AboutPage() {
       </section>
 
       {/* ═══ PHOTO CAROUSEL ═══ */}
-      <ImageSlider images={galleryImages} title="Z naszych wydarzeń" />
+      <div id="galeria">
+        <ImageSlider images={galleryImages} title="Z naszych wydarzeń" />
+      </div>
 
       {/* ═══ 3 FILARY: Studenci / Community / Biznes ═══ */}
-      <section className="py-24 bg-black relative">
+      <section id="dla-kogo" className="py-24 bg-black relative">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -219,7 +221,7 @@ export function AboutPage() {
       </section>
 
       {/* ═══ WSPÓŁPRACA — Case Studies ═══ */}
-      <section className="py-24 bg-gradient-to-b from-black to-gray-950 relative">
+      <section id="wspolpraca" className="py-24 bg-gradient-to-b from-black to-gray-950 relative">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -274,7 +276,7 @@ export function AboutPage() {
       </section>
 
       {/* ═══ WIZJA ═══ */}
-      <section className="relative py-24 overflow-hidden">
+      <section id="wizja" className="relative py-24 overflow-hidden">
         <div className="absolute inset-0">
           <img src="/assets/marble-texture.png" alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black/70" />
