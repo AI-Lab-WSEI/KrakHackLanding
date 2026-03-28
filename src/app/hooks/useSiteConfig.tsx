@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 
 export type SiteMode = 'hackathon' | 'lab';
 
@@ -8,43 +8,27 @@ interface SiteConfig {
   labUrl: string;
   isLab: boolean;
   isHackathon: boolean;
-  loading: boolean;
 }
 
-const defaultConfig: SiteConfig = {
-  mode: 'hackathon',
-  hackathonUrl: 'https://krakhack.info',
-  labUrl: 'http://localhost:5175',
-  isLab: false,
-  isHackathon: true,
-  loading: true,
-};
+// Read from window.__SITE_CONFIG__ injected by server.js into HTML
+// Falls back to hackathon mode if not present
+function getConfig(): SiteConfig {
+  const w = window as any;
+  const raw = w.__SITE_CONFIG__ || {};
+  const mode: SiteMode = raw.mode === 'lab' ? 'lab' : 'hackathon';
+  return {
+    mode,
+    hackathonUrl: raw.hackathonUrl || 'https://krakhack.info',
+    labUrl: raw.labUrl || 'http://localhost:5175',
+    isLab: mode === 'lab',
+    isHackathon: mode === 'hackathon',
+  };
+}
 
-const SiteConfigContext = createContext<SiteConfig>(defaultConfig);
+const config = getConfig();
+const SiteConfigContext = createContext<SiteConfig>(config);
 
 export function SiteConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<SiteConfig>(defaultConfig);
-
-  useEffect(() => {
-    const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
-    fetch(`${apiBase}/api/config/site`)
-      .then((res) => res.json())
-      .then((data) => {
-        const mode: SiteMode = data.mode === 'lab' ? 'lab' : 'hackathon';
-        setConfig({
-          mode,
-          hackathonUrl: data.hackathonUrl || defaultConfig.hackathonUrl,
-          labUrl: data.labUrl || defaultConfig.labUrl,
-          isLab: mode === 'lab',
-          isHackathon: mode === 'hackathon',
-          loading: false,
-        });
-      })
-      .catch(() => {
-        setConfig({ ...defaultConfig, loading: false });
-      });
-  }, []);
-
   return (
     <SiteConfigContext.Provider value={config}>
       {children}

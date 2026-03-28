@@ -1787,7 +1787,12 @@ app.get('*', async (req, res) => {
     <meta name="twitter:title" content="${title}" />
     <meta name="twitter:description" content="${desc}" />`;
 
-        html = html.replace('</head>', ogTags + '\n  </head>');
+        const siteConfig = JSON.stringify({
+          mode: process.env.SITE_MODE || 'hackathon',
+          hackathonUrl: process.env.HACKATHON_URL || 'https://krakhack.info',
+          labUrl: process.env.LAB_URL || (process.env.BASE_URL || 'http://localhost:5175'),
+        });
+        html = html.replace('</head>', ogTags + `\n  <script>window.__SITE_CONFIG__=${siteConfig}</script>\n  </head>`);
         return res.send(html);
       }
     } catch (err) {
@@ -1795,7 +1800,19 @@ app.get('*', async (req, res) => {
     }
   }
 
-  res.sendFile(indexPath);
+  // Inject site config into HTML so frontend knows mode instantly (no fetch needed)
+  try {
+    let html = fs.readFileSync(indexPath, 'utf8');
+    const siteConfig = JSON.stringify({
+      mode: process.env.SITE_MODE || 'hackathon',
+      hackathonUrl: process.env.HACKATHON_URL || 'https://krakhack.info',
+      labUrl: process.env.LAB_URL || (process.env.BASE_URL || 'http://localhost:5175'),
+    });
+    html = html.replace('</head>', `<script>window.__SITE_CONFIG__=${siteConfig}</script>\n  </head>`);
+    res.send(html);
+  } catch (err) {
+    res.sendFile(indexPath);
+  }
 });
 
 // ─── Start ─────────────────────────────────────────────────
