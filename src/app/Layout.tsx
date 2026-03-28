@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router';
 import { Header } from '@/app/components/Header';
+import { SiteConfigProvider } from '@/app/hooks/useSiteConfig';
 import { useEffect } from 'react';
 
 function ScrollToTop() {
@@ -12,12 +13,14 @@ function ScrollToTop() {
 
 export function Layout() {
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      <ScrollToTop />
-      <Header />
-      <div className="flex-1 pt-16">
-        <Outlet />
+    <SiteConfigProvider>
+      <div className="min-h-screen bg-black flex flex-col">
+        <ScrollToTop />
+        <Header />
+        <div className="flex-1 pt-16">
+          <Outlet />
+        </div>
       </div>
-    </div>
+    </SiteConfigProvider>
   );
 }

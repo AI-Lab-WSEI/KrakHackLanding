@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router';
-import { ChevronDown, ChevronLeft, Menu, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, Menu, X, ExternalLink } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { useSiteConfig } from '@/app/hooks/useSiteConfig';
 
 export function Header() {
+  const { isLab, hackathonUrl } = useSiteConfig();
   const [showHackathonNav, setShowHackathonNav] = useState(false);
   const [editionDropdownOpen, setEditionDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -12,6 +14,7 @@ export function Header() {
 
   const currentEdition = location.pathname === '/2025' ? '2025' : '2026';
   const isHackathonPage = location.pathname === '/' || location.pathname === '/2025' || location.pathname.startsWith('/zadania') || location.pathname === '/forms';
+  const isPostHackathon = new Date() >= new Date('2026-03-28T18:00:00');
 
   // Reset hackathon nav when navigating away
   useEffect(() => {
@@ -59,9 +62,30 @@ export function Header() {
           </div>
         </Link>
 
-        {/* Desktop Navigation — no AnimatePresence, simple conditional render */}
+        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-1 text-sm">
-          {showHackathonNav ? (
+          {isLab ? (
+            /* LAB MODE: O nas is home, Hackathon is external */
+            <div className="flex items-center gap-1">
+              <a
+                href={hackathonUrl}
+                className="flex items-center gap-1.5 text-gray-300 hover:text-cyan-400 transition-colors font-medium px-3 py-2.5 rounded-lg hover:bg-white/5"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Hackathon
+                <ExternalLink className="w-3 h-3 opacity-50" />
+              </a>
+              <Link
+                to="/dolacz"
+                className="px-5 py-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-full text-xs font-bold transition-all shadow-lg shadow-pink-500/20 mx-1"
+              >
+                Dołącz do koła
+              </Link>
+              <a href="/#kontakt" className={linkClass}>Kontakt</a>
+            </div>
+          ) : showHackathonNav ? (
+            /* HACKATHON MODE: drill-down */
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowHackathonNav(false)}
@@ -80,6 +104,7 @@ export function Header() {
               )}
             </div>
           ) : (
+            /* HACKATHON MODE: main nav */
             <div className="flex items-center gap-1">
               <Link to="/o-nas" className={linkClass}>O nas</Link>
               <button
@@ -95,6 +120,9 @@ export function Header() {
               >
                 Dołącz do koła
               </Link>
+              {isPostHackathon && (
+                <Link to="/feedback" className={linkClass}>Ankieta</Link>
+              )}
               <a href="/#kontakt" className={linkClass}>Kontakt</a>
             </div>
           )}
@@ -102,8 +130,8 @@ export function Header() {
 
         {/* Right side */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Edition switcher — only on hackathon pages */}
-          {(isHackathonPage || showHackathonNav) && (
+          {/* Edition switcher — only on hackathon pages, never in lab mode */}
+          {!isLab && (isHackathonPage || showHackathonNav) && (
             <div className="relative" ref={editionRef}>
               <button
                 onClick={() => setEditionDropdownOpen(!editionDropdownOpen)}
@@ -146,38 +174,55 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-gray-900 border-t border-gray-800">
           <nav className="container mx-auto px-4 py-4 flex flex-col gap-1">
-            <Link to="/o-nas" onClick={() => setMobileMenuOpen(false)}
-              className="text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
-              O nas
-            </Link>
-            <button
-              onClick={() => setMobileHackathonOpen(!mobileHackathonOpen)}
-              className="flex items-center justify-between text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium"
-            >
-              Hackathon
-              <ChevronDown className={`w-4 h-4 transition-transform ${mobileHackathonOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {mobileHackathonOpen && (
-              <div className="pl-4 border-l-2 border-cyan-500/30 ml-3 space-y-0.5">
-                {hackathonLinks.map((link) =>
-                  link.isLink ? (
-                    <Link key={link.href} to={link.href} onClick={() => setMobileMenuOpen(false)}
-                      className="block text-gray-400 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 text-sm">
-                      {link.label}
-                    </Link>
-                  ) : (
-                    <a key={link.href} href={link.href} onClick={() => setMobileMenuOpen(false)}
-                      className="block text-gray-400 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 text-sm">
-                      {link.label}
-                    </a>
-                  )
+            {!isLab && (
+              <Link to="/o-nas" onClick={() => setMobileMenuOpen(false)}
+                className="text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
+                O nas
+              </Link>
+            )}
+            {isLab ? (
+              <a href={hackathonUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
+                Hackathon <ExternalLink className="w-3 h-3 opacity-50" />
+              </a>
+            ) : (
+              <>
+                <button
+                  onClick={() => setMobileHackathonOpen(!mobileHackathonOpen)}
+                  className="flex items-center justify-between text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium"
+                >
+                  Hackathon
+                  <ChevronDown className={`w-4 h-4 transition-transform ${mobileHackathonOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {mobileHackathonOpen && (
+                  <div className="pl-4 border-l-2 border-cyan-500/30 ml-3 space-y-0.5">
+                    {hackathonLinks.map((link) =>
+                      link.isLink ? (
+                        <Link key={link.href} to={link.href} onClick={() => setMobileMenuOpen(false)}
+                          className="block text-gray-400 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 text-sm">
+                          {link.label}
+                        </Link>
+                      ) : (
+                        <a key={link.href} href={link.href} onClick={() => setMobileMenuOpen(false)}
+                          className="block text-gray-400 hover:text-cyan-400 transition-colors py-2 px-3 rounded-lg hover:bg-white/5 text-sm">
+                          {link.label}
+                        </a>
+                      )
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             )}
             <Link to="/dolacz" onClick={() => setMobileMenuOpen(false)}
               className="text-pink-400 hover:text-pink-300 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-bold">
               Dołącz do koła
             </Link>
+            {isPostHackathon && (
+              <Link to="/feedback" onClick={() => setMobileMenuOpen(false)}
+                className="text-cyan-400 hover:text-cyan-300 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
+                Wypełnij ankietę
+              </Link>
+            )}
             <a href="/#kontakt" onClick={() => setMobileMenuOpen(false)}
               className="text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
               Kontakt

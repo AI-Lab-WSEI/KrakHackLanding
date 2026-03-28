@@ -34,6 +34,9 @@ const pool = new pg.Pool({
 // Admin session tokens (in-memory, cleared on restart — admin just re-logs in)
 const adminTokens = new Set();
 
+// Survey IP rate limiting — max 1 survey per IP per 24h
+const surveyIpMap = new Map(); // ip -> timestamp
+
 // Initialize database tables
 async function initDB() {
   if (!process.env.DATABASE_URL) {
@@ -564,16 +567,33 @@ app.patch('/api/submissions/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// Submit survey (public)
+// Submit survey (public, IP rate-limited: 1 per IP per 24h)
 app.post('/api/surveys', async (req, res) => {
   try {
     const { data } = req.body;
     if (!data) return res.status(400).json({ error: 'Brak danych ankiety' });
 
+    // IP rate limiting
+    const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    const lastSubmit = surveyIpMap.get(clientIp);
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    if (lastSubmit && (Date.now() - lastSubmit) < DAY_MS) {
+      return res.status(429).json({ error: 'Ankieta została już wysłana z tego adresu. Możesz wysłać kolejną za 24 godziny.' });
+    }
+
     const result = await pool.query(
       'INSERT INTO surveys (data) VALUES ($1) RETURNING id, created_at',
       [data]
     );
+
+    surveyIpMap.set(clientIp, Date.now());
+    // Clean old entries periodically
+    if (surveyIpMap.size > 1000) {
+      for (const [ip, ts] of surveyIpMap) {
+        if (Date.now() - ts > DAY_MS) surveyIpMap.delete(ip);
+      }
+    }
+
     res.json({ success: true, id: result.rows[0].id });
   } catch (err) {
     console.error('[API] Survey error:', err);
@@ -591,6 +611,15 @@ app.get('/api/surveys', requireAdmin, async (req, res) => {
     console.error('[API] Fetch surveys error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
   }
+});
+
+// Site mode config (public — tells frontend which mode we're in)
+app.get('/api/config/site', (req, res) => {
+  res.json({
+    mode: process.env.SITE_MODE || 'hackathon',
+    hackathonUrl: process.env.HACKATHON_URL || 'https://krakhack.info',
+    labUrl: process.env.LAB_URL || (process.env.BASE_URL || 'http://localhost:5175'),
+  });
 });
 
 // Get config (public for some keys, admin for others)
