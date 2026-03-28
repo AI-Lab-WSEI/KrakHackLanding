@@ -1222,6 +1222,143 @@ app.post('/api/certificates/:id/revoke', requireAdmin, async (req, res) => {
   }
 });
 
+// Change certificate type (winner/participation) — works on issued certs too, re-signs them
+app.post('/api/certificates/:id/set-type', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { certificate_type, placement, challenge_name } = req.body;
+    if (!['winner', 'participation'].includes(certificate_type)) {
+      return res.status(400).json({ error: 'Typ musi byc "winner" lub "participation"' });
+    }
+
+    // Update type and metadata
+    const metadata = {};
+    if (placement) metadata.placement = placement;
+    if (challenge_name) metadata.challenge_name = challenge_name;
+
+    const result = await pool.query(
+      `UPDATE certificates SET
+        certificate_type = $1,
+        metadata = metadata || $2::jsonb,
+        updated_at = NOW()
+       WHERE id = $3 RETURNING *`,
+      [certificate_type, JSON.stringify(metadata), id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+
+    const cert = result.rows[0];
+
+    // Re-sign if already issued (hash/signature depend on certificate_type)
+    if (cert.status === 'issued' && cert.hash) {
+      const signableData = extractSignableFields(cert);
+      const hash = createCertificateHash(signableData, CERT_SECRET);
+      const signature = signCertificate(signableData, hash, CERT_SECRET);
+      await pool.query(
+        `UPDATE certificates SET hash = $1, signature = $2, updated_at = NOW() WHERE id = $3`,
+        [hash, signature, id]
+      );
+      cert.hash = hash;
+      cert.signature = signature;
+    }
+
+    res.json({ success: true, certificate: cert });
+  } catch (err) {
+    console.error('[Certs] Set type error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Printable certificate list grouped by team (admin, password auth for new tab)
+app.get('/api/certificates/print-list', (req, res, next) => {
+  const pw = process.env.ADMIN_PASSWORD || 'MakaPaka2026';
+  if (req.query.pw === pw) return next();
+  return requireAdmin(req, res, next);
+}, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM certificates WHERE status = 'issued' ORDER BY team_name, participant_name"
+    );
+
+    // Group by team
+    const teams = {};
+    for (const cert of result.rows) {
+      if (!teams[cert.team_name]) teams[cert.team_name] = [];
+      teams[cert.team_name].push(cert);
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Lista Certyfikatow — AI Krak Hack 2026</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #fff; color: #000; padding: 20px; }
+    .header { text-align: center; padding: 20px 0 30px; border-bottom: 3px solid #000; margin-bottom: 30px; }
+    .header h1 { font-size: 28px; font-weight: 900; }
+    .header p { color: #666; margin-top: 5px; }
+    .team { page-break-inside: avoid; margin-bottom: 30px; border: 2px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
+    .team-header { background: #f0f0f0; padding: 12px 20px; font-weight: 800; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .team-header .count { background: #333; color: #fff; padding: 2px 10px; border-radius: 20px; font-size: 12px; }
+    .team-header .winner-badge { background: #f59e0b; color: #fff; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-left: 8px; }
+    .member { padding: 10px 20px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .member .name { font-weight: 600; }
+    .member .uni { color: #888; font-size: 13px; }
+    .member .type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+    .member .type.winner { color: #f59e0b; }
+    .member .type.participation { color: #06b6d4; }
+    .checkbox { width: 16px; height: 16px; border: 2px solid #ccc; border-radius: 3px; margin-right: 12px; flex-shrink: 0; }
+    .btn { display: inline-block; padding: 12px 24px; background: #06b6d4; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; margin: 10px; }
+    .no-print { }
+    .stats { margin-top: 20px; text-align: center; color: #666; font-size: 14px; }
+    @media print {
+      .no-print { display: none; }
+      .team { border: 1px solid #999; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Lista Certyfikatow do Wreczenia</h1>
+    <p>AI Krak Hack 2026 &bull; ${result.rows.length} certyfikatow &bull; ${Object.keys(teams).length} zespolow</p>
+    <button class="btn no-print" onclick="window.print()">Drukuj / Zapisz PDF</button>
+  </div>
+  ${Object.entries(teams).map(([teamName, members]) => {
+    const hasWinner = members.some(m => m.certificate_type === 'winner');
+    return `
+    <div class="team">
+      <div class="team-header">
+        <span>${teamName}${hasWinner ? '<span class="winner-badge">ZWYCIEZCA</span>' : ''}</span>
+        <span class="count">${members.length} os.</span>
+      </div>
+      ${members.map(m => `
+        <div class="member">
+          <div style="display:flex;align-items:center;">
+            <div class="checkbox"></div>
+            <div>
+              <div class="name">${m.participant_name}</div>
+              ${m.university ? `<div class="uni">${m.university}</div>` : ''}
+            </div>
+          </div>
+          <span class="type ${m.certificate_type}">${m.certificate_type === 'winner' ? 'Zwyciezca' : 'Uczestnik'}</span>
+        </div>
+      `).join('')}
+    </div>`;
+  }).join('')}
+  <div class="stats">
+    Wygenerowano: ${new Date().toLocaleString('pl-PL')}
+  </div>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (err) {
+    console.error('[Certs] Print list error:', err);
+    res.status(500).json({ error: 'Blad' });
+  }
+});
+
 // Bulk approve all drafts (admin)
 app.post('/api/certificates/bulk-approve', requireAdmin, async (req, res) => {
   try {
