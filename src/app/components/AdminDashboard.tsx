@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { AdminApplications } from './AdminApplications';
 import { AdminAddParticipant } from './AdminAddParticipant';
+import { AdminEditParticipant } from './AdminEditParticipant';
 
 interface Registration {
   id: string;
@@ -109,8 +110,10 @@ export function AdminDashboard() {
   const [smsStatus, setSmsStatus] = useState<{success: boolean, message: string} | null>(null);
   const [mailTarget, setMailTarget] = useState<'all' | 'attendance' | 'participant' | 'mentor' | 'company'>('all');
 
-  // Add participant modal
+  // Add/Edit participant modals
   const [showAddParticipant, setShowAddParticipant] = useState(false);
+  const [editingParticipant, setEditingParticipant] = useState<Registration | null>(null);
+  const [teamFilter, setTeamFilter] = useState<'all' | 'no-team' | string>('all');
 
   // Scheduled mailing state
   const [scheduleDate, setScheduleDate] = useState('');
@@ -708,16 +711,27 @@ export function AdminDashboard() {
                 <h2 className="text-3xl font-black uppercase italic flex items-center gap-4">
                   <Users className="w-8 h-8 text-indigo-400" /> Baza Zgłoszeń
                 </h2>
-                <div className="flex gap-3">
-                   <select 
-                    value={roleFilter} 
+                <div className="flex flex-wrap gap-3">
+                   <select
+                    value={roleFilter}
                     onChange={e => setRoleFilter(e.target.value)}
-                    className="bg-black/20 border border-white/10 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-300 outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="bg-black/20 border border-white/10 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-300 outline-none focus:ring-1 focus:ring-indigo-500 [&>option]:bg-gray-900"
                    >
                      <option value="all">WSZYSTKIE ROLE</option>
                      <option value="participant">UCZESTNICY</option>
                      <option value="mentor">MENTORZY</option>
                      <option value="company">PARTNERZY / FIRMY</option>
+                   </select>
+                   <select
+                    value={teamFilter}
+                    onChange={e => setTeamFilter(e.target.value)}
+                    className="bg-black/20 border border-white/10 px-4 py-2.5 rounded-xl text-xs font-bold text-gray-300 outline-none focus:ring-1 focus:ring-indigo-500 [&>option]:bg-gray-900"
+                   >
+                     <option value="all">WSZYSTKIE ZESPOŁY</option>
+                     <option value="no-team">⚠ BEZ ZESPOŁU</option>
+                     {Object.keys(teams).sort().map(t => (
+                       <option key={t} value={t}>{t}</option>
+                     ))}
                    </select>
                    <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -751,14 +765,21 @@ export function AdminDashboard() {
                          </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
-                         {registrations.filter(r => 
-                            (roleFilter === 'all' || r.type === roleFilter) && 
-                            (r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.email.toLowerCase().includes(searchTerm.toLowerCase()))
-                         ).map(reg => (
-                            <tr key={reg.id} className="hover:bg-white/5 transition-colors">
+                         {registrations.filter(r => {
+                            if (roleFilter !== 'all' && r.type !== roleFilter) return false;
+                            if (teamFilter === 'no-team' && r.fullData?.teamName) return false;
+                            if (teamFilter === 'no-team' && !r.fullData?.teamName) { /* pass */ }
+                            else if (teamFilter !== 'all' && teamFilter !== 'no-team' && r.fullData?.teamName !== teamFilter) return false;
+                            if (searchTerm && !r.name.toLowerCase().includes(searchTerm.toLowerCase()) && !r.email.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+                            return true;
+                         }).map(reg => (
+                            <tr key={reg.id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setEditingParticipant(reg)}>
                                <td className="px-6 py-4 font-bold text-gray-200">
                                  {reg.name}
-                                 {reg.fullData?.teamName && <div className="text-[9px] text-cyan-400 mt-0.5">TEAM: {reg.fullData.teamName}</div>}
+                                 {reg.fullData?.teamName
+                                   ? <div className="text-[9px] text-cyan-400 mt-0.5">TEAM: {reg.fullData.teamName}</div>
+                                   : <div className="text-[9px] text-yellow-400/70 mt-0.5">⚠ Brak zespołu</div>
+                                 }
                                </td>
                                <td className="px-6 py-4">
                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${
@@ -1212,6 +1233,16 @@ export function AdminDashboard() {
         <AdminAddParticipant
           onClose={() => setShowAddParticipant(false)}
           onAdded={() => fetchData()}
+        />
+      )}
+
+      {/* Edit Participant Modal */}
+      {editingParticipant && (
+        <AdminEditParticipant
+          participant={editingParticipant}
+          existingTeams={Object.keys(teams)}
+          onClose={() => setEditingParticipant(null)}
+          onSaved={() => fetchData()}
         />
       )}
     </AdminAuth>
