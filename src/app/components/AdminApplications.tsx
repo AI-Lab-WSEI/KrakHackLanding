@@ -178,16 +178,16 @@ export function AdminApplications() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500"
           >
-            <option value="all">Wszystkie statusy</option>
+            <option value="all" className="bg-gray-900 text-white">Wszystkie statusy</option>
             {STATUS_ORDER.map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s].label}</option>
+              <option key={s} value={s} className="bg-gray-900 text-white">{STATUS_LABELS[s].label}</option>
             ))}
           </select>
 
           <select
             value={wseiFilter}
             onChange={(e) => setWseiFilter(e.target.value)}
-            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500"
+            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500 [&>option]:bg-gray-900 [&>option]:text-white"
           >
             <option value="all">Wszystkie uczelnie</option>
             <option value="wsei">WSEI</option>
@@ -229,7 +229,7 @@ export function AdminApplications() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-white font-medium">{app.first_name} {app.last_name}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusInfo.color} text-white`}>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusInfo.color} ${statusInfo.textColor}`}>
                           {statusInfo.label}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${app.is_wsei ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'}`}>
@@ -344,20 +344,24 @@ export function AdminApplications() {
 
                       {/* Actions */}
                       <div className="flex flex-wrap gap-2 pt-4 border-t border-white/8">
-                        {STATUS_ORDER.map((s) => (
-                          <button
-                            key={s}
-                            onClick={() => updateStatus(app.id, s)}
-                            disabled={app.status === s || actionLoading === app.id}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                              app.status === s
-                                ? 'bg-white/10 text-white cursor-default'
-                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                            } disabled:opacity-50`}
-                          >
-                            {STATUS_LABELS[s].label}
-                          </button>
-                        ))}
+                        {STATUS_ORDER.map((s) => {
+                          const sl = STATUS_LABELS[s];
+                          const isActive = app.status === s;
+                          return (
+                            <button
+                              key={s}
+                              onClick={() => updateStatus(app.id, s)}
+                              disabled={isActive || actionLoading === app.id}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                isActive
+                                  ? `${sl.color} ${sl.textColor} cursor-default`
+                                  : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/5'
+                              } disabled:cursor-default`}
+                            >
+                              {sl.label}
+                            </button>
+                          );
+                        })}
                         <button
                           onClick={() => sendInvite(app.id)}
                           disabled={actionLoading === app.id}
