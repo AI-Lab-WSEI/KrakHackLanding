@@ -84,12 +84,12 @@ export const ENGAGEMENT_TYPE_LABELS: Record<EngagementType, { emoji: string; tit
   },
 };
 
-export const STATUS_LABELS: Record<ApplicationStatus, { label: string; color: string }> = {
-  nowe: { label: 'Nowe', color: 'bg-gray-500' },
-  w_kontakcie: { label: 'W kontakcie', color: 'bg-blue-500' },
-  'rozmowa_umówiona': { label: 'Rozmowa umówiona', color: 'bg-yellow-500' },
-  'przyjęty': { label: 'Przyjęty', color: 'bg-green-500' },
-  odrzucony: { label: 'Odrzucony', color: 'bg-red-500' },
+export const STATUS_LABELS: Record<ApplicationStatus, { label: string; color: string; textColor: string }> = {
+  nowe: { label: 'Nowe', color: 'bg-gray-600', textColor: 'text-white' },
+  w_kontakcie: { label: 'W kontakcie', color: 'bg-blue-600', textColor: 'text-white' },
+  'rozmowa_umówiona': { label: 'Rozmowa umówiona', color: 'bg-yellow-500', textColor: 'text-black' },
+  'przyjęty': { label: 'Przyjęty', color: 'bg-green-600', textColor: 'text-white' },
+  odrzucony: { label: 'Odrzucony', color: 'bg-red-600', textColor: 'text-white' },
 };
 
 export const DEFAULT_COMPETENCIES: CompetencyProfile = {
