@@ -26,6 +26,7 @@ import {
   X,
 } from 'lucide-react';
 import { AdminApplications } from './AdminApplications';
+import { AdminAddParticipant } from './AdminAddParticipant';
 
 interface Registration {
   id: string;
@@ -107,6 +108,9 @@ export function AdminDashboard() {
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [smsStatus, setSmsStatus] = useState<{success: boolean, message: string} | null>(null);
   const [mailTarget, setMailTarget] = useState<'all' | 'attendance' | 'participant' | 'mentor' | 'company'>('all');
+
+  // Add participant modal
+  const [showAddParticipant, setShowAddParticipant] = useState(false);
 
   // Scheduled mailing state
   const [scheduleDate, setScheduleDate] = useState('');
@@ -1193,6 +1197,23 @@ export function AdminDashboard() {
           </button>
         </div>
       </div>
+
+      {/* Floating Add Participant Button */}
+      <button
+        onClick={() => setShowAddParticipant(true)}
+        className="fixed bottom-8 right-8 w-14 h-14 bg-cyan-500 hover:bg-cyan-400 text-black rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all hover:scale-105 z-50"
+        title="Dodaj uczestnika ręcznie"
+      >
+        <UserPlus className="w-6 h-6" />
+      </button>
+
+      {/* Add Participant Modal */}
+      {showAddParticipant && (
+        <AdminAddParticipant
+          onClose={() => setShowAddParticipant(false)}
+          onAdded={() => fetchData()}
+        />
+      )}
     </AdminAuth>
   );
 }
