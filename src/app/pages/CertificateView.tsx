@@ -290,6 +290,35 @@ export function CertificateView() {
           </motion.div>
         )}
 
+        {/* CTA Links */}
+        {isValid && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            className="flex flex-col sm:flex-row gap-3 justify-center mt-6"
+          >
+            <a
+              href="https://krakhack.info"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 rounded-2xl text-xs font-bold text-cyan-400 flex items-center gap-2 transition-all justify-center"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Zobacz AI Krak Hack
+            </a>
+            <a
+              href="https://ai.possibilitieslab.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 rounded-2xl text-xs font-bold text-purple-400 flex items-center gap-2 transition-all justify-center"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Poznaj AI Possibilities Lab
+            </a>
+          </motion.div>
+        )}
+
         {/* Footer */}
         <div className="text-center mt-10 text-gray-600 text-xs space-y-2">
           <p>AI Krak Hack 2026 &bull; Kolo Naukowe AI Possibilities Lab &bull; WSEI Krakow</p>

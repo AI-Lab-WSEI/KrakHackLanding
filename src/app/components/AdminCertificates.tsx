@@ -376,6 +376,19 @@ export function AdminCertificates() {
         >
           <QrCode className="w-3.5 h-3.5" /> Drukuj QR kody
         </a>
+        <a
+          href="#"
+          className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+          onClick={(e) => {
+            e.preventDefault();
+            const pw = prompt('Podaj hasło admina:');
+            if (!pw) return;
+            const base = import.meta.env.DEV ? 'http://localhost:3000' : '';
+            window.open(`${base}/api/certificates/print-list?pw=${encodeURIComponent(pw)}`, '_blank');
+          }}
+        >
+          <FileText className="w-3.5 h-3.5" /> Lista do wręczenia
+        </a>
       </div>
 
       {/* Delete by Team */}
@@ -593,6 +606,25 @@ export function AdminCertificates() {
                       )}
                       {cert.status === 'issued' && cert.hash && (
                         <>
+                          <button
+                            onClick={async () => {
+                              const newType = cert.certificate_type === 'winner' ? 'participation' : 'winner';
+                              const placement = newType === 'winner' ? prompt('Miejsce (np. 1, 2, 3):') : undefined;
+                              const challenge_name = newType === 'winner' ? prompt('Nazwa wyzwania:') : undefined;
+                              try {
+                                await certFetch(`/api/certificates/${cert.id}/set-type`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ certificate_type: newType, placement, challenge_name }),
+                                });
+                                fetchCertificates();
+                              } catch { alert('Błąd zmiany typu'); }
+                            }}
+                            className={`p-2 rounded-lg transition-all ${cert.certificate_type === 'winner' ? 'bg-amber-500/20 hover:bg-amber-500/30' : 'bg-white/5 hover:bg-amber-500/10'}`}
+                            title={cert.certificate_type === 'winner' ? 'Zmień na uczestnika' : 'Oznacz jako zwycięzcę'}
+                          >
+                            <Trophy className={`w-3.5 h-3.5 ${cert.certificate_type === 'winner' ? 'text-amber-400' : 'text-gray-500'}`} />
+                          </button>
                           <button onClick={() => copyVerifyUrl(cert.hash!)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all" title="Kopiuj link">
                             <Copy className="w-3.5 h-3.5 text-gray-400" />
                           </button>
