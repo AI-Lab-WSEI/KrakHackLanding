@@ -1023,7 +1023,35 @@ export function AdminDashboard() {
                   <div key={name} className="p-8 bg-white/5 border border-white/10 rounded-[2.5rem] hover:border-purple-500/40 transition-all group">
                     <div className="flex justify-between items-start mb-6">
                       <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">{name}</h3>
-                      <span className="px-4 py-1.5 bg-purple-500/20 text-purple-400 text-[10px] font-black rounded-full border border-purple-500/20">{members.length}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-4 py-1.5 bg-purple-500/20 text-purple-400 text-[10px] font-black rounded-full border border-purple-500/20">{members.length}</span>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Usunąć zespół "${name}" i wszystkich ${members.length} członków? Ich certyfikaty też zostaną usunięte.`)) return;
+                            if (!confirm(`NA PEWNO usunąć zespół "${name}"? To jest nieodwracalne.`)) return;
+                            try {
+                              const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
+                              // Delete certs for team
+                              await fetch(`${apiBase}/api/certificates/team/${encodeURIComponent(name)}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${getAdminToken()}` }
+                              });
+                              // Delete all submissions for this team
+                              for (const m of members) {
+                                await fetch(`${apiBase}/api/submissions/${m.id}`, {
+                                  method: 'DELETE',
+                                  headers: { 'Authorization': `Bearer ${getAdminToken()}` }
+                                });
+                              }
+                              fetchData();
+                            } catch { alert('Błąd usuwania zespołu'); }
+                          }}
+                          className="p-1.5 text-red-500/30 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10"
+                          title="Usuń zespół"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-3">
                       {members.map(m => (
