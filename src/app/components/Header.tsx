@@ -12,6 +12,7 @@ export function Header() {
 
   const currentEdition = location.pathname === '/2025' ? '2025' : '2026';
   const isHackathonPage = location.pathname === '/' || location.pathname === '/2025' || location.pathname.startsWith('/zadania') || location.pathname === '/forms';
+  const isPostHackathon = new Date() >= new Date('2026-03-28T18:00:00');
 
   // Reset hackathon nav when navigating away
   useEffect(() => {
@@ -95,6 +96,9 @@ export function Header() {
               >
                 Dołącz do koła
               </Link>
+              {isPostHackathon && (
+                <Link to="/feedback" className={linkClass}>Ankieta</Link>
+              )}
               <a href="/#kontakt" className={linkClass}>Kontakt</a>
             </div>
           )}
@@ -178,6 +182,12 @@ export function Header() {
               className="text-pink-400 hover:text-pink-300 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-bold">
               Dołącz do koła
             </Link>
+            {isPostHackathon && (
+              <Link to="/feedback" onClick={() => setMobileMenuOpen(false)}
+                className="text-cyan-400 hover:text-cyan-300 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
+                Wypełnij ankietę
+              </Link>
+            )}
             <a href="/#kontakt" onClick={() => setMobileMenuOpen(false)}
               className="text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
               Kontakt

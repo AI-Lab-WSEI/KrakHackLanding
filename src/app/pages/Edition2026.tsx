@@ -16,7 +16,7 @@ import { motion } from 'motion/react';
 
 export function Edition2026() {
   const edition = editions['2026'];
-  // CTA "Działaj z nami" is always visible
+  const isPostHackathon = new Date() >= new Date('2026-03-28T18:00:00');
 
   return (
     <div className="min-h-screen relative">
@@ -53,7 +53,7 @@ export function Edition2026() {
 
       <RegistrationForm />
 
-      {/* CTA: Działaj z nami */}
+      {/* CTA: Pre/Post hackathon */}
       <section className="py-20 bg-gradient-to-br from-black via-purple-950/40 to-black relative overflow-hidden">
           <div className="absolute inset-0">
             <motion.div
@@ -68,33 +68,73 @@ export function Edition2026() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                Działaj z nami!
-              </h2>
-              <p className="text-xl text-gray-300 mb-4 max-w-2xl mx-auto">
-                Hackathon za nami, ale to dopiero początek. Dołącz do koła naukowego{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 font-bold">
-                  AI Possibilities Lab
-                </span>{' '}
-                i rozwijaj się dalej!
-              </p>
-              <p className="text-gray-400 mb-8 max-w-xl mx-auto">
-                Projekty, warsztaty, hackathony i networking — to wszystko na Ciebie czeka.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  to="/o-nas"
-                  className="inline-block px-8 py-4 bg-white/10 border border-white/20 hover:bg-white/15 text-white rounded-xl transition-all text-lg font-semibold"
-                >
-                  Poznaj nasze koło
-                </Link>
-                <Link
-                  to="/dolacz"
-                  className="inline-block px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-xl transition-all shadow-lg shadow-pink-500/20 text-lg font-bold"
-                >
-                  Zgłoś się do koła
-                </Link>
-              </div>
+              {isPostHackathon ? (
+                <>
+                  <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                    Dziękujemy za Twój udział!
+                  </h2>
+                  <p className="text-xl text-gray-300 mb-4 max-w-2xl mx-auto">
+                    Wniosłeś świetną wartość w{' '}
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 font-bold">
+                      AI Krak Hack 2026
+                    </span>
+                    . Hackathon za nami, ale to dopiero początek!
+                  </p>
+                  <p className="text-gray-400 mb-8 max-w-xl mx-auto">
+                    Podziel się opinią w ankiecie i dołącz do koła naukowego AI Possibilities Lab.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Link
+                      to="/feedback"
+                      className="inline-block px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded-xl transition-all shadow-lg shadow-cyan-500/20 text-lg font-bold"
+                    >
+                      Wypełnij ankietę
+                    </Link>
+                    <Link
+                      to="/dolacz"
+                      className="inline-block px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-xl transition-all shadow-lg shadow-pink-500/20 text-lg font-bold"
+                    >
+                      Działaj z nami
+                    </Link>
+                    <Link
+                      to="/o-nas"
+                      className="inline-block px-8 py-4 bg-white/10 border border-white/20 hover:bg-white/15 text-white rounded-xl transition-all text-lg font-semibold"
+                    >
+                      Poznaj nasze koło
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                    Działaj z nami!
+                  </h2>
+                  <p className="text-xl text-gray-300 mb-4 max-w-2xl mx-auto">
+                    Dołącz do koła naukowego{' '}
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 font-bold">
+                      AI Possibilities Lab
+                    </span>{' '}
+                    i rozwijaj się z nami!
+                  </p>
+                  <p className="text-gray-400 mb-8 max-w-xl mx-auto">
+                    Projekty, warsztaty, hackathony i networking, to wszystko na Ciebie czeka.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Link
+                      to="/o-nas"
+                      className="inline-block px-8 py-4 bg-white/10 border border-white/20 hover:bg-white/15 text-white rounded-xl transition-all text-lg font-semibold"
+                    >
+                      Poznaj nasze koło
+                    </Link>
+                    <Link
+                      to="/dolacz"
+                      className="inline-block px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-xl transition-all shadow-lg shadow-pink-500/20 text-lg font-bold"
+                    >
+                      Zgłoś się do koła
+                    </Link>
+                  </div>
+                </>
+              )}
             </motion.div>
           </div>
         </section>
