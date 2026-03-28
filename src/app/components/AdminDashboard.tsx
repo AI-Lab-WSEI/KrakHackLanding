@@ -23,6 +23,7 @@ import {
   Smartphone,
   Award,
   UserPlus,
+  X,
 } from 'lucide-react';
 import { AdminApplications } from './AdminApplications';
 
