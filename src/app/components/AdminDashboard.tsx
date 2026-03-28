@@ -11,20 +11,21 @@ import {
   Search,
   MessageSquare,
   Star,
-  RefreshCw,
   Mail,
   Send,
   Download,
-  FileText,
   LayoutDashboard,
+  Settings,
+  Shield,
+  Award,
+  LogOut,
+  ChevronRight,
+  Menu,
   Check,
   AlertCircle,
   Save,
   Smartphone,
-  Award,
-  UserPlus,
 } from 'lucide-react';
-import { AdminApplications } from './AdminApplications';
 
 interface Registration {
   id: string;
@@ -85,7 +86,7 @@ export function AdminDashboard() {
       task: ''
     }
   });
-  const [activeTab, setActiveTab] = useState<'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates' | 'applications'>('regs');
+  const [activeTab, setActiveTab] = useState<'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates'>('regs');
   const [roleFilter, setRoleFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -268,57 +269,6 @@ export function AdminDashboard() {
   <p style="font-size: 14px; color: #666;">Do zobaczenia za rok!<br>Zespół AI Krak Hack 2026</p>
 </div>
       `
-    },
-    CLUB_INVITE: {
-      subject: 'Dołącz do AI Possibilities Lab! 🚀',
-      html: `<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
-    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
-      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI POSSIBILITIES LAB</h1>
-      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Zaproszenie do koła / współpracy</p>
-    </div>
-    <div style="padding: 40px; color: #334155; line-height: 1.6;">
-      <p style="font-size: 16px;">Ten template automatycznie wysyła <strong>dwa różne warianty</strong>:</p>
-      <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; border-radius: 8px; margin: 12px 0;">
-        <p style="margin: 0;"><strong>🎓 WSEI-owcy</strong> → oferta akademicka: pomysły na prace dyplomowe, mentoring, bridging do konferencji, dołączenie do koła</p>
-      </div>
-      <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 8px; margin: 12px 0;">
-        <p style="margin: 0;"><strong>💬 Zewnętrzni</strong> → zaproszenie do community na Discordzie, współpraca z marką, wspólne projekty, networking</p>
-      </div>
-      <p style="font-size: 14px; color: #64748b; margin-top: 16px;">Kliknij "WYŚLIJ ZAPROSZENIA DO KOŁA" poniżej — system sam podzieli odbiorców na podstawie uczelni.</p>
-    </div>
-  </div>
-</div>`
-    }
-  };
-
-  // State for club invite sending
-  const [isSendingClubInvite, setIsSendingClubInvite] = useState(false);
-  const [clubInviteStatus, setClubInviteStatus] = useState<{success: boolean, message: string} | null>(null);
-
-  const sendClubInvite = async () => {
-    if (!confirm('Wysłać zaproszenia do koła do WSZYSTKICH uczestników hackathonu? (WSEI-owcy dostaną zaproszenie do koła, zewnętrzni — do współpracy)')) return;
-    setIsSendingClubInvite(true);
-    setClubInviteStatus(null);
-    try {
-      const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
-      const res = await fetch(`${apiBase}/api/admin/mail/club-invite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAdminToken()}`
-        }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setClubInviteStatus({ success: true, message: `Wysłano: ${data.sentWsei} do WSEI, ${data.sentExternal} do zewnętrznych (${data.total} total)` });
-      } else {
-        throw new Error(data.error || 'Błąd wysyłki');
-      }
-    } catch (err: any) {
-      setClubInviteStatus({ success: false, message: err.message });
-    } finally {
-      setIsSendingClubInvite(false);
     }
   };
 
@@ -605,8 +555,7 @@ export function AdminDashboard() {
             { id: 'sms', label: 'SMS', icon: Smartphone },
             { id: 'attendance', label: 'Obecność', icon: Check },
             { id: 'certificates', label: 'Certyfikaty', icon: Award },
-            { id: 'surveys', label: 'Ankiety', icon: MessageSquare },
-            { id: 'applications', label: 'Aplikacje do koła', icon: UserPlus }
+            { id: 'surveys', label: 'Ankiety', icon: MessageSquare }
           ].map(tab => (
             <button
               key={tab.id}
@@ -792,8 +741,7 @@ export function AdminDashboard() {
                     { id: 'ATTENDANCE', label: 'Potwierdzenie Przychodu', color: 'border-blue-500/30 text-blue-400' },
                     { id: 'PREP', label: 'Zestaw Startowy', color: 'border-orange-500/30 text-orange-400' },
                     { id: 'START', label: 'Start Hackathonu', color: 'border-green-500/30 text-green-400' },
-                    { id: 'SURVEY', label: 'Ankieta Końcowa', color: 'border-cyan-500/30 text-cyan-400' },
-                    { id: 'CLUB_INVITE', label: 'Zaproszenie do Koła', color: 'border-pink-500/30 text-pink-400' }
+                    { id: 'SURVEY', label: 'Ankieta Końcowa', color: 'border-cyan-500/30 text-cyan-400' }
                   ].map(t => (
                     <button key={t.id} onClick={() => applyTemplate(t.id)} className={`p-4 border rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${selectedTemplate === t.id ? 'bg-white/10 ' + t.color : 'bg-white/5 border-white/10 text-gray-500'}`}>
                       {t.label}
@@ -855,31 +803,6 @@ export function AdminDashboard() {
                     <div className="bg-white rounded-[2rem] p-8 shadow-2xl" dangerouslySetInnerHTML={{ __html: mailHtml }} />
                  </div>
                )}
-
-               {/* Club Invite Special Section */}
-               {selectedTemplate === 'CLUB_INVITE' && (
-                 <div className="bg-gradient-to-r from-pink-500/10 to-purple-500/10 border border-pink-500/20 rounded-[2rem] p-8 space-y-4">
-                   <h3 className="text-lg font-black uppercase tracking-widest text-pink-400">Zaproszenie do koła — Automatyczny podział</h3>
-                   <p className="text-sm text-gray-400">
-                     System automatycznie wyśle <strong className="text-cyan-400">inny wariant maila do WSEI-owców</strong> (zaproszenie do koła) i <strong className="text-purple-400">inny do zewnętrznych</strong> (zaproszenie do współpracy). Podział bazuje na uczelni podanej przy rejestracji.
-                   </p>
-                   <div className="flex items-center gap-4">
-                     <button
-                       onClick={sendClubInvite}
-                       disabled={isSendingClubInvite}
-                       className="px-10 py-5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs flex items-center gap-3 shadow-[0_0_30px_rgba(236,72,153,0.3)] disabled:opacity-50"
-                     >
-                       <Send className="w-4 h-4" /> {isSendingClubInvite ? 'WYSYŁANIE...' : 'WYŚLIJ ZAPROSZENIA DO KOŁA'}
-                     </button>
-                   </div>
-                   {clubInviteStatus && (
-                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl text-xs font-bold flex items-center gap-3 ${clubInviteStatus.success ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                       {clubInviteStatus.success ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                       {clubInviteStatus.message}
-                     </motion.div>
-                   )}
-                 </div>
-               )}
             </motion.div>
           )}
 
@@ -914,10 +837,6 @@ export function AdminDashboard() {
 
           {activeTab === 'certificates' && (
             <AdminCertificates />
-          )}
-
-          {activeTab === 'applications' && (
-            <AdminApplications />
           )}
 
           {activeTab === 'surveys' && (
