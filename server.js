@@ -135,7 +135,8 @@ async function initDB() {
 }
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve static files BUT skip index.html (we inject config into it dynamically)
+app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
 // ─── Helpers ───────────────────────────────────────────────
 
