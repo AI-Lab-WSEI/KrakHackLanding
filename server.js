@@ -1087,6 +1087,7 @@ app.post('/api/certificates/generate', requireAdmin, async (req, res) => {
         s.data::jsonb->>'teamName' as team_name
       FROM submissions s
       WHERE s.type = 'participant'
+        AND (s.data->>'excludedFromCerts')::text IS DISTINCT FROM 'true'
     `);
 
     let created = 0;
@@ -1527,8 +1528,19 @@ app.get('/api/certificates/bulk-qr', async (req, res) => {
 app.delete('/api/certificates/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    // Get cert info before deleting (to mark submission)
+    const certInfo = await pool.query('SELECT submission_id FROM certificates WHERE id = $1', [id]);
     const result = await pool.query('DELETE FROM certificates WHERE id = $1 RETURNING id', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono certyfikatu' });
+
+    // Mark submission as excluded so cert doesn't respawn
+    if (certInfo.rows[0]?.submission_id) {
+      await pool.query(
+        `UPDATE submissions SET data = data || '{"excludedFromCerts": true}'::jsonb WHERE id = $1`,
+        [certInfo.rows[0].submission_id]
+      );
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error('[Certs] Delete error:', err);
@@ -1541,6 +1553,14 @@ app.delete('/api/certificates/team/:teamName', requireAdmin, async (req, res) =>
   try {
     const { teamName } = req.params;
     const result = await pool.query('DELETE FROM certificates WHERE team_name = $1 RETURNING id', [teamName]);
+
+    // Mark submissions as excluded so certs don't respawn on next generate
+    await pool.query(
+      `UPDATE submissions SET data = data || '{"excludedFromCerts": true}'::jsonb
+       WHERE type = 'participant' AND data->>'teamName' = $1`,
+      [teamName]
+    );
+
     res.json({ success: true, deleted: result.rows.length });
   } catch (err) {
     console.error('[Certs] Delete team error:', err);
