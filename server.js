@@ -554,12 +554,23 @@ app.get('/api/submissions', requireAdmin, async (req, res) => {
 app.patch('/api/submissions/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
-    if (!status) return res.status(400).json({ error: 'Brak statusu' });
+    const { status, data, name, email } = req.body;
 
+    const updates = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (status) { updates.push(`status = $${paramIdx++}`); params.push(status); }
+    if (data) { updates.push(`data = $${paramIdx++}::jsonb`); params.push(JSON.stringify(data)); }
+    if (name) { updates.push(`name = $${paramIdx++}`); params.push(name); }
+    if (email) { updates.push(`email = $${paramIdx++}`); params.push(email); }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'Brak danych do aktualizacji' });
+
+    params.push(id);
     const result = await pool.query(
-      'UPDATE submissions SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id]
+      `UPDATE submissions SET ${updates.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      params
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Nie znaleziono zgłoszenia' });
