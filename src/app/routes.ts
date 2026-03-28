@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router';
+import { HomePage } from '@/app/pages/HomePage';
 import { Edition2026 } from '@/app/pages/Edition2026';
 import { Edition2025 } from '@/app/pages/Edition2025';
 import { Forms } from '@/app/pages/Forms';
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
+        Component: HomePage,
+      },
+      {
+        path: 'hackathon',
         Component: Edition2026,
       },
       {

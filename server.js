@@ -613,6 +613,15 @@ app.get('/api/surveys', requireAdmin, async (req, res) => {
   }
 });
 
+// Site mode config (public — tells frontend which mode we're in)
+app.get('/api/config/site', (req, res) => {
+  res.json({
+    mode: process.env.SITE_MODE || 'hackathon',
+    hackathonUrl: process.env.HACKATHON_URL || 'https://krakhack.info',
+    labUrl: process.env.LAB_URL || (process.env.BASE_URL || 'http://localhost:5175'),
+  });
+});
+
 // Get config (public for some keys, admin for others)
 app.get('/api/config/:key', async (req, res) => {
   const { key } = req.params;
