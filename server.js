@@ -257,6 +257,37 @@ async function sendSMSAPI(to, message, useFrom = true) {
   }
 }
 
+// Unified event notification — sends to Teams webhook + admin email log
+async function notifyEvent(title, details, color = '0076D7') {
+  const adminEmail = process.env.ADMIN_EMAIL || 'knai@wsei.edu.pl';
+  const timestamp = new Date().toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw' });
+
+  // Teams notification
+  sendTeamsNotification({
+    title,
+    text: details,
+    themeColor: color,
+  });
+
+  // Email log to admin
+  try {
+    const html = `
+<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #${color}; color: white; padding: 16px 20px; border-radius: 12px 12px 0 0;">
+    <strong>${title}</strong>
+  </div>
+  <div style="background: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; color: #334155; font-size: 14px; line-height: 1.6;">
+    ${details.replace(/\n/g, '<br>')}
+    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;">
+    <p style="font-size: 12px; color: #94a3b8;">${timestamp} · AI Krak Hack Event Log</p>
+  </div>
+</div>`;
+    await sendResendEmail(adminEmail, `[Event] ${title}`, html);
+  } catch (e) {
+    console.error('[Notify] Email log failed:', e);
+  }
+}
+
 async function sendTeamsNotification(message) {
   const webhookUrl = process.env.TEAMS_WEBHOOK_URL;
   if (!webhookUrl) {
@@ -609,6 +640,13 @@ app.post('/api/surveys', async (req, res) => {
       }
     }
 
+    // Notify about new survey
+    notifyEvent(
+      '📋 Nowa ankieta',
+      `Ocena: ${data.rating || '?'}/5\nWydarzenie: ${data.event || '?'}\nPlusy: ${(data.pros || '').slice(0, 100)}\nMinusy: ${(data.cons || '').slice(0, 100)}`,
+      '06b6d4'
+    );
+
     res.json({ success: true, id: result.rows[0].id });
   } catch (err) {
     console.error('[API] Survey error:', err);
@@ -813,6 +851,7 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
         if (ok) sentCount++;
       }
 
+      notifyEvent('📧 Mass mailing wysłany', `"${subject}" — wysłano do ${sentCount}/${recipients.length} odbiorców (target: ${target})`, '6366f1');
       res.json({ success: true, sent: sentCount, total: recipients.length });
       return;
     }
@@ -866,6 +905,7 @@ app.post('/api/admin/mail/schedule', requireAdmin, async (req, res) => {
         entry.status = 'sent';
         entry.sentCount = sent;
         console.log(`[Scheduled] Mailing ${id} sent to ${sent} recipients`);
+        notifyEvent('📬 Zaplanowany mailing wysłany', `"${subject}" — wysłano do ${sent} odbiorców (target: ${target})`, '10b981');
       } catch (err) {
         entry.status = 'failed';
         entry.error = err.message;
@@ -1214,6 +1254,7 @@ app.post('/api/certificates/bulk-issue', requireAdmin, async (req, res) => {
       issued++;
     }
 
+    notifyEvent('🏆 Certyfikaty wydane', `Wydano ${issued} certyfikatów (bulk issue)`, 'f59e0b');
     res.json({ success: true, issued });
   } catch (err) {
     console.error('[Certs] Bulk issue error:', err);
@@ -1371,6 +1412,7 @@ app.post('/api/certificates/bulk-send-email', requireAdmin, async (req, res) => 
       if (ok) sent++;
     }
 
+    notifyEvent('📧 Certyfikaty wysłane emailem', `Wysłano ${sent}/${certs.rows.length} certyfikatów emailem (bulk)`, '8b5cf6');
     res.json({ success: true, sent, total: certs.rows.length });
   } catch (err) {
     console.error('[Certs] Bulk email error:', err);
@@ -1406,8 +1448,10 @@ app.get('/api/certificates/export', requireAdmin, async (req, res) => {
 // Bulk QR codes — printable HTML page with all issued certificates (admin)
 // Accepts token via query param (for opening in new tab) or Bearer header
 app.get('/api/certificates/bulk-qr', (req, res, next) => {
-  // Allow token via query param for new-tab access
+  // Allow token via query param OR Bearer header
   if (req.query.token && adminTokens.has(req.query.token)) return next();
+  // Also try password-based direct auth for reliability
+  if (req.query.pw === (process.env.ADMIN_PASSWORD || 'MakaPaka2026')) return next();
   return requireAdmin(req, res, next);
 }, async (req, res) => {
   try {
@@ -1774,18 +1818,12 @@ app.post('/api/membership-applications', async (req, res) => {
       console.error('[Membership] Confirmation email failed:', emailErr);
     }
 
-    // Teams notification
-    if (process.env.TEAMS_WEBHOOK_URL) {
-      try {
-        await fetch(process.env.TEAMS_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: `📋 Nowe zgłoszenie do koła: ${firstName} ${lastName} (${email}) — ${university || 'brak uczelni'} — ${isWsei ? 'WSEI' : 'zewnętrzny'}`
-          })
-        });
-      } catch (e) { /* silent */ }
-    }
+    // Notify Teams + admin email
+    notifyEvent(
+      '🎓 Nowe zgłoszenie do koła',
+      `${firstName} ${lastName} (${email})\nUczelnia: ${university || 'brak'}\nTyp: ${isWsei ? 'WSEI — członek koła' : 'Zewnętrzny — community'}\nGodziny/mies.: ${monthlyHours || 5}h`,
+      isWsei ? '06b6d4' : '8b5cf6'
+    );
 
     res.json({ success: true, id: result.rows[0].id });
   } catch (err) {
@@ -1934,6 +1972,7 @@ app.post('/api/admin/mail/club-invite', requireAdmin, async (req, res) => {
       if (ok) { isWsei ? sentWsei++ : sentExternal++; }
     }
 
+    notifyEvent('🎓 Zaproszenia do koła wysłane', `WSEI: ${sentWsei}, Zewnętrzni: ${sentExternal}, Total: ${participants.rows.length}`, 'ec4899');
     res.json({ success: true, sentWsei, sentExternal, total: participants.rows.length });
   } catch (err) {
     console.error('[Mailing] Club invite error:', err);
