@@ -1445,15 +1445,13 @@ app.get('/api/certificates/export', requireAdmin, async (req, res) => {
   }
 });
 
-// Bulk QR codes — printable HTML page with all issued certificates (admin)
-// Accepts token via query param (for opening in new tab) or Bearer header
-app.get('/api/certificates/bulk-qr', (req, res, next) => {
-  // Allow token via query param OR Bearer header
-  if (req.query.token && adminTokens.has(req.query.token)) return next();
-  // Also try password-based direct auth for reliability
-  if (req.query.pw === (process.env.ADMIN_PASSWORD || 'MakaPaka2026')) return next();
-  return requireAdmin(req, res, next);
-}, async (req, res) => {
+// Bulk QR codes — printable HTML page with all issued certificates
+// Simple password auth via query param (works in new tab without Bearer token)
+app.get('/api/certificates/bulk-qr', async (req, res) => {
+  const pw = process.env.ADMIN_PASSWORD || 'MakaPaka2026';
+  if (req.query.pw !== pw) {
+    return res.status(401).send('<h1>Podaj hasło w URL: ?pw=TWOJE_HASLO</h1>');
+  }
   try {
     const result = await pool.query("SELECT * FROM certificates WHERE status = 'issued' AND hash IS NOT NULL ORDER BY team_name, participant_name");
     const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
