@@ -43,14 +43,14 @@ export function TeamsSection() {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Projekty i wyniki</h2>
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Zwycięzcy</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">9 zespołów, 2 wyzwania, setki godzin pracy</p>
-          <div className="w-20 h-1 bg-gradient-to-r from-amber-400 to-cyan-400 mx-auto mt-4" />
+          <div className="w-20 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mt-4" />
         </motion.div>
 
         {/* Winners */}
         <div className="mb-12">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-amber-400 text-center mb-6 flex items-center justify-center gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-pink-400 text-center mb-6 flex items-center justify-center gap-2">
             <Trophy className="w-4 h-4" /> Zwycięzcy
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
@@ -59,12 +59,12 @@ export function TeamsSection() {
               return (
                 <motion.div key={team.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}>
                   <Link to={`/zespoly/${team.id}`}
-                    className="group block p-6 bg-gradient-to-br from-amber-500/5 to-orange-500/3 border border-amber-500/20 rounded-2xl hover:border-amber-500/40 transition-all h-full">
+                    className="group block p-6 bg-gradient-to-br from-pink-500/5 to-purple-500/3 border border-pink-500/20 rounded-2xl hover:border-pink-500/40 transition-all h-full">
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/20 rounded-full text-amber-400 text-xs font-bold">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-pink-500/20 rounded-full text-pink-400 text-xs font-bold">
                         <Trophy className="w-3 h-3" /> {team.placementLabel}
                       </span>
-                      {scores && <span className="ml-auto text-amber-400 font-black text-lg">{scores.total}/80</span>}
+                      {scores && <span className="ml-auto text-pink-400 font-black text-lg">{scores.total}/80</span>}
                     </div>
                     <h3 className="text-lg font-bold text-white mb-1">{team.name}</h3>
                     {team.projectName && <p className="text-cyan-400 text-xs font-medium mb-2">{team.projectName}</p>}
@@ -79,7 +79,7 @@ export function TeamsSection() {
                     )}
                     <div className="flex items-center justify-between">
                       <span className="text-gray-500 text-[10px]"><Users className="w-3 h-3 inline mr-1" />{team.members.join(', ')}</span>
-                      <ArrowRight className="w-4 h-4 text-amber-400 opacity-0 group-hover:opacity-100 transition-all" />
+                      <ArrowRight className="w-4 h-4 text-pink-400 opacity-0 group-hover:opacity-100 transition-all" />
                     </div>
                   </Link>
                 </motion.div>

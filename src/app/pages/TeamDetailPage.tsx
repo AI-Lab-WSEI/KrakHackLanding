@@ -39,7 +39,7 @@ export function TeamDetailPage() {
         <div className="absolute inset-0 opacity-10">
           <img src="/assets/marble-texture.png" alt="" className="w-full h-full object-cover" />
         </div>
-        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] ${isWinner ? 'bg-amber-500' : 'bg-cyan-500'} opacity-10 rounded-full blur-[120px]`} />
+        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] ${isWinner ? 'bg-pink-500' : 'bg-cyan-500'} opacity-10 rounded-full blur-[120px]`} />
 
         <div className="container mx-auto px-4 relative z-10">
           <Link to="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors mb-8 text-sm">
@@ -49,7 +49,7 @@ export function TeamDetailPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="flex items-center gap-3 mb-4 flex-wrap">
               {isWinner && (
-                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-amber-400 text-sm font-bold">
+                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-pink-500/20 border border-pink-500/30 rounded-full text-pink-400 text-sm font-bold">
                   <Trophy className="w-4 h-4" /> {team.placementLabel}
                 </span>
               )}
@@ -148,8 +148,8 @@ export function TeamDetailPage() {
             <div className="container mx-auto px-4">
               <div className="max-w-3xl mx-auto">
                 <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-amber-400" /> Ocena jury
-                  <span className="ml-auto text-3xl font-black text-amber-400">{scores.total}/80</span>
+                  <Trophy className="w-5 h-5 text-pink-400" /> Ocena jury
+                  <span className="ml-auto text-3xl font-black text-pink-400">{scores.total}/80</span>
                 </h2>
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
                   {cats.map((cat) => {

@@ -48,7 +48,7 @@ export function ResultsTable() {
         >
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Wyniki</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">Oceny jury w czterech kategoriach: innowacyjność, wartość techniczna, użyteczność i jakość prezentacji</p>
-          <div className="w-20 h-1 bg-gradient-to-r from-amber-400 to-orange-500 mx-auto mt-4" />
+          <div className="w-20 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mt-4" />
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
@@ -74,14 +74,14 @@ export function ResultsTable() {
               if (!team) return null;
               return (
                 <Link key={r.teamId} to={`/zespoly/${r.teamId}`} className="block group">
-                  <div className={`p-4 rounded-2xl border transition-all ${idx === 0 ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40' : 'bg-white/3 border-white/8 hover:border-white/20'}`}>
+                  <div className={`p-4 rounded-2xl border transition-all ${idx === 0 ? 'bg-pink-500/5 border-pink-500/20 hover:border-pink-500/40' : 'bg-white/3 border-white/8 hover:border-white/20'}`}>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className={`text-sm font-bold ${idx === 0 ? 'text-amber-400' : 'text-gray-400'}`}>
+                      <span className={`text-sm font-bold ${idx === 0 ? 'text-pink-400' : 'text-gray-400'}`}>
                         {idx === 0 && <Trophy className="w-4 h-4 inline mr-1" />}
                         {r.placement}. miejsce
                       </span>
                       <span className="text-white font-bold">{team.name}</span>
-                      <span className={`ml-auto text-lg font-black ${idx === 0 ? 'text-amber-400' : 'text-cyan-400'}`}>{r.scores.total}/{geo.maxTotal}</span>
+                      <span className={`ml-auto text-lg font-black ${idx === 0 ? 'text-pink-400' : 'text-cyan-400'}`}>{r.scores.total}/{geo.maxTotal}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                       <ScoreBar value={r.scores.innovation} max={geo.maxScorePerCategory} color="bg-gradient-to-r from-cyan-500 to-blue-500" label="Innowacyjność" />
@@ -117,14 +117,14 @@ export function ResultsTable() {
               if (!team) return null;
               return (
                 <Link key={r.teamId} to={`/zespoly/${r.teamId}`} className="block group">
-                  <div className={`p-4 rounded-2xl border transition-all ${idx === 0 ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40' : 'bg-white/3 border-white/8 hover:border-white/20'}`}>
+                  <div className={`p-4 rounded-2xl border transition-all ${idx === 0 ? 'bg-pink-500/5 border-pink-500/20 hover:border-pink-500/40' : 'bg-white/3 border-white/8 hover:border-white/20'}`}>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className={`text-sm font-bold ${idx === 0 ? 'text-amber-400' : 'text-gray-400'}`}>
+                      <span className={`text-sm font-bold ${idx === 0 ? 'text-pink-400' : 'text-gray-400'}`}>
                         {idx === 0 && <Trophy className="w-4 h-4 inline mr-1" />}
                         {r.placement}. miejsce
                       </span>
                       <span className="text-white font-bold">{team.name}</span>
-                      <span className={`ml-auto text-lg font-black ${idx === 0 ? 'text-amber-400' : 'text-cyan-400'}`}>{r.scores.total}/{proc.maxTotal}</span>
+                      <span className={`ml-auto text-lg font-black ${idx === 0 ? 'text-pink-400' : 'text-cyan-400'}`}>{r.scores.total}/{proc.maxTotal}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                       <ScoreBar value={r.scores.innovation} max={proc.maxScorePerCategory} color="bg-gradient-to-r from-cyan-500 to-blue-500" label="Innowacyjność" />
