@@ -3,7 +3,7 @@ import { getAdminToken } from './AdminAuth';
 import { motion } from 'motion/react';
 import {
   Trophy, Settings, RefreshCw, Save, AlertCircle, CheckCircle,
-  Plus, Trash2, ChevronDown, ChevronUp, Eye, Loader2, Users,
+  Plus, Trash2, ChevronDown, ChevronUp, Eye, Loader2, Users, BarChart3,
 } from 'lucide-react';
 
 interface JuryScore {
@@ -308,6 +308,18 @@ function EditionConfigTab({ edition }: { edition: number }) {
     update('jury_members', (config?.jury_members || []).filter((_, i) => i !== idx));
   };
 
+  const addScoringCategory = () => {
+    update('scoring_categories', [...(config?.scoring_categories || []), { id: '', label: '', maxScore: 20 }]);
+  };
+
+  const removeScoringCategory = (idx: number) => {
+    update('scoring_categories', (config?.scoring_categories || []).filter((_, i) => i !== idx));
+  };
+
+  const slugify = (label: string) =>
+    label.toLowerCase().replace(/ą/g,'a').replace(/ę/g,'e').replace(/ó/g,'o').replace(/ś/g,'s').replace(/ł/g,'l').replace(/ż|ź/g,'z').replace(/ć/g,'c').replace(/ń/g,'n')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -455,6 +467,90 @@ function EditionConfigTab({ edition }: { edition: number }) {
             </button>
           </div>
         ))}
+      </div>
+
+      {/* Scoring categories */}
+      <div className="bg-white/3 border border-white/10 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-white font-bold text-sm flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-pink-400" /> Kategorie oceniania
+            </h3>
+            <p className="text-[10px] text-gray-600 mt-0.5">Definiują co jury ocenia — używane w panelu jurora i przy wyświetlaniu wyników</p>
+          </div>
+          <button onClick={addScoringCategory} className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-500/20 hover:bg-pink-500/30 text-pink-400 rounded-lg text-xs font-bold transition-all">
+            <Plus className="w-3 h-3" /> Dodaj
+          </button>
+        </div>
+
+        {(config.scoring_categories || []).length === 0 && (
+          <p className="text-gray-600 text-xs text-center py-4">Brak kategorii — kliknij Dodaj</p>
+        )}
+
+        <div className="space-y-2">
+          {(config.scoring_categories || []).map((cat, idx) => (
+            <div key={idx} className="grid grid-cols-[1fr_2fr_100px_auto] gap-3 items-center">
+              <div>
+                {idx === 0 && <label className="block text-[10px] text-gray-600 mb-1">ID (slug)</label>}
+                <input
+                  type="text"
+                  value={cat.id}
+                  onChange={e => {
+                    const updated = [...(config.scoring_categories || [])];
+                    updated[idx] = { ...updated[idx], id: e.target.value };
+                    update('scoring_categories', updated);
+                  }}
+                  placeholder="np. innovation"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-pink-500/50"
+                />
+              </div>
+              <div>
+                {idx === 0 && <label className="block text-[10px] text-gray-600 mb-1">Nazwa wyświetlana</label>}
+                <input
+                  type="text"
+                  value={cat.label}
+                  onChange={e => {
+                    const updated = [...(config.scoring_categories || [])];
+                    const newLabel = e.target.value;
+                    // Auto-fill ID from label if ID is empty or was auto-generated
+                    const autoId = !updated[idx].id || updated[idx].id === slugify(cat.label);
+                    updated[idx] = { ...updated[idx], label: newLabel, id: autoId ? slugify(newLabel) : updated[idx].id };
+                    update('scoring_categories', updated);
+                  }}
+                  placeholder="np. Innowacyjność"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500/50"
+                />
+              </div>
+              <div>
+                {idx === 0 && <label className="block text-[10px] text-gray-600 mb-1">Maks. pkt</label>}
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={cat.maxScore}
+                  onChange={e => {
+                    const updated = [...(config.scoring_categories || [])];
+                    updated[idx] = { ...updated[idx], maxScore: parseInt(e.target.value) || 20 };
+                    update('scoring_categories', updated);
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500/50"
+                />
+              </div>
+              <button onClick={() => removeScoringCategory(idx)} className={`p-2 text-red-400/60 hover:text-red-400 transition-colors ${idx === 0 ? 'mt-4' : ''}`}>
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {(config.scoring_categories || []).length > 0 && (
+          <div className="flex items-start gap-2 border-t border-white/5 pt-3">
+            <AlertCircle className="w-3.5 h-3.5 text-yellow-500/70 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-gray-600">
+              Zmiana kategorii po zebraniu ocen nie przelicza istniejących wyników — edycja 3 używa stałych kolumn (innovation, technicalValue, usefulness, presentationQuality). Nowe kategorie będą używane przez panel jurora w kolejnych edycjach.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Jury members */}

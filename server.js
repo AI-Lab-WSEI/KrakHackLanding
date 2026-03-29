@@ -204,6 +204,13 @@ async function initDB() {
     ALTER TABLE team_projects ADD COLUMN IF NOT EXISTS edit_history JSONB DEFAULT '[]';
   `).catch(() => {});
 
+  // Add scores_json to jury_scores for dynamic scoring categories (future editions)
+  await pool.query(`
+    ALTER TABLE jury_scores ADD COLUMN IF NOT EXISTS scores_json JSONB DEFAULT '{}';
+    ALTER TABLE jury_scores ADD COLUMN IF NOT EXISTS jury_access_id INTEGER;
+    ALTER TABLE jury_scores ADD COLUMN IF NOT EXISTS private_notes TEXT DEFAULT '';
+  `).catch(() => {});
+
   // Auto-seed team_projects from teams-seed.json if table is empty
   try {
     const countResult = await pool.query('SELECT COUNT(*) FROM team_projects');
