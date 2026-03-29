@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, Trophy, Users, Code, Check, MapPin, Cpu, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, Users, Code, Check, MapPin, Cpu, Star, Download } from 'lucide-react';
 import { getTeamBySlug, TEAMS } from '@/data/teams';
 import { Footer } from '@/app/components/Footer';
 
@@ -64,10 +64,16 @@ export function TeamDetailPage() {
 
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">{team.name}</h1>
             {team.projectName && <p className="text-xl text-cyan-400 font-medium mb-4">{team.projectName}</p>}
-            <p className="text-gray-400 flex items-center gap-2 text-sm">
+            <p className="text-gray-400 flex items-center gap-2 text-sm mb-4">
               <Users className="w-4 h-4" /> {team.members.join(', ')}
               {team.university && <> · <MapPin className="w-3 h-3" /> {team.university}</>}
             </p>
+            {team.presentationFile && (
+              <a href={team.presentationFile} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-300 text-sm hover:bg-white/10 transition-colors">
+                <Download className="w-4 h-4" /> Pobierz prezentację
+              </a>
+            )}
           </motion.div>
         </div>
       </section>
