@@ -1,6 +1,7 @@
-import { ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Link } from 'react-router';
 import { SimpleCountdown } from './SimpleCountdown';
+import { ArrowRight, ExternalLink } from 'lucide-react';
 
 interface HeroProps {
   subtitle: string;
@@ -9,81 +10,48 @@ interface HeroProps {
 }
 
 export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
+  const isPostHackathon = new Date() >= new Date('2026-03-28T18:00:00');
+
   return (
     <section id="info" className="relative flex flex-col items-center justify-center overflow-hidden bg-black" style={{ minHeight: '100dvh' }}>
-      {/* Background Image - Dark Purple Futuristic */}
+      {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img
           src="https://images.unsplash.com/photo-1762278804729-13d330fad71a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkYXJrJTIwcHVycGxlJTIwZnV0dXJpc3RpYyUyMHRlY2hub2xvZ3klMjBhYnN0cmFjdCUyMG5lb258ZW58MXx8fHwxNzcwMTUxNDYzfDA&ixlib=rb-4.1.0&q=80&w=1080"
           alt="AI Krak Hack Futuristic Background"
           className="w-full h-full object-cover opacity-60"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-purple-950/40 to-black/90"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-purple-950/40 to-black/90" />
       </div>
 
-      {/* Animated gradient overlay - enhanced purple atmosphere */}
+      {/* Animated gradient overlay */}
       <div className="absolute inset-0 z-0">
-        <motion.div 
-          animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.4, 0.3]
-          }}
-          transition={{ 
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.4, 0.3] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
           className="absolute top-0 right-0 w-1/2 h-1/2 bg-purple-600/30 blur-[120px] rounded-full"
-        ></motion.div>
-        <motion.div 
-          animate={{ 
-            scale: [1, 1.3, 1],
-            opacity: [0.25, 0.35, 0.25]
-          }}
-          transition={{ 
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1
-          }}
+        />
+        <motion.div
+          animate={{ scale: [1, 1.3, 1], opacity: [0.25, 0.35, 0.25] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
           className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-fuchsia-600/25 blur-[120px] rounded-full"
-        ></motion.div>
-        <motion.div 
-          animate={{ 
-            scale: [1, 1.15, 1],
-            opacity: [0.15, 0.25, 0.15]
-          }}
-          transition={{ 
-            duration: 7,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2
-          }}
+        />
+        <motion.div
+          animate={{ scale: [1, 1.15, 1], opacity: [0.15, 0.25, 0.15] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2/3 h-2/3 bg-cyan-500/20 blur-[150px] rounded-full"
-        ></motion.div>
+        />
       </div>
 
-      {/* Floating particles effect */}
+      {/* Floating particles */}
       <div className="absolute inset-0 z-0">
         {[...Array(20)].map((_, i) => (
           <motion.div
             key={i}
             className="absolute w-1 h-1 bg-cyan-400/30 rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              y: [0, -30, 0],
-              opacity: [0.3, 0.8, 0.3],
-              scale: [1, 1.5, 1]
-            }}
-            transition={{
-              duration: 3 + Math.random() * 4,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-              ease: "easeInOut"
-            }}
+            style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%` }}
+            animate={{ y: [0, -30, 0], opacity: [0.3, 0.8, 0.3], scale: [1, 1.5, 1] }}
+            transition={{ duration: 3 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 2, ease: "easeInOut" }}
           />
         ))}
       </div>
@@ -97,7 +65,7 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
           className="max-w-5xl mx-auto"
         >
           {isArchive && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
@@ -106,108 +74,128 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
               <span className="text-gray-300 text-sm font-medium">Archiwum</span>
             </motion.div>
           )}
-          
-          {/* Large AI Krak Hack Central Logo */}
+
+          {/* Logo */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3, duration: 0.8 }}
             className="flex flex-col items-center justify-center mb-8"
           >
-            {/* Recruitment Status Pill - Moved above logo */}
-            {!isArchive && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className={`inline-flex items-center gap-2 px-6 py-2 backdrop-blur-xl border rounded-full shadow-lg mb-8 ${
-                  new Date() >= new Date('2026-03-27T18:00:00')
-                    ? 'bg-red-500/10 border-red-500/30 shadow-red-500/10'
-                    : 'bg-green-500/10 border-green-500/30 border shadow-green-500/10'
-                }`}
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className={`w-2 h-2 rounded-full ${
-                    new Date() >= new Date('2026-03-27T18:00:00') ? 'bg-red-400' : 'bg-green-400'
-                  }`}
-                ></motion.div>
-                <span className={`font-bold uppercase tracking-[0.2em] text-[10px] ${
-                  new Date() >= new Date('2026-03-27T18:00:00') ? 'text-red-300' : 'text-green-300'
-                }`}>
-                  {new Date() >= new Date('2026-03-27T18:00:00') ? 'Rekrutacja uczestników zamknięta' : 'Rekrutacja otwarta'}
-                </span>
-              </motion.div>
-            )}
-
-            <img 
+            <img
               src="https://res.cloudinary.com/dyux0lw71/image/upload/v1770832103/ai-krak-hack-central_frj1yg.svg"
               alt="AI Krak Hack 2026"
               className="w-full max-w-2xl md:max-w-3xl lg:max-w-4xl h-auto opacity-90 hover:opacity-100 transition-opacity duration-300"
             />
           </motion.div>
 
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="text-lg md:text-xl lg:text-2xl text-gray-200 mb-8 max-w-4xl mx-auto leading-relaxed font-light"
-          >
-            {subtitle}
-          </motion.p>
+          {/* Post-hackathon: clean message + two buttons */}
+          {!isArchive && isPostHackathon && (
+            <>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="text-lg md:text-xl lg:text-2xl text-gray-200 mb-12 max-w-3xl mx-auto leading-relaxed font-light"
+              >
+                Udało nam się po raz kolejny zmierzyć z wyzwaniami naszego miejskiego otoczenia, wykorzystując potencjał AI!
+              </motion.p>
 
-          {/* Countdown Timer - Integrated */}
-          {!isArchive && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="mb-12"
-            >
-              <SimpleCountdown />
-            </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                className="flex flex-col sm:flex-row items-center justify-center gap-4"
+              >
+                <Link
+                  to="/survey"
+                  className="px-10 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(6,182,212,0.3)] hover:shadow-[0_0_50px_rgba(6,182,212,0.5)] hover:-translate-y-1 relative overflow-hidden group"
+                >
+                  <span className="relative z-10">Wypełnij ankietę</span>
+                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                </Link>
+
+                <a
+                  href="https://ai.possibilitieslab.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-10 py-5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-black uppercase tracking-widest transition-all backdrop-blur-md hover:-translate-y-1 flex items-center gap-3"
+                >
+                  Poznaj nasze koło
+                  <ExternalLink className="w-4 h-4 opacity-60" />
+                </a>
+              </motion.div>
+            </>
           )}
 
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            {!isArchive && ctaUrl && (
-              <a
-                href={new Date() > new Date('2026-03-28T21:00:00') ? '/feedback' : ctaUrl}
-                className="px-10 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(6,182,212,0.3)] hover:shadow-[0_0_50px_rgba(6,182,212,0.5)] hover:-translate-y-1 relative overflow-hidden group"
+          {/* Pre-hackathon: original subtitle + countdown + buttons */}
+          {!isArchive && !isPostHackathon && (
+            <>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="text-lg md:text-xl lg:text-2xl text-gray-200 mb-8 max-w-4xl mx-auto leading-relaxed font-light"
               >
-                <span className="relative z-10">
-                  {new Date() > new Date('2026-03-28T21:00:00') ? 'Wypełnij ankietę' : 'Zgłoś się teraz'}
-                </span>
-                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                <motion.div
-                  className="absolute inset-0 rounded-2xl border-2 border-white/50"
-                  animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0, 0.5] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-              </a>
-            )}
+                {subtitle}
+              </motion.p>
 
-            {!isArchive && (
-              <a
-                href="#harmonogram"
-                className="px-10 py-5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-black uppercase tracking-widest transition-all backdrop-blur-md hover:-translate-y-1 flex items-center gap-3"
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="mb-12"
               >
-                Harmonogram
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </a>
-            )}
-          </motion.div>
+                <SimpleCountdown />
+              </motion.div>
 
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                className="flex flex-col sm:flex-row items-center justify-center gap-4"
+              >
+                {ctaUrl && (
+                  <a
+                    href={ctaUrl}
+                    className="px-10 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(6,182,212,0.3)] hover:shadow-[0_0_50px_rgba(6,182,212,0.5)] hover:-translate-y-1 relative overflow-hidden group"
+                  >
+                    <span className="relative z-10">Zgłoś się teraz</span>
+                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                    <motion.div
+                      className="absolute inset-0 rounded-2xl border-2 border-white/50"
+                      animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0, 0.5] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  </a>
+                )}
+                <a
+                  href="#harmonogram"
+                  className="px-10 py-5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-black uppercase tracking-widest transition-all backdrop-blur-md hover:-translate-y-1 flex items-center gap-3"
+                >
+                  Harmonogram
+                  <ArrowRight className="w-5 h-5" />
+                </a>
+              </motion.div>
+            </>
+          )}
+
+          {/* Archive mode: just subtitle */}
+          {isArchive && (
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="text-lg md:text-xl lg:text-2xl text-gray-200 mb-8 max-w-4xl mx-auto leading-relaxed font-light"
+            >
+              {subtitle}
+            </motion.p>
+          )}
         </motion.div>
       </div>
 
-      {/* Scroll indicator — in flow, not absolute */}
-      {!isArchive && (
+      {/* Scroll indicator — only pre-hackathon */}
+      {!isArchive && !isPostHackathon && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -221,7 +209,7 @@ export function Hero({ subtitle, ctaUrl, isArchive = false }: HeroProps) {
                 animate={{ y: [0, 12, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                 className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]"
-              ></motion.div>
+              />
             </div>
           </div>
         </motion.div>
