@@ -57,7 +57,6 @@ export const TEAMS: TeamProject[] = [
   {
     id: 'databees',
     name: 'DataBees',
-    specialMention: 'Wyróżnienie za podejście naukowe',
     challenge: 'geospatial',
     members: ['Bartłomiej Wieloch', 'Jakub Zydroń', 'Piotr Bacior', 'Konrad Podstawski'],
     projectName: 'Digital Twin — symulacja wieloagentowa sieci komunikacyjnej Krakowa',
@@ -206,13 +205,11 @@ export const TEAMS: TeamProject[] = [
   {
     id: 'the-boys',
     name: 'The Boys',
-    placement: 2,
-    placementLabel: '2. miejsce — Process Mining',
-    challenge: 'process-automation',
+    challenge: 'geospatial',
     members: ['Tymon Szyler', 'Mikołaj Klima', 'Miłosz Nowak', 'Michał Mróz'],
     university: 'AGH',
-    projectName: 'Autonomous Compilot — automatyczna analiza procesów',
-    shortDescription: 'System AI do automatycznej analizy procesów biznesowych, redukujący czas z 3-6 tygodni do minut — reprodukcja wariantów, wykrywanie wąskich gardeł, rekomendacje.',
+    projectName: 'SMART BIKE — nawigacja rowerowa',
+    shortDescription: 'System nawigacji rowerowej z algorytmami optymalizacji tras, uwzględniający bezpieczeństwo i komfort jazdy na podstawie danych infrastrukturalnych Krakowa.',
     fullDescription: [
       'The Boys stworzyli Autonomous Compilot — system AI do automatycznej analizy procesów biznesowych. Rozwiązanie celowało w problem, który normalnie zajmuje konsultantom 3-6 tygodni.',
       'Pipeline obejmował: reprodukcję wariantów procesowych, wykrywanie opóźnień i wąskich gardeł, analizę behawioralną (click, copy-paste patterns), klasyfikację przez AI i generowanie raportu z diagramem BPMN.',
