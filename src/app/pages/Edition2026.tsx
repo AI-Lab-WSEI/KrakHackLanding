@@ -62,10 +62,6 @@ export function Edition2026() {
                       className="px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-xl transition-all shadow-lg shadow-pink-500/20 text-lg font-bold">
                       Działaj z nami
                     </Link>
-                    <a href="https://ai.possibilitieslab.org" target="_blank" rel="noopener noreferrer"
-                      className="px-8 py-4 bg-white/10 border border-white/20 hover:bg-white/15 text-white rounded-xl transition-all text-lg font-semibold">
-                      Poznaj nasze koło
-                    </a>
                   </div>
                 </motion.div>
               </div>
