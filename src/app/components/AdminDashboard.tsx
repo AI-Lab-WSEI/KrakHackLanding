@@ -28,12 +28,14 @@ import {
   FolderEdit,
   Menu,
   LogOut,
+  Images,
 } from 'lucide-react';
 import { AdminApplications } from './AdminApplications';
 import { AdminAddParticipant } from './AdminAddParticipant';
 import { AdminEditParticipant } from './AdminEditParticipant';
 import { AdminTeamProjects } from './AdminTeamProjects';
 import { AdminResults } from './AdminResults';
+import { AdminGallery } from './AdminGallery';
 
 interface Registration {
   id: string;
@@ -81,7 +83,7 @@ async function apiFetch(path: string) {
 }
 
 // Sidebar nav definition
-type TabId = 'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates' | 'applications' | 'projekty' | 'wyniki';
+type TabId = 'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates' | 'applications' | 'projekty' | 'wyniki' | 'galeria';
 
 const NAV_GROUPS: { label: string; items: { id: TabId; label: string; icon: any }[] }[] = [
   {
@@ -110,6 +112,7 @@ const NAV_GROUPS: { label: string; items: { id: TabId; label: string; icon: any 
     items: [
       { id: 'projekty', label: 'Projekty', icon: FolderEdit },
       { id: 'wyniki', label: 'Wyniki / Jury', icon: BarChart3 },
+      { id: 'galeria', label: 'Galeria', icon: Images },
       { id: 'certificates', label: 'Certyfikaty', icon: Award },
       { id: 'surveys', label: 'Ankiety', icon: MessageSquare },
     ],
@@ -1230,6 +1233,10 @@ export function AdminDashboard() {
 
               {activeTab === 'wyniki' && (
                 <AdminResults edition={selectedEdition} />
+              )}
+
+              {activeTab === 'galeria' && (
+                <AdminGallery edition={selectedEdition} />
               )}
 
               {activeTab === 'surveys' && (

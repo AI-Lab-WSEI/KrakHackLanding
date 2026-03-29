@@ -1,15 +1,49 @@
 import { motion } from 'motion/react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Images } from 'lucide-react';
+import { Link } from 'react-router';
 import { GalleryImage } from '@/types/edition';
+import { useEditionOptional } from '@/app/hooks/useEdition';
 
 interface ImageSliderProps {
-  images: GalleryImage[];
+  images?: GalleryImage[];
   title?: string;
+  editionNumber?: number;
 }
 
-export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSliderProps) {
+interface CloudinaryPhoto {
+  publicId: string;
+  url: string;
+  thumbnail: string;
+  isStarred: boolean;
+}
+
+export function ImageSlider({ images: staticImages, title = 'Z naszego wydarzenia', editionNumber }: ImageSliderProps) {
+  const edCtx = useEditionOptional();
+  const edition = editionNumber ?? edCtx?.meta?.number;
+
+  const [apiPhotos, setApiPhotos] = useState<CloudinaryPhoto[] | null>(null);
+
+  useEffect(() => {
+    if (!edition) return;
+    fetch(`/api/gallery/${edition}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.photos?.length > 0) setApiPhotos(d.photos);
+      })
+      .catch(() => {});
+  }, [edition]);
+
+  // Build final image list: API starred photos first (max 10 for carousel), then fall back to static
+  const images: GalleryImage[] = apiPhotos
+    ? apiPhotos.slice(0, 12).map(p => ({ imageUrl: p.url, alt: '' }))
+    : (staticImages || []);
+
+  // Gallery link
+  const galleryLink = edCtx ? `/edycja/${edCtx.id}/galeria` : (edition ? `/galeria/${edition}` : null);
+  const totalCount = apiPhotos?.length ?? images.length;
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
     align: 'center',
@@ -27,7 +61,6 @@ export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSli
   }, [emblaApi]);
 
   const debounceAutoplay = useCallback(() => {
-    // Stop autoplay, wait 3s after manual interaction before restarting
     if (autoplayRef.current) clearInterval(autoplayRef.current);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -158,6 +191,27 @@ export function ImageSlider({ images, title = 'Z naszego wydarzenia' }: ImageSli
             ))}
           </div>
         </div>
+
+        {/* Full gallery link */}
+        {galleryLink && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex justify-center mt-8"
+          >
+            <Link
+              to={galleryLink}
+              className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full text-sm text-gray-300 hover:text-white transition-all"
+            >
+              <Images className="w-4 h-4 text-cyan-400" />
+              Pełna galeria
+              {totalCount > images.length && (
+                <span className="text-gray-500 text-xs">({totalCount} zdjęć)</span>
+              )}
+            </Link>
+          </motion.div>
+        )}
       </div>
     </section>
   );

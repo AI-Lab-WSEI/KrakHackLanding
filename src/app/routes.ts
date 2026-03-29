@@ -17,6 +17,7 @@ import { ValueDetailPage } from '@/app/pages/ValueDetailPage';
 import { CollaborationDetailPage } from '@/app/pages/CollaborationDetailPage';
 import { TeamDetailPage } from '@/app/pages/TeamDetailPage';
 import { TeamEditPage } from '@/app/pages/TeamEditPage';
+import { GalleryPage } from '@/app/pages/GalleryPage';
 import { MembershipForm } from '@/app/pages/MembershipForm';
 import { Layout } from '@/app/Layout';
 import { EditionLayout } from '@/app/pages/EditionLayout';
@@ -50,6 +51,10 @@ export const router = createBrowserRouter([
           {
             path: 'zespoly/:slug/edytuj/:token',
             Component: TeamEditPage,
+          },
+          {
+            path: 'galeria',
+            Component: GalleryPage,
           },
           {
             path: 'zadania/:slug',

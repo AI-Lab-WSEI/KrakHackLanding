@@ -44,6 +44,7 @@ interface EditionConfig {
   jury_members: { name: string; title: string }[];
   scoring_categories: { id: string; label: string; maxScore: number }[];
   max_score_per_category: number;
+  cloudinary_collection_url: string;
 }
 
 function adminFetch(path: string, options?: RequestInit) {
@@ -614,6 +615,26 @@ function EditionConfigTab({ edition }: { edition: number }) {
             W przyszłych edycjach z wieloma jurorami system automatycznie uśredni ich oceny — każdy juror będzie miał osobny wiersz w tabeli Oceny jury.
           </p>
         )}
+      </div>
+
+      {/* Cloudinary gallery URL */}
+      <div className="bg-white/3 border border-white/10 rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 className="text-white font-bold text-sm flex items-center gap-2">
+            <Eye className="w-4 h-4 text-cyan-400" /> Galeria zdjęć — Cloudinary
+          </h3>
+          <p className="text-[10px] text-gray-600 mt-0.5">Link do kolekcji Cloudinary — zdjęcia będą widoczne w karuzeli i galerii tej edycji</p>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">URL kolekcji Cloudinary</label>
+          <input
+            type="url"
+            value={config.cloudinary_collection_url || ''}
+            onChange={e => update('cloudinary_collection_url', e.target.value)}
+            placeholder="https://collection.cloudinary.com/cloud-name/token"
+            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+          />
+        </div>
       </div>
 
       {/* Save button */}

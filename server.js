@@ -184,8 +184,18 @@ async function initDB() {
       jury_members JSONB DEFAULT '[]',
       scoring_categories JSONB DEFAULT '[]',
       max_score_per_category INTEGER DEFAULT 20,
+      cloudinary_collection_url VARCHAR(500) DEFAULT '',
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS gallery_photo_prefs (
+      id SERIAL PRIMARY KEY,
+      edition_number INTEGER NOT NULL,
+      public_id VARCHAR(500) NOT NULL,
+      is_starred BOOLEAN DEFAULT false,
+      is_hidden BOOLEAN DEFAULT false,
+      sort_order INTEGER DEFAULT 999,
+      UNIQUE(edition_number, public_id)
     );
   `);
 
@@ -209,6 +219,11 @@ async function initDB() {
     ALTER TABLE jury_scores ADD COLUMN IF NOT EXISTS scores_json JSONB DEFAULT '{}';
     ALTER TABLE jury_scores ADD COLUMN IF NOT EXISTS jury_access_id INTEGER;
     ALTER TABLE jury_scores ADD COLUMN IF NOT EXISTS private_notes TEXT DEFAULT '';
+  `).catch(() => {});
+
+  // Add cloudinary_collection_url to edition_config (migration for existing rows)
+  await pool.query(`
+    ALTER TABLE edition_config ADD COLUMN IF NOT EXISTS cloudinary_collection_url VARCHAR(500) DEFAULT '';
   `).catch(() => {});
 
   // Auto-seed team_projects from teams-seed.json if table is empty
@@ -252,8 +267,8 @@ async function initDB() {
     const cfgCheck = await pool.query('SELECT id FROM edition_config WHERE edition_number = 3 LIMIT 1');
     if (cfgCheck.rows.length === 0) {
       await pool.query(`
-        INSERT INTO edition_config (edition_number, name, status, visible_placements, show_scores, challenges, special_mentions, scoring_categories, max_score_per_category)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO edition_config (edition_number, name, status, visible_placements, show_scores, challenges, special_mentions, scoring_categories, max_score_per_category, cloudinary_collection_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       `, [3, 'AI Krak Hack 2026', 'active', 2, true,
         JSON.stringify([
           { slug: 'geospatial', label: 'Smart Infrastructure Challenge', color: 'blue' },
@@ -268,12 +283,38 @@ async function initDB() {
           { id: 'usefulness', label: 'Użyteczność', maxScore: 20 },
           { id: 'presentationQuality', label: 'Jakość prezentacji', maxScore: 20 }
         ]),
-        20
+        20,
+        'https://collection.cloudinary.com/dyux0lw71/1a4aa635d7fb8701d9d36b8acb1f9f33'
       ]);
       console.log('[DB] Auto-seeded edition_config for edition 3');
     }
   } catch (err) {
     console.error('[DB] Auto-seed edition_config failed:', err);
+  }
+
+  // Auto-seed edition_config for edition 2 (2025)
+  try {
+    const cfgCheck2 = await pool.query('SELECT id FROM edition_config WHERE edition_number = 2 LIMIT 1');
+    if (cfgCheck2.rows.length === 0) {
+      await pool.query(`
+        INSERT INTO edition_config (edition_number, name, status, visible_placements, show_scores, challenges, special_mentions, scoring_categories, max_score_per_category, cloudinary_collection_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [2, 'AI Krak Hack 2025', 'archived', 2, false,
+        JSON.stringify([]),
+        JSON.stringify([]),
+        JSON.stringify([
+          { id: 'innovation', label: 'Innowacyjność', maxScore: 20 },
+          { id: 'technicalValue', label: 'Wartość techniczna', maxScore: 20 },
+          { id: 'usefulness', label: 'Użyteczność', maxScore: 20 },
+          { id: 'presentationQuality', label: 'Jakość prezentacji', maxScore: 20 }
+        ]),
+        20,
+        'https://collection.cloudinary.com/dyux0lw71/3311482e2516e50c4033cb63b551569a'
+      ]);
+      console.log('[DB] Auto-seeded edition_config for edition 2');
+    }
+  } catch (err) {
+    console.error('[DB] Auto-seed edition_config (edition 2) failed:', err);
   }
 
   // Auto-seed jury_scores from results.json for edition 3
@@ -2940,21 +2981,23 @@ app.get('/api/admin/edition-config/:number', requireAdmin, async (req, res) => {
 // PATCH /api/admin/edition-config/:number
 app.patch('/api/admin/edition-config/:number', requireAdmin, async (req, res) => {
   try {
-    const { name, status, visible_placements, show_scores, challenges, special_mentions, jury_members, scoring_categories, max_score_per_category } = req.body;
+    const { name, status, visible_placements, show_scores, challenges, special_mentions, jury_members, scoring_categories, max_score_per_category, cloudinary_collection_url } = req.body;
     const result = await pool.query(`
-      INSERT INTO edition_config (edition_number, name, status, visible_placements, show_scores, challenges, special_mentions, jury_members, scoring_categories, max_score_per_category, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+      INSERT INTO edition_config (edition_number, name, status, visible_placements, show_scores, challenges, special_mentions, jury_members, scoring_categories, max_score_per_category, cloudinary_collection_url, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
       ON CONFLICT (edition_number) DO UPDATE SET
         name = EXCLUDED.name, status = EXCLUDED.status,
         visible_placements = EXCLUDED.visible_placements, show_scores = EXCLUDED.show_scores,
         challenges = EXCLUDED.challenges, special_mentions = EXCLUDED.special_mentions,
         jury_members = EXCLUDED.jury_members, scoring_categories = EXCLUDED.scoring_categories,
-        max_score_per_category = EXCLUDED.max_score_per_category, updated_at = NOW()
+        max_score_per_category = EXCLUDED.max_score_per_category,
+        cloudinary_collection_url = EXCLUDED.cloudinary_collection_url,
+        updated_at = NOW()
       RETURNING *
     `, [parseInt(req.params.number), name, status, visible_placements, show_scores,
         JSON.stringify(challenges || []), JSON.stringify(special_mentions || []),
         JSON.stringify(jury_members || []), JSON.stringify(scoring_categories || []),
-        max_score_per_category || 20]);
+        max_score_per_category || 20, cloudinary_collection_url || '']);
     res.json(result.rows[0]);
   } catch (err) {
     console.error('[Config] PATCH error:', err);
@@ -3021,6 +3064,281 @@ app.post('/api/admin/jury-scores', requireAdmin, async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error('[JuryScores] POST error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// ─── Gallery ─────────────────────────────────────────────────────────────────
+
+// In-memory cache: { [editionNumber]: { photos, fetchedAt } }
+const galleryCache = {};
+const GALLERY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Parse Cloudinary collection URL → { cloudName, collectionId }
+function parseCloudinaryCollectionUrl(url) {
+  if (!url) return null;
+  // https://collection.cloudinary.com/{cloud_name}/{token}
+  const m = url.match(/collection\.cloudinary\.com\/([^/]+)\/([^/?#]+)/);
+  if (!m) return null;
+  return { cloudName: m[1], collectionId: m[2] };
+}
+
+// Fetch photos from a Cloudinary collection using multiple strategies
+async function fetchCloudinaryPhotos(cloudName, collectionToken) {
+  // Strategy 1: Cloudinary Admin API — list collection by token
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+  if (apiKey && apiSecret) {
+    const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+
+    // Try the collections/access/:token endpoint (fetches assets for a shared collection)
+    try {
+      const url = `https://api.cloudinary.com/v1_1/${cloudName}/collections/access/${collectionToken}`;
+      const resp = await fetch(url, { headers: { Authorization: `Basic ${auth}` } });
+      if (resp.ok) {
+        const data = await resp.json();
+        const assets = data.assets || data.resources || [];
+        if (assets.length > 0) {
+          return assets.map(r => mapCloudinaryResource(r, cloudName));
+        }
+      }
+    } catch (e) {
+      console.warn('[Gallery] collections/access endpoint failed:', e.message);
+    }
+
+    // Try listing all collections and finding the matching one
+    try {
+      const listResp = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/collections?max_results=100`,
+        { headers: { Authorization: `Basic ${auth}` } }
+      );
+      if (listResp.ok) {
+        const listData = await listResp.json();
+        const collections = listData.collections || [];
+        const match = collections.find(c =>
+          c.external_id === collectionToken || c.share_token === collectionToken || c.id === collectionToken
+        );
+        if (match) {
+          const assetsResp = await fetch(
+            `https://api.cloudinary.com/v1_1/${cloudName}/collections/${match.id || match.external_id}?max_results=500`,
+            { headers: { Authorization: `Basic ${auth}` } }
+          );
+          if (assetsResp.ok) {
+            const assetsData = await assetsResp.json();
+            const assets = assetsData.assets || assetsData.resources || [];
+            if (assets.length > 0) {
+              return assets.map(r => mapCloudinaryResource(r, cloudName));
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Gallery] collections list endpoint failed:', e.message);
+    }
+  }
+
+  // Strategy 2: Fetch public collection page HTML and extract __NEXT_DATA__
+  try {
+    const pageUrl = `https://collection.cloudinary.com/${cloudName}/${collectionToken}`;
+    const pageResp = await fetch(pageUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GalleryBot/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (pageResp.ok) {
+      const html = await pageResp.text();
+      // Extract __NEXT_DATA__ JSON embedded in the page
+      const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]+)<\/script>/);
+      if (match) {
+        const nextData = JSON.parse(match[1]);
+        // Navigate the Next.js data structure to find assets
+        const props = nextData?.props?.pageProps;
+        const assets =
+          props?.collection?.assets ||
+          props?.assets ||
+          props?.gallery?.assets ||
+          props?.resources ||
+          [];
+        if (assets.length > 0) {
+          return assets.map(r => mapCloudinaryResourceFromPage(r, cloudName));
+        }
+      }
+      // Also try to find JSON blobs with image arrays in the HTML
+      const imgMatches = [...html.matchAll(/"public_id"\s*:\s*"([^"]+)"/g)];
+      if (imgMatches.length > 0) {
+        return imgMatches.map(m => {
+          const publicId = m[1];
+          return {
+            publicId,
+            url: `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto/${publicId}`,
+            thumbnail: `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto,w_400,c_fill/${publicId}`,
+            width: 800, height: 600, format: 'jpg', createdAt: new Date().toISOString(),
+          };
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[Gallery] Public page fetch failed:', e.message);
+  }
+
+  console.warn('[Gallery] All strategies failed for collection:', collectionToken);
+  return null;
+}
+
+function mapCloudinaryResource(r, cloudName) {
+  const publicId = r.public_id || r.publicId || r.asset_id || r.id;
+  return {
+    publicId,
+    url: r.secure_url || `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto/${publicId}`,
+    thumbnail: `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto,w_400,c_fill/${publicId}`,
+    width: r.width || 800,
+    height: r.height || 600,
+    format: r.format || 'jpg',
+    createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+  };
+}
+
+function mapCloudinaryResourceFromPage(r, cloudName) {
+  const publicId = r.public_id || r.publicId;
+  return {
+    publicId,
+    url: r.secure_url || r.url || `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto/${publicId}`,
+    thumbnail: `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto,w_400,c_fill/${publicId}`,
+    width: r.width || 800,
+    height: r.height || 600,
+    format: r.format || 'jpg',
+    createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+  };
+}
+
+// GET /api/gallery/:editionNumber — public: starred first, hidden excluded
+app.get('/api/gallery/:editionNumber', async (req, res) => {
+  try {
+    const edition = parseInt(req.params.editionNumber);
+    if (isNaN(edition)) return res.status(400).json({ error: 'Nieprawidlowy numer edycji' });
+
+    // Get edition_config for cloudinary URL
+    const cfgResult = await pool.query(
+      'SELECT cloudinary_collection_url FROM edition_config WHERE edition_number = $1',
+      [edition]
+    );
+    const collectionUrl = cfgResult.rows[0]?.cloudinary_collection_url || '';
+    const parsed = parseCloudinaryCollectionUrl(collectionUrl);
+
+    let photos = [];
+
+    // Check cache
+    const cached = galleryCache[edition];
+    if (cached && Date.now() - cached.fetchedAt < GALLERY_CACHE_TTL) {
+      photos = cached.photos;
+    } else if (parsed) {
+      const fetched = await fetchCloudinaryPhotos(parsed.cloudName, parsed.collectionId);
+      if (fetched) {
+        photos = fetched;
+        galleryCache[edition] = { photos, fetchedAt: Date.now() };
+      }
+    }
+
+    if (photos.length === 0) {
+      return res.json({ photos: [], source: 'empty' });
+    }
+
+    // Merge with prefs
+    const prefsResult = await pool.query(
+      'SELECT public_id, is_starred, is_hidden, sort_order FROM gallery_photo_prefs WHERE edition_number = $1',
+      [edition]
+    );
+    const prefsMap = {};
+    for (const p of prefsResult.rows) prefsMap[p.public_id] = p;
+
+    const enriched = photos
+      .filter(p => !prefsMap[p.publicId]?.is_hidden)
+      .map(p => ({
+        ...p,
+        isStarred: prefsMap[p.publicId]?.is_starred || false,
+        sortOrder: prefsMap[p.publicId]?.sort_order || 999,
+      }));
+
+    // Starred first, then by createdAt desc
+    enriched.sort((a, b) => {
+      if (a.isStarred && !b.isStarred) return -1;
+      if (!a.isStarred && b.isStarred) return 1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    res.json({ photos: enriched, source: 'cloudinary' });
+  } catch (err) {
+    console.error('[Gallery] GET error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// GET /api/admin/gallery/:edition — admin: all photos with prefs
+app.get('/api/admin/gallery/:edition', requireAdmin, async (req, res) => {
+  try {
+    const edition = parseInt(req.params.edition);
+
+    const cfgResult = await pool.query(
+      'SELECT cloudinary_collection_url FROM edition_config WHERE edition_number = $1',
+      [edition]
+    );
+    const collectionUrl = cfgResult.rows[0]?.cloudinary_collection_url || '';
+    const parsed = parseCloudinaryCollectionUrl(collectionUrl);
+
+    let photos = [];
+    const cached = galleryCache[edition];
+    if (cached && Date.now() - cached.fetchedAt < GALLERY_CACHE_TTL) {
+      photos = cached.photos;
+    } else if (parsed) {
+      const fetched = await fetchCloudinaryPhotos(parsed.cloudName, parsed.collectionId);
+      if (fetched) {
+        photos = fetched;
+        galleryCache[edition] = { photos, fetchedAt: Date.now() };
+      }
+    }
+
+    const prefsResult = await pool.query(
+      'SELECT public_id, is_starred, is_hidden, sort_order FROM gallery_photo_prefs WHERE edition_number = $1',
+      [edition]
+    );
+    const prefsMap = {};
+    for (const p of prefsResult.rows) prefsMap[p.public_id] = p;
+
+    const enriched = photos.map(p => ({
+      ...p,
+      isStarred: prefsMap[p.publicId]?.is_starred || false,
+      isHidden: prefsMap[p.publicId]?.is_hidden || false,
+      sortOrder: prefsMap[p.publicId]?.sort_order || 999,
+    }));
+
+    res.json({ photos: enriched, collectionUrl, hasApiCredentials: !!(process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) });
+  } catch (err) {
+    console.error('[Gallery] Admin GET error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// PATCH /api/admin/gallery/:edition/photo — set is_starred or is_hidden
+app.patch('/api/admin/gallery/:edition/photo', requireAdmin, async (req, res) => {
+  try {
+    const edition = parseInt(req.params.edition);
+    const { publicId, isStarred, isHidden } = req.body;
+    if (!publicId) return res.status(400).json({ error: 'Brak publicId' });
+
+    await pool.query(`
+      INSERT INTO gallery_photo_prefs (edition_number, public_id, is_starred, is_hidden)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (edition_number, public_id) DO UPDATE SET
+        is_starred = COALESCE(EXCLUDED.is_starred, gallery_photo_prefs.is_starred),
+        is_hidden = COALESCE(EXCLUDED.is_hidden, gallery_photo_prefs.is_hidden)
+    `, [edition, publicId, isStarred ?? null, isHidden ?? null]);
+
+    // Invalidate cache for this edition
+    delete galleryCache[edition];
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Gallery] PATCH error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
   }
 });
