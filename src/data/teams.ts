@@ -14,6 +14,7 @@ export interface TeamProject {
   technologies?: string[];
   images: TeamImage[];
   presentationSlides?: string[]; // URLs to slide screenshots
+  presentationFile?: string; // URL to PDF/PPTX
 }
 
 export interface TeamImage {
@@ -77,6 +78,7 @@ export const TEAMS: TeamProject[] = [
       'Dashboard z animacją godzinową przepustowości',
     ],
     technologies: ['Python', 'Java', 'MATSim', 'OpenStreetMap', 'GEH', 'GPR'],
+    presentationFile: '/assets/presentations/databees.pdf',
     images: [],
   },
   {
@@ -169,6 +171,7 @@ export const TEAMS: TeamProject[] = [
       'Wizja: trasy wielopunktowe, Karta Mieszkańca, dane live',
     ],
     technologies: ['Python', 'LLM', 'Structured Output', 'OpenStreetMap', 'ZTP Kraków'],
+    presentationFile: '/assets/presentations/mpz.pptx',
     images: [],
   },
   {
@@ -195,6 +198,7 @@ export const TEAMS: TeamProject[] = [
       'Identyfikacja: 4h przestoju, 452k operacji kopiowania',
     ],
     technologies: ['React', 'Python', 'AI/LLM', 'CSV processing', 'Process Mining'],
+    presentationFile: '/assets/presentations/vibecoders.pptx',
     images: [],
   },
   {
@@ -221,6 +225,7 @@ export const TEAMS: TeamProject[] = [
       'Zastosowanie: finanse, ochrona zdrowia, produkcja, e-commerce',
     ],
     technologies: ['Python', 'AI/LLM', 'BPMN', 'Process Mining'],
+    presentationFile: '/assets/presentations/the-boys.pdf',
     images: [],
   },
   {
