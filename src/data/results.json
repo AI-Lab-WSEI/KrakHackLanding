@@ -104,9 +104,8 @@
           }
         },
         {
-          "teamId": "the-boys",
+          "teamId": "process-refactor",
           "placement": 2,
-          "note": "Process Refactor — druga aplikacja zespołu The Boys",
           "scores": {
             "innovation": 11,
             "technicalValue": 14,
@@ -139,10 +138,26 @@
     }
   ],
   "scoringCategories": [
-    { "id": "innovation", "label": "Innowacyjność", "maxScore": 20 },
-    { "id": "technicalValue", "label": "Wartość techniczna", "maxScore": 20 },
-    { "id": "usefulness", "label": "Użyteczność", "maxScore": 20 },
-    { "id": "presentationQuality", "label": "Jakość prezentacji", "maxScore": 20 }
+    {
+      "id": "innovation",
+      "label": "Innowacyjność",
+      "maxScore": 20
+    },
+    {
+      "id": "technicalValue",
+      "label": "Wartość techniczna",
+      "maxScore": 20
+    },
+    {
+      "id": "usefulness",
+      "label": "Użyteczność",
+      "maxScore": 20
+    },
+    {
+      "id": "presentationQuality",
+      "label": "Jakość prezentacji",
+      "maxScore": 20
+    }
   ],
   "_meta": {
     "lastUpdated": "2026-03-29",

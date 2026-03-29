@@ -38,10 +38,11 @@ const infraTop = [
 ];
 const processTop = [
   { ...TEAMS.find(t => t.id === 'vibecoders')!, place: 1 },
+  { ...TEAMS.find(t => t.id === 'process-refactor')!, place: 2 },
 ];
 // Teams not in top winners or special mentions
 const otherTeams = TEAMS.filter(t =>
-  !['jakobiany', 'mpz', 'vibecoders'].includes(t.id) && !t.specialMention
+  !['jakobiany', 'mpz', 'vibecoders', 'process-refactor'].includes(t.id) && !t.specialMention
 );
 
 export function TeamsSection() {
@@ -97,18 +98,18 @@ export function TeamsSection() {
           })}
         </div>
 
-        {/* Row 2: 2nd place — Infrastructure | (empty) */}
+        {/* Row 2: 2nd place — Infrastructure | Process Mining */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-8">
-          {(() => {
-            const team = infraTop[1];
+          {[infraTop[1], processTop[1]].map((team, idx) => {
             const scores = getScores(team.id);
+            const challengeLabel = team.challenge === 'geospatial' ? 'Infrastructure' : 'Process Mining';
             return (
-              <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+              <motion.div key={team.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}>
                 <Link to={`/zespoly/${team.id}`}
                   className="group flex flex-col p-6 bg-white/3 border border-white/10 rounded-2xl hover:border-pink-500/30 transition-all h-full">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/10 rounded-full text-gray-300 text-xs font-bold">
-                      <Trophy className="w-3 h-3" /> 2. miejsce — Infrastructure
+                      <Trophy className="w-3 h-3" /> 2. miejsce — {challengeLabel}
                     </span>
                     {scores && <span className="ml-auto text-gray-300 font-black text-lg">{scores.total}/80</span>}
                   </div>
@@ -130,8 +131,7 @@ export function TeamsSection() {
                 </Link>
               </motion.div>
             );
-          })()}
-          <div />{/* empty right cell */}
+          })}
         </div>
 
         {/* Special mention — centered */}
