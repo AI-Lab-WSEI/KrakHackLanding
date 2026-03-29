@@ -100,6 +100,7 @@ export const TEAMS: TeamProject[] = [
       'Wybór między trasą szybszą a zdrowszą',
     ],
     technologies: ['Python', 'Graph algorithms', 'OpenStreetMap', 'GIOŚ'],
+    presentationFile: '/assets/presentations/apex-velo.pdf',
     images: [],
   },
   {
@@ -123,6 +124,7 @@ export const TEAMS: TeamProject[] = [
       'Matematyka komfortu — system wag dla unikania dróg głównych',
     ],
     technologies: ['Python', 'NetworkX', 'FastAPI', 'OpenStreetMap', 'GBF-S API'],
+    presentationFile: '/assets/presentations/beznazwy.pdf',
     images: [],
   },
   {
@@ -171,7 +173,7 @@ export const TEAMS: TeamProject[] = [
       'Wizja: trasy wielopunktowe, Karta Mieszkańca, dane live',
     ],
     technologies: ['Python', 'LLM', 'Structured Output', 'OpenStreetMap', 'ZTP Kraków'],
-    presentationFile: '/assets/presentations/mpz.pptx',
+    presentationFile: '/assets/presentations/mpz.pdf',
     images: [],
   },
   {
@@ -198,7 +200,7 @@ export const TEAMS: TeamProject[] = [
       'Identyfikacja: 4h przestoju, 452k operacji kopiowania',
     ],
     technologies: ['React', 'Python', 'AI/LLM', 'CSV processing', 'Process Mining'],
-    presentationFile: '/assets/presentations/vibecoders.pptx',
+    presentationFile: '/assets/presentations/vibecoders.pdf',
     images: [],
   },
   {
@@ -225,7 +227,7 @@ export const TEAMS: TeamProject[] = [
       'Zastosowanie: finanse, ochrona zdrowia, produkcja, e-commerce',
     ],
     technologies: ['Python', 'AI/LLM', 'BPMN', 'Process Mining'],
-    presentationFile: '/assets/presentations/the-boys.pdf',
+    presentationFile: '/assets/presentations/the-boys-slides.pdf',
     images: [],
   },
   {
