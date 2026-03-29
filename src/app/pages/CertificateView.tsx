@@ -15,7 +15,12 @@ import {
   ArrowLeft,
   Loader2,
   Fingerprint,
+  Check,
+  Star,
+  ArrowRight,
 } from 'lucide-react';
+import { TEAMS } from '@/data/teams';
+import results from '@/data/results.json';
 
 interface CertificateData {
   participant_name: string;
@@ -227,28 +232,124 @@ export function CertificateView() {
               </div>
             </motion.div>
 
-            {/* Actions */}
+            {/* Actions — unified style */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
-              className="flex gap-3 justify-center"
+              className="grid grid-cols-2 gap-3"
             >
               <button
                 onClick={shareLinkedIn}
-                className="px-6 py-3 bg-[#0A66C2]/20 hover:bg-[#0A66C2]/30 text-[#0A66C2] rounded-2xl text-xs font-bold flex items-center gap-2 transition-all border border-[#0A66C2]/30"
+                className="px-5 py-3 bg-[#0A66C2]/15 hover:bg-[#0A66C2]/25 text-[#0A66C2] rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all border border-[#0A66C2]/20"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                Udostepnij na LinkedIn
+                LinkedIn
               </button>
               <button
                 onClick={copyLink}
-                className="px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-400 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all border border-white/10"
+                className="px-5 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all border border-cyan-500/20 shadow-[0_0_8px_rgba(6,182,212,0.05)]"
               >
                 <Copy className="w-3.5 h-3.5" />
                 {copied ? 'Skopiowano!' : 'Kopiuj link'}
               </button>
             </motion.div>
+
+            {/* Team project info — extended cert section */}
+            {cert && (() => {
+              const team = TEAMS.find(t => t.members.some(m =>
+                cert.participant_name.toLowerCase().includes(m.split(' ').pop()?.toLowerCase() || '') &&
+                cert.participant_name.toLowerCase().includes(m.split(' ')[0]?.toLowerCase() || '')
+              ) && t.name.toLowerCase().includes(cert.team_name.toLowerCase().split(' ')[0]) ||
+              t.members.some(m => cert.participant_name === m));
+
+              // Try matching by team name directly
+              const teamByName = team || TEAMS.find(t =>
+                cert.team_name.toLowerCase() === t.name.toLowerCase() ||
+                cert.team_name.toLowerCase().includes(t.id.replace(/-/g, ' '))
+              );
+
+              const matchedTeam = teamByName;
+              if (!matchedTeam) return null;
+
+              // Get scores
+              let scores: any = null;
+              for (const ch of Object.values(results.challenges)) {
+                const r = (ch as any).results?.find((r: any) => r.teamId === matchedTeam.id);
+                if (r) { scores = r.scores; break; }
+              }
+              const sm = results.specialMentions.find(s => s.teamId === matchedTeam.id);
+              if (sm && (sm as any).scores) scores = (sm as any).scores;
+
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                  className={`bg-white/5 backdrop-blur-md border rounded-3xl overflow-hidden mt-4 ${isWinner ? 'border-pink-500/20' : 'border-white/10'}`}
+                >
+                  <div className="px-6 py-4 border-b border-white/5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Projekt zespołu</p>
+                  </div>
+                  <div className="px-6 py-5 space-y-4">
+                    {matchedTeam.projectName && (
+                      <h3 className="text-lg font-bold text-white">{matchedTeam.projectName}</h3>
+                    )}
+                    <p className="text-gray-400 text-sm leading-relaxed">{matchedTeam.shortDescription}</p>
+
+                    {/* Key features */}
+                    <div className="space-y-2">
+                      {matchedTeam.keyFeatures.slice(0, 4).map((f, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs text-gray-400">
+                          <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-cyan-400" />
+                          <span>{f}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Scores if available */}
+                    {scores && (
+                      <div className="bg-white/5 rounded-xl p-4 mt-3">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Ocena jury</span>
+                          <span className="text-pink-400 font-black text-lg">{scores.total}/80</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { key: 'innovation', label: 'Innowacja' },
+                            { key: 'technicalValue', label: 'Technika' },
+                            { key: 'usefulness', label: 'Użyteczność' },
+                            { key: 'presentationQuality', label: 'Prezentacja' },
+                          ].map(cat => (
+                            <div key={cat.key} className="flex justify-between text-xs">
+                              <span className="text-gray-500">{cat.label}</span>
+                              <span className="text-gray-300 font-bold">{scores[cat.key]}/20</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Special mention */}
+                    {matchedTeam.specialMention && (
+                      <div className="flex items-center gap-2 text-cyan-400 text-xs">
+                        <Star className="w-3.5 h-3.5" />
+                        <span className="font-medium">{matchedTeam.specialMention}</span>
+                      </div>
+                    )}
+
+                    {/* Link to team page */}
+                    <Link
+                      to={`/zespoly/${matchedTeam.id}`}
+                      className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/8 transition-colors group"
+                    >
+                      <span className="text-gray-300 text-sm font-medium">Zobacz pełny opis projektu</span>
+                      <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                    </Link>
+                  </div>
+                </motion.div>
+              );
+            })()}
           </div>
         ) : (
           /* ─── Invalid / Not Found ─────────────────────── */
