@@ -24,6 +24,7 @@ export function ImageSlider({ images: staticImages, title = 'Z naszego wydarzeni
   const edition = editionNumber ?? edCtx?.meta?.number;
 
   const [apiPhotos, setApiPhotos] = useState<CloudinaryPhoto[] | null>(null);
+  const [apiFetched, setApiFetched] = useState(false);
 
   useEffect(() => {
     if (!edition) return;
@@ -32,19 +33,23 @@ export function ImageSlider({ images: staticImages, title = 'Z naszego wydarzeni
       .then(d => {
         if (d?.photos?.length > 0) setApiPhotos(d.photos);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setApiFetched(true));
   }, [edition]);
 
-  // Build final image list: API starred photos first (max 10 for carousel), then fall back to static
-  const images: GalleryImage[] = apiPhotos
-    ? apiPhotos.slice(0, 12).map(p => ({ imageUrl: p.url, alt: '' }))
+  // When editionNumber is provided: wait for API, use API photos only (no static fallback)
+  // When no editionNumber: use static images directly
+  const images: GalleryImage[] = edition
+    ? (apiPhotos ? apiPhotos.slice(0, 12).map(p => ({ imageUrl: p.url, alt: '' })) : [])
     : (staticImages || []);
 
-  // Gallery link — use edCtx if inside EditionLayout, otherwise map edition number → year path
-  const editionYearMap: Record<number, string> = { 2: '2025', 3: '2026' };
+  // Don't render until API fetch resolves (avoids flash of static images)
+  if (edition && !apiFetched) return null;
+
+  // Gallery link — use basePath from EditionContext
   const galleryLink = edCtx
-    ? `/edycja/${edCtx.id}/galeria`
-    : (edition && editionYearMap[edition] ? `/edycja/${editionYearMap[edition]}/galeria` : null);
+    ? `${edCtx.basePath}/galeria`
+    : null;
   const totalCount = apiPhotos?.length ?? images.length;
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
