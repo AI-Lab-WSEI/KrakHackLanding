@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Trophy, Users, Code, Check, MapPin, Cpu, Star, Download } from 'lucide-react';
 import { getTeamBySlug, TEAMS } from '@/data/teams';
 import { Footer } from '@/app/components/Footer';
+import results from '@/data/results.json';
 
 export function TeamDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -125,11 +126,90 @@ export function TeamDetailPage() {
         </div>
       </section>
 
-      {/* Images/slides placeholder */}
+      {/* Scores — if team has results */}
+      {(() => {
+        let scores: any = null;
+        for (const ch of Object.values(results.challenges)) {
+          const r = (ch as any).results?.find((r: any) => r.teamId === team.id);
+          if (r) { scores = r.scores; break; }
+        }
+        const sm = results.specialMentions.find((s) => s.teamId === team.id);
+        if (sm && (sm as any).scores) scores = (sm as any).scores;
+        if (!scores) return null;
+        const max = 20;
+        const cats = [
+          { key: 'innovation', label: 'Innowacyjność', color: 'from-cyan-500 to-blue-500' },
+          { key: 'technicalValue', label: 'Wartość techniczna', color: 'from-blue-500 to-indigo-500' },
+          { key: 'usefulness', label: 'Użyteczność', color: 'from-indigo-500 to-purple-500' },
+          { key: 'presentationQuality', label: 'Jakość prezentacji', color: 'from-purple-500 to-pink-500' },
+        ];
+        return (
+          <section className="py-16 bg-black">
+            <div className="container mx-auto px-4">
+              <div className="max-w-3xl mx-auto">
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-amber-400" /> Ocena jury
+                  <span className="ml-auto text-3xl font-black text-amber-400">{scores.total}/80</span>
+                </h2>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+                  {cats.map((cat) => {
+                    const val = scores[cat.key];
+                    const pct = (val / max) * 100;
+                    return (
+                      <div key={cat.key}>
+                        <div className="flex justify-between text-sm mb-1.5">
+                          <span className="text-gray-400">{cat.label}</span>
+                          <span className="text-white font-bold">{val}/{max}</span>
+                        </div>
+                        <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${pct}%` }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8, ease: 'easeOut' }}
+                            className={`h-full rounded-full bg-gradient-to-r ${cat.color}`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* Presentation PDF viewer */}
+      {team.presentationFile && (
+        <section className="py-16 bg-gray-950">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">Prezentacja</h2>
+                <a href={team.presentationFile} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-300 text-sm hover:bg-white/10 transition-colors">
+                  <Download className="w-4 h-4" /> Pobierz PDF
+                </a>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                <iframe
+                  src={team.presentationFile}
+                  className="w-full border-0"
+                  style={{ height: '80vh', minHeight: '500px' }}
+                  title={`Prezentacja ${team.name}`}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Event photos placeholder */}
       {team.images.length > 0 && (
         <section className="py-16 bg-black">
           <div className="container mx-auto px-4">
-            <h2 className="text-2xl font-bold text-white mb-8 text-center">Z prezentacji</h2>
+            <h2 className="text-2xl font-bold text-white mb-8 text-center">Zdjęcia z wydarzenia</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               {team.images.map((img, i) => (
                 <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
