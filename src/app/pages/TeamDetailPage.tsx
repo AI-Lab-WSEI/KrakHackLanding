@@ -1,9 +1,139 @@
+import { useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, Trophy, Users, Code, Check, MapPin, Cpu, Star, Download } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ChevronLeft, ChevronRight, Trophy, Users, Code, Check, MapPin, Cpu, Star, Download, X, Monitor } from 'lucide-react';
 import { getTeamBySlug, TEAMS } from '@/data/teams';
 import { Footer } from '@/app/components/Footer';
 import results from '@/data/results.json';
+
+interface CarouselImage {
+  url: string;
+  alt: string;
+  caption?: string;
+}
+
+function ScreenshotCarousel({ images, teamName }: { images: CarouselImage[]; teamName: string }) {
+  const [current, setCurrent] = useState(0);
+  const [lightbox, setLightbox] = useState<number | null>(null);
+
+  const goTo = useCallback((idx: number) => {
+    setCurrent(((idx % images.length) + images.length) % images.length);
+  }, [images.length]);
+
+  return (
+    <>
+      <section className="py-16 bg-black">
+        <div className="container mx-auto px-4">
+          <h2 className="text-2xl font-bold text-white mb-2 text-center flex items-center justify-center gap-2">
+            <Monitor className="w-5 h-5 text-cyan-400" /> Screenshoty z platformy
+          </h2>
+          <p className="text-gray-500 text-sm text-center mb-8">{teamName} — galeria aplikacji</p>
+
+          <div className="max-w-5xl mx-auto relative group">
+            {/* Main image */}
+            <div className="relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 cursor-pointer" onClick={() => setLightbox(current)}>
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={current}
+                  src={images[current].url}
+                  alt={images[current].alt}
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full aspect-video object-contain bg-gray-950"
+                />
+              </AnimatePresence>
+              {images[current].caption && (
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-6 py-4">
+                  <p className="text-sm text-gray-300">{images[current].caption}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Nav arrows */}
+            {images.length > 1 && (
+              <>
+                <button onClick={() => goTo(current - 1)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 border border-white/10 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button onClick={() => goTo(current + 1)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 border border-white/10 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+
+            {/* Counter */}
+            <div className="absolute top-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-sm rounded-full text-xs text-gray-300 border border-white/10">
+              {current + 1} / {images.length}
+            </div>
+          </div>
+
+          {/* Thumbnails */}
+          {images.length > 1 && (
+            <div className="max-w-5xl mx-auto mt-4 flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+              {images.map((img, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrent(i)}
+                  className={`shrink-0 w-24 h-14 rounded-lg overflow-hidden border-2 transition-all ${i === current ? 'border-cyan-400 opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`}
+                >
+                  <img src={img.url} alt={img.alt} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightbox !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
+            onClick={() => setLightbox(null)}
+          >
+            <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors z-10">
+              <X className="w-5 h-5" />
+            </button>
+            {images.length > 1 && (
+              <>
+                <button onClick={(e) => { e.stopPropagation(); const n = ((lightbox - 1) % images.length + images.length) % images.length; setLightbox(n); setCurrent(n); }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors z-10">
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); const n = (lightbox + 1) % images.length; setLightbox(n); setCurrent(n); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors z-10">
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+            <motion.img
+              key={lightbox}
+              src={images[lightbox].url}
+              alt={images[lightbox].alt}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {images[lightbox].caption && (
+              <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-sm text-gray-400 bg-black/60 px-4 py-2 rounded-full backdrop-blur-sm">
+                {images[lightbox].caption}
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
 
 export function TeamDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -228,23 +358,8 @@ export function TeamDetailPage() {
 
       {/* (presentation is now at the top) */}
 
-      {/* Event photos placeholder */}
-      {team.images.length > 0 && (
-        <section className="py-16 bg-black">
-          <div className="container mx-auto px-4">
-            <h2 className="text-2xl font-bold text-white mb-8 text-center">Zdjęcia z wydarzenia</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              {team.images.map((img, i) => (
-                <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
-                  className="rounded-2xl overflow-hidden bg-white/5 border border-white/10">
-                  <img src={img.url} alt={img.alt} className="w-full h-64 object-cover" />
-                  {img.caption && <p className="p-3 text-xs text-gray-500 text-center">{img.caption}</p>}
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Screenshot carousel */}
+      {team.images.length > 0 && <ScreenshotCarousel images={team.images} teamName={team.name} />}
 
       {/* CTA */}
       <section className="py-16 bg-black border-t border-white/5">

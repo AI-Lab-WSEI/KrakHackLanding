@@ -197,10 +197,14 @@ export function AdminCertificates() {
 
   const sendCertEmail = async (id: string) => {
     try {
-      await certFetch(`/api/certificates/${id}/send-email`, { method: 'POST' });
-      showStatus('success', 'Email wyslany');
+      const result = await certFetch(`/api/certificates/${id}/send-email`, { method: 'POST' });
+      if (result.success) {
+        showStatus('success', `Email wyslany do ${result.email}`);
+      } else {
+        showStatus('error', 'Email nie zostal wyslany — sprawdz logi serwera');
+      }
     } catch (err: unknown) {
-      showStatus('error', err instanceof Error ? err.message : 'Blad');
+      showStatus('error', err instanceof Error ? err.message : 'Blad wysylki emaila');
     }
   };
 

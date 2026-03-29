@@ -1443,7 +1443,7 @@ app.post('/api/certificates/:id/send-email', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const certResult = await pool.query(
-      `SELECT c.*, s.data->>'email' as participant_email
+      `SELECT c.*, COALESCE(s.email, s.data->>'email') as participant_email
        FROM certificates c
        LEFT JOIN submissions s ON s.id = c.submission_id
        WHERE c.id = $1 AND c.status = 'issued'`,
@@ -1453,7 +1453,8 @@ app.post('/api/certificates/:id/send-email', requireAdmin, async (req, res) => {
 
     const cert = certResult.rows[0];
     const email = req.body.email || cert.participant_email;
-    if (!email) return res.status(400).json({ error: 'Brak adresu email' });
+    console.log(`[Certs] Send email for cert ${id}: participant="${cert.participant_name}", email="${email}", submission_id=${cert.submission_id}`);
+    if (!email) return res.status(400).json({ error: `Brak adresu email dla ${cert.participant_name} (submission_id: ${cert.submission_id})` });
 
     const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
     const verifyUrl = `${baseUrl}/verify/${cert.hash}`;
@@ -1493,7 +1494,10 @@ app.post('/api/certificates/:id/send-email', requireAdmin, async (req, res) => {
       `${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'} - AI Krak Hack 2026`,
       html
     );
-    res.json({ success });
+    if (!success) {
+      return res.status(500).json({ error: 'Nie udalo sie wyslac emaila (sprawdz RESEND_API_KEY i logi serwera)' });
+    }
+    res.json({ success: true, email });
   } catch (err) {
     console.error('[Certs] Email error:', err);
     res.status(500).json({ error: 'Blad wysylki emaila' });
@@ -1504,7 +1508,7 @@ app.post('/api/certificates/:id/send-email', requireAdmin, async (req, res) => {
 app.post('/api/certificates/bulk-send-email', requireAdmin, async (req, res) => {
   try {
     const certs = await pool.query(`
-      SELECT c.*, s.data->>'email' as participant_email
+      SELECT c.*, COALESCE(s.email, s.data->>'email') as participant_email
       FROM certificates c
       LEFT JOIN submissions s ON s.id = c.submission_id
       WHERE c.status = 'issued' AND c.hash IS NOT NULL
