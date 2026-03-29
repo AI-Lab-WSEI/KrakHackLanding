@@ -2300,6 +2300,38 @@ app.get('/api/admin/team-projects', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/team-projects/preview-email — Preview team edit-link email
+app.get('/api/admin/team-projects/preview-email', requireAdmin, async (req, res) => {
+  try {
+    let query, params;
+    if (req.query.id) {
+      query = 'SELECT * FROM team_projects WHERE id = $1';
+      params = [req.query.id];
+    } else {
+      query = 'SELECT * FROM team_projects WHERE edit_token IS NOT NULL ORDER BY id LIMIT 1';
+      params = [];
+    }
+    const result = await pool.query(query, params);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Brak zespolu' });
+
+    const team = result.rows[0];
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const editLink = `${baseUrl}/zespoly/${team.slug}/edytuj/${team.edit_token || 'TOKEN_PLACEHOLDER'}`;
+    const html = buildTeamEditLinkHtml(team, editLink);
+
+    res.json({
+      subject: 'Edytuj profil swojego zespolu — AI Krak Hack 2026',
+      html,
+      team_name: team.name,
+      edit_link: editLink,
+      id: team.id,
+    });
+  } catch (err) {
+    console.error('[TeamProjects] Preview email error:', err);
+    res.status(500).json({ error: 'Blad podgladu emaila' });
+  }
+});
+
 // GET /api/admin/team-projects/:id — Get single team (admin)
 app.get('/api/admin/team-projects/:id', requireAdmin, async (req, res) => {
   try {
@@ -2600,38 +2632,6 @@ function buildCertEmailHtml(cert, verifyUrl) {
   </div>
 </div>`;
 }
-
-// GET /api/admin/team-projects/preview-email — Preview team edit-link email
-app.get('/api/admin/team-projects/preview-email', requireAdmin, async (req, res) => {
-  try {
-    let query, params;
-    if (req.query.id) {
-      query = 'SELECT * FROM team_projects WHERE id = $1';
-      params = [req.query.id];
-    } else {
-      query = 'SELECT * FROM team_projects WHERE edit_token IS NOT NULL ORDER BY id LIMIT 1';
-      params = [];
-    }
-    const result = await pool.query(query, params);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Brak zespolu' });
-
-    const team = result.rows[0];
-    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
-    const editLink = `${baseUrl}/zespoly/${team.slug}/edytuj/${team.edit_token || 'TOKEN_PLACEHOLDER'}`;
-    const html = buildTeamEditLinkHtml(team, editLink);
-
-    res.json({
-      subject: 'Edytuj profil swojego zespolu — AI Krak Hack 2026',
-      html,
-      team_name: team.name,
-      edit_link: editLink,
-      id: team.id,
-    });
-  } catch (err) {
-    console.error('[TeamProjects] Preview email error:', err);
-    res.status(500).json({ error: 'Blad podgladu emaila' });
-  }
-});
 
 // POST /api/admin/team-projects/:id/send-test-email — Send team edit-link email to test address
 app.post('/api/admin/team-projects/:id/send-test-email', requireAdmin, async (req, res) => {
