@@ -50,41 +50,60 @@ export function TeamsSection() {
           <div className="w-20 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mt-4" />
         </motion.div>
 
-        {/* Winners */}
+        {/* Winners — organized by challenge, synchronized rows */}
         <div className="mb-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {WINNERS.map((team, idx) => {
+          {(() => {
+            // Build pairs: [infra_winner, process_winner] per placement row
+            const infraWinners = WINNERS.filter(t => t.challenge === 'geospatial').sort((a,b) => (a.placement||99)-(b.placement||99));
+            const processWinners = WINNERS.filter(t => t.challenge === 'process-automation').sort((a,b) => (a.placement||99)-(b.placement||99));
+            const maxRows = Math.max(infraWinners.length, processWinners.length);
+
+            function WinnerCard({ team }: { team: typeof WINNERS[0] }) {
               const scores = getScores(team.id);
+              const challengeLabel = team.challenge === 'geospatial' ? 'Infrastructure' : 'Process Mining';
               return (
-                <motion.div key={team.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}>
-                  <Link to={`/zespoly/${team.id}`}
-                    className="group block p-6 bg-gradient-to-br from-pink-500/5 to-purple-500/3 border border-pink-500/20 rounded-2xl hover:border-pink-500/40 transition-all h-full">
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-pink-500/20 rounded-full text-pink-400 text-xs font-bold">
-                        <Trophy className="w-3 h-3" /> {team.placementLabel}
-                      </span>
-                      {scores && <span className="ml-auto text-pink-400 font-black text-lg">{scores.total}/80</span>}
+                <Link to={`/zespoly/${team.id}`}
+                  className="group flex flex-col p-5 bg-gradient-to-br from-pink-500/5 to-purple-500/3 border border-pink-500/20 rounded-2xl hover:border-pink-500/40 transition-all h-full">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-pink-500/20 rounded-full text-pink-400 text-xs font-bold">
+                      <Trophy className="w-3 h-3" /> {team.placement}. miejsce — {challengeLabel}
+                    </span>
+                    {scores && <span className="ml-auto text-pink-400 font-black text-lg">{scores.total}/80</span>}
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">{team.name}</h3>
+                  {team.projectName && <p className="text-cyan-400 text-xs font-medium mb-2">{team.projectName}</p>}
+                  <p className="text-gray-400 text-sm leading-relaxed flex-1 mb-3">{team.shortDescription.slice(0, 130)}...</p>
+                  {scores && (
+                    <div className="space-y-1.5 mb-3">
+                      <ScoreMini value={scores.innovation} max={20} label="Innowacja" />
+                      <ScoreMini value={scores.technicalValue} max={20} label="Technika" />
+                      <ScoreMini value={scores.usefulness} max={20} label="Użyteczność" />
+                      <ScoreMini value={scores.presentationQuality} max={20} label="Prezentacja" />
                     </div>
-                    <h3 className="text-lg font-bold text-white mb-1">{team.name}</h3>
-                    {team.projectName && <p className="text-cyan-400 text-xs font-medium mb-2">{team.projectName}</p>}
-                    <p className="text-gray-400 text-sm leading-relaxed mb-3">{team.shortDescription.slice(0, 150)}...</p>
-                    {scores && (
-                      <div className="space-y-1.5 mb-3">
-                        <ScoreMini value={scores.innovation} max={20} label="Innowacja" />
-                        <ScoreMini value={scores.technicalValue} max={20} label="Technika" />
-                        <ScoreMini value={scores.usefulness} max={20} label="Użyteczność" />
-                        <ScoreMini value={scores.presentationQuality} max={20} label="Prezentacja" />
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500 text-[10px]"><Users className="w-3 h-3 inline mr-1" />{team.members.join(', ')}</span>
-                      <ArrowRight className="w-4 h-4 text-pink-400 opacity-0 group-hover:opacity-100 transition-all" />
-                    </div>
-                  </Link>
-                </motion.div>
+                  )}
+                  <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/5">
+                    <span className="text-gray-500 text-[10px] truncate"><Users className="w-3 h-3 inline mr-1" />{team.members.join(', ')}</span>
+                    <ArrowRight className="w-4 h-4 text-pink-400 opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2" />
+                  </div>
+                </Link>
               );
-            })}
-          </div>
+            }
+
+            return Array.from({ length: maxRows }).map((_, i) => (
+              <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-6">
+                {infraWinners[i] ? (
+                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
+                    <WinnerCard team={infraWinners[i]} />
+                  </motion.div>
+                ) : <div />}
+                {processWinners[i] ? (
+                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 + 0.05 }}>
+                    <WinnerCard team={processWinners[i]} />
+                  </motion.div>
+                ) : <div />}
+              </div>
+            ));
+          })()}
         </div>
 
         {/* Special mentions */}
