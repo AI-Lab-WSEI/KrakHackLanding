@@ -79,6 +79,52 @@ export function TeamDetailPage() {
         </div>
       </section>
 
+      {/* Presentation — at the top, right after hero */}
+      {team.presentationFile && team.presentationFile.endsWith('.pdf') && (
+        <section className="py-12 bg-gray-950">
+          <div className="container mx-auto px-4">
+            <div className="max-w-5xl mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">Prezentacja</h2>
+                <a href={team.presentationFile} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-cyan-500/20 rounded-xl text-gray-300 text-sm hover:bg-white/8 transition-colors shadow-[0_0_10px_rgba(6,182,212,0.05)]">
+                  <Download className="w-4 h-4" /> Pobierz PDF
+                </a>
+              </div>
+              <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+                <iframe
+                  src={`${team.presentationFile}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                  className="w-full border-0"
+                  style={{ height: '75vh', minHeight: '500px' }}
+                  title={`Prezentacja ${team.name}`}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Non-PDF presentation — just download button */}
+      {team.presentationFile && !team.presentationFile.endsWith('.pdf') && (
+        <section className="py-8 bg-gray-950">
+          <div className="container mx-auto px-4">
+            <div className="max-w-3xl mx-auto">
+              <a href={team.presentationFile} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-4 p-5 bg-white/5 border border-cyan-500/20 rounded-2xl hover:bg-white/8 hover:border-cyan-500/30 transition-all shadow-[0_0_15px_rgba(6,182,212,0.05)] group">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shrink-0">
+                  <Download className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-bold">Pobierz prezentację</p>
+                  <p className="text-gray-500 text-sm">Oryginalna prezentacja zespołu</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Description */}
       <section className="py-16 bg-gradient-to-b from-black to-gray-950">
         <div className="container mx-auto px-4">
@@ -180,26 +226,7 @@ export function TeamDetailPage() {
         );
       })()}
 
-      {/* Presentation download */}
-      {team.presentationFile && (
-        <section className="py-12 bg-gray-950">
-          <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto">
-              <a href={team.presentationFile} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-4 p-5 bg-white/5 border border-cyan-500/20 rounded-2xl hover:bg-white/8 hover:border-cyan-500/30 transition-all shadow-[0_0_15px_rgba(6,182,212,0.05)] group">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shrink-0">
-                  <Download className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-white font-bold">Pobierz prezentację</p>
-                  <p className="text-gray-500 text-sm">Oryginalna prezentacja zespołu w formacie PDF</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
-              </a>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* (presentation is now at the top) */}
 
       {/* Event photos placeholder */}
       {team.images.length > 0 && (
