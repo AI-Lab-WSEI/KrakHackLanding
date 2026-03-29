@@ -3,7 +3,7 @@ import { getAdminToken } from './AdminAuth';
 import { motion } from 'motion/react';
 import {
   Trophy, Settings, RefreshCw, Save, AlertCircle, CheckCircle,
-  Plus, Trash2, ChevronDown, ChevronUp, Eye, Loader2,
+  Plus, Trash2, ChevronDown, ChevronUp, Eye, Loader2, Users,
 } from 'lucide-react';
 
 interface JuryScore {
@@ -300,6 +300,14 @@ function EditionConfigTab({ edition }: { edition: number }) {
     update('special_mentions', (config?.special_mentions || []).filter((_, i) => i !== idx));
   };
 
+  const addJuror = () => {
+    update('jury_members', [...(config?.jury_members || []), { name: '', title: '' }]);
+  };
+
+  const removeJuror = (idx: number) => {
+    update('jury_members', (config?.jury_members || []).filter((_, i) => i !== idx));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -447,6 +455,69 @@ function EditionConfigTab({ edition }: { edition: number }) {
             </button>
           </div>
         ))}
+      </div>
+
+      {/* Jury members */}
+      <div className="bg-white/3 border border-white/10 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-white font-bold text-sm flex items-center gap-2">
+              <Users className="w-4 h-4 text-purple-400" /> Jurorzy
+            </h3>
+            <p className="text-[10px] text-gray-600 mt-0.5">Widoczni na stronie i używani przy uśrednianiu ocen w kolejnych edycjach</p>
+          </div>
+          <button onClick={addJuror} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-xs font-bold transition-all">
+            <Plus className="w-3 h-3" /> Dodaj jurora
+          </button>
+        </div>
+
+        {(config.jury_members || []).length === 0 && (
+          <p className="text-gray-600 text-xs text-center py-4">Brak jurorów — kliknij Dodaj jurora</p>
+        )}
+
+        <div className="space-y-2">
+          {(config.jury_members || []).map((juror, idx) => (
+            <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-3 items-center">
+              <div>
+                {idx === 0 && <label className="block text-[10px] text-gray-600 mb-1">Imię i nazwisko</label>}
+                <input
+                  type="text"
+                  value={juror.name}
+                  onChange={e => {
+                    const updated = [...(config.jury_members || [])];
+                    updated[idx] = { ...updated[idx], name: e.target.value };
+                    update('jury_members', updated);
+                  }}
+                  placeholder="np. Jan Kowalski"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+              <div>
+                {idx === 0 && <label className="block text-[10px] text-gray-600 mb-1">Tytuł / rola</label>}
+                <input
+                  type="text"
+                  value={juror.title}
+                  onChange={e => {
+                    const updated = [...(config.jury_members || [])];
+                    updated[idx] = { ...updated[idx], title: e.target.value };
+                    update('jury_members', updated);
+                  }}
+                  placeholder="np. CTO @ Firma / AI Researcher"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+              <button onClick={() => removeJuror(idx)} className={`p-2 text-red-400/60 hover:text-red-400 transition-colors ${idx === 0 ? 'mt-4' : ''}`}>
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {(config.jury_members || []).length > 0 && (
+          <p className="text-[10px] text-gray-600 border-t border-white/5 pt-3">
+            W przyszłych edycjach z wieloma jurorami system automatycznie uśredni ich oceny — każdy juror będzie miał osobny wiersz w tabeli Oceny jury.
+          </p>
+        )}
       </div>
 
       {/* Save button */}
