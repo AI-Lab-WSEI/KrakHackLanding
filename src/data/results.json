@@ -27,6 +27,62 @@
             "presentationQuality": 19,
             "total": 72
           }
+        },
+        {
+          "teamId": "konrad-podstawski",
+          "placement": 3,
+          "scores": {
+            "innovation": 19,
+            "technicalValue": 15,
+            "usefulness": 16,
+            "presentationQuality": 17,
+            "total": 67
+          }
+        },
+        {
+          "teamId": "databees",
+          "placement": 4,
+          "scores": {
+            "innovation": 16,
+            "technicalValue": 17,
+            "usefulness": 18,
+            "presentationQuality": 16,
+            "total": 67
+          }
+        },
+        {
+          "teamId": "bydgoskabears",
+          "placement": 5,
+          "scores": {
+            "innovation": 15,
+            "technicalValue": 16,
+            "usefulness": 17,
+            "presentationQuality": 18,
+            "total": 66
+          }
+        },
+        {
+          "teamId": "the-boys",
+          "placement": 6,
+          "note": "SMART BIKE — nazwa projektu w tym wyzwaniu",
+          "scores": {
+            "innovation": 15,
+            "technicalValue": 16,
+            "usefulness": 18,
+            "presentationQuality": 15,
+            "total": 64
+          }
+        },
+        {
+          "teamId": "apex-velo",
+          "placement": 7,
+          "scores": {
+            "innovation": 11,
+            "technicalValue": 11,
+            "usefulness": 11,
+            "presentationQuality": 12,
+            "total": 45
+          }
         }
       ],
       "maxScorePerCategory": 20,
@@ -58,6 +114,17 @@
             "presentationQuality": 14,
             "total": 52
           }
+        },
+        {
+          "teamId": "beznazwy",
+          "placement": 3,
+          "scores": {
+            "innovation": 8,
+            "technicalValue": 8,
+            "usefulness": 9,
+            "presentationQuality": 11,
+            "total": 36
+          }
         }
       ],
       "maxScorePerCategory": 20,
@@ -68,24 +135,12 @@
     {
       "teamId": "konrad-podstawski",
       "award": "Wyróżnienie specjalne",
-      "reason": "Jedyny solowy uczestnik hackathonu — imponujący projekt By Your Trip zrealizowany samodzielnie"
+      "reason": "Jedyny solowy uczestnik hackathonu — 3. miejsce z wynikiem 67/80, najwyższa innowacyjność (19/20)"
     },
     {
       "teamId": "databees",
       "award": "Wyróżnienie za podejście naukowe",
-      "reason": "Najbardziej naukowo zaawansowane podejście — pełna symulacja wieloagentowa z walidacją na danych rzeczywistych"
-    },
-    {
-      "teamId": "beznazwy",
-      "award": "Wyróżnienie za kreatywność",
-      "reason": "Zespół sformowany przypadkowo dzień przed hackathonem — innowacyjna integracja multimodalna",
-      "scores": {
-        "innovation": 8,
-        "technicalValue": 8,
-        "usefulness": 9,
-        "presentationQuality": 11,
-        "total": 36
-      }
+      "reason": "Najbardziej naukowo zaawansowane podejście — pełna symulacja wieloagentowa z walidacją, 67/80 na równi z 3. miejscem"
     }
   ],
   "scoringCategories": [
