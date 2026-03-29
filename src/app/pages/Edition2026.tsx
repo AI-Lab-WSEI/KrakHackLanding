@@ -37,10 +37,13 @@ export function Edition2026() {
             {/* 1. Gallery slider — right after hero */}
             {edition.gallery && <ImageSlider images={edition.gallery} title="Atmosfera AI Krak Hack" />}
 
-            {/* 2. Teams + Results (unified, top priority) */}
+            {/* 2. Results table — exact replica of jury scores */}
+            <ResultsTable />
+
+            {/* 3. Team projects */}
             <TeamsSection />
 
-            {/* 3. CTA */}
+            {/* 4. CTA */}
             <section className="py-16 bg-gradient-to-br from-black via-purple-950/40 to-black relative overflow-hidden">
               <div className="absolute inset-0">
                 <motion.div
