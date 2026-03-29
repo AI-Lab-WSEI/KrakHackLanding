@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
-import { Trophy, ArrowRight, Users, Star, Award, FileText, Download } from 'lucide-react';
-import { TEAMS, WINNERS, SPECIAL_MENTIONS, GEOSPATIAL_TEAMS, PROCESS_TEAMS } from '@/data/teams';
+import { Trophy, ArrowRight, Users, Star, Award } from 'lucide-react';
+import { TEAMS, SPECIAL_MENTIONS } from '@/data/teams';
 import results from '@/data/results.json';
 
 function getScores(teamId: string) {
@@ -9,8 +9,6 @@ function getScores(teamId: string) {
     const r = (challenge as any).results?.find((r: any) => r.teamId === teamId);
     if (r) return r.scores;
   }
-  const sm = results.specialMentions.find((s) => s.teamId === teamId);
-  if (sm && (sm as any).scores) return (sm as any).scores;
   return null;
 }
 
@@ -18,7 +16,7 @@ function ScoreMini({ value, max, label }: { value: number; max: number; label: s
   const pct = (value / max) * 100;
   return (
     <div className="flex items-center gap-2 text-[10px]">
-      <span className="text-gray-500 w-16 shrink-0">{label}</span>
+      <span className="text-gray-500 w-20 shrink-0">{label}</span>
       <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
@@ -32,6 +30,19 @@ function ScoreMini({ value, max, label }: { value: number; max: number; label: s
     </div>
   );
 }
+
+// Top 2 per challenge
+const infraTop = [
+  { ...TEAMS.find(t => t.id === 'jakobiany')!, place: 1 },
+  { ...TEAMS.find(t => t.id === 'mpz')!, place: 2 },
+];
+const processTop = [
+  { ...TEAMS.find(t => t.id === 'vibecoders')!, place: 1 },
+];
+// Teams not in top winners or special mentions
+const otherTeams = TEAMS.filter(t =>
+  !['jakobiany', 'mpz', 'vibecoders'].includes(t.id) && !t.specialMention
+);
 
 export function TeamsSection() {
   return (
@@ -50,35 +61,30 @@ export function TeamsSection() {
           <div className="w-20 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mt-4" />
         </motion.div>
 
-        {/* Winners — organized by challenge, synchronized rows */}
-        <div className="mb-12">
-          {(() => {
-            // Build pairs: [infra_winner, process_winner] per placement row
-            const infraWinners = WINNERS.filter(t => t.challenge === 'geospatial').sort((a,b) => (a.placement||99)-(b.placement||99));
-            const processWinners = WINNERS.filter(t => t.challenge === 'process-automation').sort((a,b) => (a.placement||99)-(b.placement||99));
-            const maxRows = Math.max(infraWinners.length, processWinners.length);
-
-            function WinnerCard({ team }: { team: typeof WINNERS[0] }) {
-              const scores = getScores(team.id);
-              const challengeLabel = team.challenge === 'geospatial' ? 'Infrastructure' : 'Process Mining';
-              return (
+        {/* Row 1: 1st place — Infrastructure | Process Mining */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-6">
+          {[infraTop[0], processTop[0]].map((team, idx) => {
+            const scores = getScores(team.id);
+            const challengeLabel = team.challenge === 'geospatial' ? 'Infrastructure' : 'Process Mining';
+            return (
+              <motion.div key={team.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}>
                 <Link to={`/zespoly/${team.id}`}
-                  className="group flex flex-col p-5 bg-gradient-to-br from-pink-500/5 to-purple-500/3 border border-pink-500/20 rounded-2xl hover:border-pink-500/40 transition-all h-full">
+                  className="group flex flex-col p-6 bg-gradient-to-br from-pink-500/5 to-purple-500/3 border border-pink-500/20 rounded-2xl hover:border-pink-500/40 transition-all h-full">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-pink-500/20 rounded-full text-pink-400 text-xs font-bold">
-                      <Trophy className="w-3 h-3" /> {team.placement}. miejsce — {challengeLabel}
+                      <Trophy className="w-3 h-3" /> 1. miejsce — {challengeLabel}
                     </span>
                     {scores && <span className="ml-auto text-pink-400 font-black text-lg">{scores.total}/80</span>}
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1">{team.name}</h3>
                   {team.projectName && <p className="text-cyan-400 text-xs font-medium mb-2">{team.projectName}</p>}
-                  <p className="text-gray-400 text-sm leading-relaxed flex-1 mb-3">{team.shortDescription.slice(0, 130)}...</p>
+                  <p className="text-gray-400 text-sm leading-relaxed flex-1 mb-3">{team.shortDescription.slice(0, 140)}...</p>
                   {scores && (
                     <div className="space-y-1.5 mb-3">
-                      <ScoreMini value={scores.innovation} max={20} label="Innowacja" />
-                      <ScoreMini value={scores.technicalValue} max={20} label="Technika" />
+                      <ScoreMini value={scores.innovation} max={20} label="Innowacyjność" />
+                      <ScoreMini value={scores.technicalValue} max={20} label="Wart. techniczna" />
                       <ScoreMini value={scores.usefulness} max={20} label="Użyteczność" />
-                      <ScoreMini value={scores.presentationQuality} max={20} label="Prezentacja" />
+                      <ScoreMini value={scores.presentationQuality} max={20} label="Jakość prez." />
                     </div>
                   )}
                   <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/5">
@@ -86,42 +92,61 @@ export function TeamsSection() {
                     <ArrowRight className="w-4 h-4 text-pink-400 opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2" />
                   </div>
                 </Link>
-              );
-            }
-
-            return Array.from({ length: maxRows }).map((_, i) => (
-              <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-6">
-                {infraWinners[i] ? (
-                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-                    <WinnerCard team={infraWinners[i]} />
-                  </motion.div>
-                ) : <div />}
-                {processWinners[i] ? (
-                  <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 + 0.05 }}>
-                    <WinnerCard team={processWinners[i]} />
-                  </motion.div>
-                ) : <div />}
-              </div>
-            ));
-          })()}
+              </motion.div>
+            );
+          })}
         </div>
 
-        {/* Special mentions */}
-        {SPECIAL_MENTIONS.length > 0 && (
-          <div className="mb-12">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-cyan-400 text-center mb-6 flex items-center justify-center gap-2">
-              <Award className="w-4 h-4" /> Wyróżnienia specjalne
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
-              {SPECIAL_MENTIONS.map((team) => (
-                <Link key={team.id} to={`/zespoly/${team.id}`}
-                  className="group p-4 bg-white/3 border border-cyan-500/15 rounded-2xl hover:border-cyan-500/30 transition-all text-center">
-                  <Star className="w-5 h-5 text-cyan-400 mx-auto mb-2" />
-                  <h4 className="text-white font-bold text-sm mb-1">{team.name}</h4>
-                  <p className="text-cyan-400 text-[10px] font-medium">{team.specialMention}</p>
+        {/* Row 2: 2nd place — Infrastructure | (empty) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-8">
+          {(() => {
+            const team = infraTop[1];
+            const scores = getScores(team.id);
+            return (
+              <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+                <Link to={`/zespoly/${team.id}`}
+                  className="group flex flex-col p-6 bg-white/3 border border-white/10 rounded-2xl hover:border-pink-500/30 transition-all h-full">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/10 rounded-full text-gray-300 text-xs font-bold">
+                      <Trophy className="w-3 h-3" /> 2. miejsce — Infrastructure
+                    </span>
+                    {scores && <span className="ml-auto text-gray-300 font-black text-lg">{scores.total}/80</span>}
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">{team.name}</h3>
+                  {team.projectName && <p className="text-cyan-400 text-xs font-medium mb-2">{team.projectName}</p>}
+                  <p className="text-gray-400 text-sm leading-relaxed flex-1 mb-3">{team.shortDescription.slice(0, 140)}...</p>
+                  {scores && (
+                    <div className="space-y-1.5 mb-3">
+                      <ScoreMini value={scores.innovation} max={20} label="Innowacyjność" />
+                      <ScoreMini value={scores.technicalValue} max={20} label="Wart. techniczna" />
+                      <ScoreMini value={scores.usefulness} max={20} label="Użyteczność" />
+                      <ScoreMini value={scores.presentationQuality} max={20} label="Jakość prez." />
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/5">
+                    <span className="text-gray-500 text-[10px] truncate"><Users className="w-3 h-3 inline mr-1" />{team.members.join(', ')}</span>
+                    <ArrowRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2" />
+                  </div>
                 </Link>
-              ))}
-            </div>
+              </motion.div>
+            );
+          })()}
+          <div />{/* empty right cell */}
+        </div>
+
+        {/* Special mention — centered */}
+        {SPECIAL_MENTIONS.length > 0 && (
+          <div className="mb-12 max-w-md mx-auto">
+            {SPECIAL_MENTIONS.map((team) => (
+              <motion.div key={team.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+                <Link to={`/zespoly/${team.id}`}
+                  className="group block p-5 bg-white/3 border border-cyan-500/15 rounded-2xl hover:border-cyan-500/30 transition-all text-center">
+                  <Star className="w-6 h-6 text-cyan-400 mx-auto mb-2" />
+                  <h4 className="text-white font-bold mb-1">{team.name}</h4>
+                  <p className="text-cyan-400 text-xs font-medium">{team.specialMention}</p>
+                </Link>
+              </motion.div>
+            ))}
           </div>
         )}
 
@@ -129,21 +154,17 @@ export function TeamsSection() {
         <div>
           <h3 className="text-sm font-bold uppercase tracking-widest text-gray-500 text-center mb-6">Wszystkie zespoły</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
-            {TEAMS.filter((t) => !t.placement).map((team, idx) => {
+            {otherTeams.map((team, idx) => {
               const scores = getScores(team.id);
               return (
                 <motion.div key={team.id} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.05 }}>
                   <Link to={`/zespoly/${team.id}`}
-                    className="group flex flex-col p-4 bg-white/3 border border-white/8 rounded-2xl hover:bg-white/5 hover:border-white/15 transition-all h-full min-h-[180px]">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    className="group flex flex-col p-4 bg-white/3 border border-white/8 rounded-2xl hover:bg-white/5 hover:border-white/15 transition-all h-full min-h-[160px]">
+                    <div className="flex items-center gap-2 mb-2">
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${team.challenge === 'geospatial' ? 'bg-blue-500/15 text-blue-400' : 'bg-purple-500/15 text-purple-400'}`}>
                         {team.challenge === 'geospatial' ? 'Infrastructure' : 'Process'}
                       </span>
-                      {team.specialMention && (
-                        <Star className="w-3 h-3 text-cyan-400" />
-                      )}
                       {scores && <span className="ml-auto text-gray-500 text-xs font-bold">{scores.total}/80</span>}
-                      {team.presentationFile && <FileText className="w-3 h-3 text-gray-600" />}
                     </div>
                     <h3 className="text-white font-bold text-sm mb-1">{team.name}</h3>
                     {team.projectName && <p className="text-gray-500 text-[10px] mb-1">{team.projectName}</p>}
