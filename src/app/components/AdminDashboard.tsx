@@ -33,6 +33,7 @@ import { AdminApplications } from './AdminApplications';
 import { AdminAddParticipant } from './AdminAddParticipant';
 import { AdminEditParticipant } from './AdminEditParticipant';
 import { AdminTeamProjects } from './AdminTeamProjects';
+import { AdminResults } from './AdminResults';
 
 interface Registration {
   id: string;
@@ -80,7 +81,7 @@ async function apiFetch(path: string) {
 }
 
 // Sidebar nav definition
-type TabId = 'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates' | 'applications' | 'projekty';
+type TabId = 'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates' | 'applications' | 'projekty' | 'wyniki';
 
 const NAV_GROUPS: { label: string; items: { id: TabId; label: string; icon: any }[] }[] = [
   {
@@ -108,6 +109,7 @@ const NAV_GROUPS: { label: string; items: { id: TabId; label: string; icon: any 
     label: 'Po evencie',
     items: [
       { id: 'projekty', label: 'Projekty', icon: FolderEdit },
+      { id: 'wyniki', label: 'Wyniki / Jury', icon: BarChart3 },
       { id: 'certificates', label: 'Certyfikaty', icon: Award },
       { id: 'surveys', label: 'Ankiety', icon: MessageSquare },
     ],
@@ -1224,6 +1226,10 @@ export function AdminDashboard() {
 
               {activeTab === 'projekty' && (
                 <AdminTeamProjects edition={selectedEdition} />
+              )}
+
+              {activeTab === 'wyniki' && (
+                <AdminResults edition={selectedEdition} />
               )}
 
               {activeTab === 'surveys' && (

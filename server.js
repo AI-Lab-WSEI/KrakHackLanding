@@ -156,6 +156,37 @@ async function initDB() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       UNIQUE(edition_number, slug)
     );
+    CREATE TABLE IF NOT EXISTS jury_scores (
+      id SERIAL PRIMARY KEY,
+      edition_number INTEGER NOT NULL DEFAULT 3,
+      team_project_id INTEGER REFERENCES team_projects(id) ON DELETE SET NULL,
+      team_slug VARCHAR(100) NOT NULL,
+      challenge VARCHAR(50) NOT NULL,
+      juror_name VARCHAR(255) DEFAULT 'Jury',
+      innovation INTEGER DEFAULT 0,
+      technical_value INTEGER DEFAULT 0,
+      usefulness INTEGER DEFAULT 0,
+      presentation_quality INTEGER DEFAULT 0,
+      notes TEXT DEFAULT '',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(edition_number, team_slug, juror_name)
+    );
+    CREATE TABLE IF NOT EXISTS edition_config (
+      id SERIAL PRIMARY KEY,
+      edition_number INTEGER UNIQUE NOT NULL,
+      name VARCHAR(255) DEFAULT '',
+      status VARCHAR(50) DEFAULT 'active',
+      visible_placements INTEGER DEFAULT 2,
+      show_scores BOOLEAN DEFAULT true,
+      challenges JSONB DEFAULT '[]',
+      special_mentions JSONB DEFAULT '[]',
+      jury_members JSONB DEFAULT '[]',
+      scoring_categories JSONB DEFAULT '[]',
+      max_score_per_category INTEGER DEFAULT 20,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
   `);
 
   // Add email_last_sent_at column if it doesn't exist (migration)
@@ -207,6 +238,67 @@ async function initDB() {
     }
   } catch (err) {
     console.error('[DB] Auto-seed team_projects failed:', err);
+  }
+
+  // Auto-seed edition_config for edition 3
+  try {
+    const cfgCheck = await pool.query('SELECT id FROM edition_config WHERE edition_number = 3 LIMIT 1');
+    if (cfgCheck.rows.length === 0) {
+      await pool.query(`
+        INSERT INTO edition_config (edition_number, name, status, visible_placements, show_scores, challenges, special_mentions, scoring_categories, max_score_per_category)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `, [3, 'AI Krak Hack 2026', 'active', 2, true,
+        JSON.stringify([
+          { slug: 'geospatial', label: 'Smart Infrastructure Challenge', color: 'blue' },
+          { slug: 'process-automation', label: 'Process-to-Automation Copilot', color: 'purple' }
+        ]),
+        JSON.stringify([
+          { teamSlug: 'konrad-podstawski', award: 'Wyróżnienie specjalne', reason: 'Jedyny solowy uczestnik hackathonu — 3. miejsce z wynikiem 67/80, najwyższa innowacyjność (19/20)' }
+        ]),
+        JSON.stringify([
+          { id: 'innovation', label: 'Innowacyjność', maxScore: 20 },
+          { id: 'technicalValue', label: 'Wartość techniczna', maxScore: 20 },
+          { id: 'usefulness', label: 'Użyteczność', maxScore: 20 },
+          { id: 'presentationQuality', label: 'Jakość prezentacji', maxScore: 20 }
+        ]),
+        20
+      ]);
+      console.log('[DB] Auto-seeded edition_config for edition 3');
+    }
+  } catch (err) {
+    console.error('[DB] Auto-seed edition_config failed:', err);
+  }
+
+  // Auto-seed jury_scores from results.json for edition 3
+  try {
+    const juryCheck = await pool.query('SELECT id FROM jury_scores WHERE edition_number = 3 LIMIT 1');
+    if (juryCheck.rows.length === 0) {
+      const resultsPath = path.join(__dirname, 'src/data/editions/edition-2026/results.json');
+      if (fs.existsSync(resultsPath)) {
+        const resultsData = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
+        let count = 0;
+        for (const [challengeSlug, challenge] of Object.entries(resultsData.challenges)) {
+          for (const r of challenge.results) {
+            const tpResult = await pool.query(
+              'SELECT id FROM team_projects WHERE slug = $1 AND edition_number = 3 LIMIT 1',
+              [r.teamId]
+            );
+            const teamProjectId = tpResult.rows[0]?.id || null;
+            await pool.query(
+              `INSERT INTO jury_scores (edition_number, team_project_id, team_slug, challenge, juror_name, innovation, technical_value, usefulness, presentation_quality)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+               ON CONFLICT (edition_number, team_slug, juror_name) DO NOTHING`,
+              [3, teamProjectId, r.teamId, challengeSlug, 'Jury',
+               r.scores.innovation, r.scores.technicalValue, r.scores.usefulness, r.scores.presentationQuality]
+            );
+            count++;
+          }
+        }
+        console.log(`[DB] Auto-seeded ${count} jury scores from results.json`);
+      }
+    }
+  } catch (err) {
+    console.error('[DB] Auto-seed jury_scores failed:', err);
   }
 
   // Auto-sync teams from submissions if they don't exist in attendance
@@ -2724,6 +2816,205 @@ app.post('/api/admin/certificates/:id/send-test-email', requireAdmin, async (req
   } catch (err) {
     console.error('[Certs] Send test email error:', err);
     res.status(500).json({ success: false, message: 'Blad wysylki testowej' });
+  }
+});
+
+// ─── Public Results API ───────────────────────────────────────────────────────
+
+// GET /api/editions/:number/results — Full results for edition (public)
+app.get('/api/editions/:number/results', async (req, res) => {
+  try {
+    const editionNumber = parseInt(req.params.number);
+    if (isNaN(editionNumber)) return res.status(400).json({ error: 'Nieprawidłowy numer edycji' });
+
+    const cfgResult = await pool.query('SELECT * FROM edition_config WHERE edition_number = $1', [editionNumber]);
+    if (cfgResult.rows.length === 0) return res.status(404).json({ error: 'Brak konfiguracji edycji' });
+    const config = cfgResult.rows[0];
+
+    // Get jury scores joined with team details
+    const scoresResult = await pool.query(`
+      SELECT
+        js.id, js.team_slug, js.challenge, js.juror_name,
+        js.innovation, js.technical_value, js.usefulness, js.presentation_quality, js.notes,
+        tp.name as team_name, tp.project_name, tp.short_description, tp.members, tp.university
+      FROM jury_scores js
+      LEFT JOIN team_projects tp ON js.team_project_id = tp.id
+      WHERE js.edition_number = $1
+      ORDER BY js.challenge, (js.innovation + js.technical_value + js.usefulness + js.presentation_quality) DESC
+    `, [editionNumber]);
+
+    // Group by challenge -> team, support multiple jurors (averaging)
+    const challengeTeams = {};
+    for (const row of scoresResult.rows) {
+      const ch = row.challenge;
+      const slug = row.team_slug;
+      if (!challengeTeams[ch]) challengeTeams[ch] = {};
+      if (!challengeTeams[ch][slug]) {
+        challengeTeams[ch][slug] = {
+          teamId: slug,
+          teamName: row.team_name || slug,
+          projectName: row.project_name || '',
+          shortDescription: row.short_description || '',
+          members: row.members || [],
+          jurorScores: [],
+        };
+      }
+      challengeTeams[ch][slug].jurorScores.push({
+        juror: row.juror_name,
+        innovation: row.innovation,
+        technicalValue: row.technical_value,
+        usefulness: row.usefulness,
+        presentationQuality: row.presentation_quality,
+      });
+    }
+
+    // Compute averaged scores + placement per challenge
+    const challengeConfig = Array.isArray(config.challenges) ? config.challenges : JSON.parse(config.challenges || '[]');
+    const challenges = {};
+    for (const cfg of challengeConfig) {
+      const teamsMap = challengeTeams[cfg.slug] || {};
+      const teams = Object.values(teamsMap).map(t => {
+        const n = t.jurorScores.length || 1;
+        const avg = (field) => Math.round(t.jurorScores.reduce((s, j) => s + (j[field] || 0), 0) / n);
+        const inn = avg('innovation');
+        const tech = avg('technicalValue');
+        const use = avg('usefulness');
+        const pres = avg('presentationQuality');
+        return {
+          teamId: t.teamId,
+          teamName: t.teamName,
+          projectName: t.projectName,
+          shortDescription: t.shortDescription,
+          members: t.members,
+          scores: { innovation: inn, technicalValue: tech, usefulness: use, presentationQuality: pres, total: inn + tech + use + pres },
+        };
+      });
+      teams.sort((a, b) => b.scores.total - a.scores.total);
+      teams.forEach((t, i) => { t.placement = i + 1; });
+      challenges[cfg.slug] = { slug: cfg.slug, name: cfg.label, color: cfg.color, results: teams };
+    }
+
+    const parse = (v) => Array.isArray(v) ? v : (typeof v === 'string' ? JSON.parse(v || '[]') : (v || []));
+
+    res.json({
+      edition: editionNumber,
+      name: config.name,
+      status: config.status,
+      visible_placements: config.visible_placements,
+      show_scores: config.show_scores,
+      scoring_categories: parse(config.scoring_categories),
+      max_score_per_category: config.max_score_per_category,
+      challenges,
+      special_mentions: parse(config.special_mentions),
+      jury_members: parse(config.jury_members),
+    });
+  } catch (err) {
+    console.error('[Results] Get results error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// ─── Admin: Edition Config ────────────────────────────────────────────────────
+
+// GET /api/admin/edition-config/:number
+app.get('/api/admin/edition-config/:number', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM edition_config WHERE edition_number = $1', [parseInt(req.params.number)]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Brak konfiguracji' });
+    const row = result.rows[0];
+    const parse = (v) => Array.isArray(v) ? v : (typeof v === 'string' ? JSON.parse(v || '[]') : (v || []));
+    res.json({ ...row, challenges: parse(row.challenges), special_mentions: parse(row.special_mentions), jury_members: parse(row.jury_members), scoring_categories: parse(row.scoring_categories) });
+  } catch (err) {
+    console.error('[Config] GET error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// PATCH /api/admin/edition-config/:number
+app.patch('/api/admin/edition-config/:number', requireAdmin, async (req, res) => {
+  try {
+    const { name, status, visible_placements, show_scores, challenges, special_mentions, jury_members, scoring_categories, max_score_per_category } = req.body;
+    const result = await pool.query(`
+      INSERT INTO edition_config (edition_number, name, status, visible_placements, show_scores, challenges, special_mentions, jury_members, scoring_categories, max_score_per_category, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+      ON CONFLICT (edition_number) DO UPDATE SET
+        name = EXCLUDED.name, status = EXCLUDED.status,
+        visible_placements = EXCLUDED.visible_placements, show_scores = EXCLUDED.show_scores,
+        challenges = EXCLUDED.challenges, special_mentions = EXCLUDED.special_mentions,
+        jury_members = EXCLUDED.jury_members, scoring_categories = EXCLUDED.scoring_categories,
+        max_score_per_category = EXCLUDED.max_score_per_category, updated_at = NOW()
+      RETURNING *
+    `, [parseInt(req.params.number), name, status, visible_placements, show_scores,
+        JSON.stringify(challenges || []), JSON.stringify(special_mentions || []),
+        JSON.stringify(jury_members || []), JSON.stringify(scoring_categories || []),
+        max_score_per_category || 20]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Config] PATCH error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// ─── Admin: Jury Scores ───────────────────────────────────────────────────────
+
+// GET /api/admin/jury-scores/:editionNumber
+app.get('/api/admin/jury-scores/:editionNumber', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT js.*, tp.name as team_name
+      FROM jury_scores js
+      LEFT JOIN team_projects tp ON js.team_project_id = tp.id
+      WHERE js.edition_number = $1
+      ORDER BY js.challenge, (js.innovation + js.technical_value + js.usefulness + js.presentation_quality) DESC
+    `, [parseInt(req.params.editionNumber)]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// PATCH /api/admin/jury-scores/:id
+app.patch('/api/admin/jury-scores/:id', requireAdmin, async (req, res) => {
+  try {
+    const { innovation, technical_value, usefulness, presentation_quality, notes, juror_name } = req.body;
+    const result = await pool.query(`
+      UPDATE jury_scores SET
+        innovation = COALESCE($1, innovation),
+        technical_value = COALESCE($2, technical_value),
+        usefulness = COALESCE($3, usefulness),
+        presentation_quality = COALESCE($4, presentation_quality),
+        notes = COALESCE($5, notes),
+        juror_name = COALESCE($6, juror_name),
+        updated_at = NOW()
+      WHERE id = $7 RETURNING *
+    `, [innovation, technical_value, usefulness, presentation_quality, notes, juror_name, req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// POST /api/admin/jury-scores — add/upsert jury score
+app.post('/api/admin/jury-scores', requireAdmin, async (req, res) => {
+  try {
+    const { edition_number, team_slug, challenge, juror_name, innovation, technical_value, usefulness, presentation_quality, notes } = req.body;
+    const tpResult = await pool.query('SELECT id FROM team_projects WHERE slug = $1 AND edition_number = $2 LIMIT 1', [team_slug, edition_number]);
+    const teamProjectId = tpResult.rows[0]?.id || null;
+    const result = await pool.query(`
+      INSERT INTO jury_scores (edition_number, team_project_id, team_slug, challenge, juror_name, innovation, technical_value, usefulness, presentation_quality, notes)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      ON CONFLICT (edition_number, team_slug, juror_name) DO UPDATE SET
+        innovation = EXCLUDED.innovation, technical_value = EXCLUDED.technical_value,
+        usefulness = EXCLUDED.usefulness, presentation_quality = EXCLUDED.presentation_quality,
+        notes = EXCLUDED.notes, updated_at = NOW()
+      RETURNING *
+    `, [edition_number, teamProjectId, team_slug, challenge, juror_name || 'Jury',
+        innovation || 0, technical_value || 0, usefulness || 0, presentation_quality || 0, notes || '']);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[JuryScores] POST error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
   }
 });
 
