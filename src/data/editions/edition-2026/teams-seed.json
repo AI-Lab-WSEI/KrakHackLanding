@@ -1,0 +1,290 @@
+[
+  {
+    "slug": "jakobiany",
+    "name": "Jakobiany",
+    "placement": 1,
+    "placement_label": "1. miejsce — Infrastructure",
+    "special_mention": null,
+    "challenge": "geospatial",
+    "members": ["Marlena Sadowska", "Marcin Podyma", "Adam Stajek"],
+    "university": "",
+    "project_name": "System wspomagania decyzji — ścieżki rowerowe Krakowa",
+    "short_description": "Dwumetodowy system analizy optymalnych lokalizacji dla nowych ścieżek rowerowych w Krakowie, łączący klasteryzację DBSCAN na heksagonach z algorytmem Dijkstry na grafie ulic.",
+    "full_description": [
+      "Zespół Jakobiany zaprezentował system wspomagania decyzji dla urzędników miejskich w zakresie wytyczania nowych ścieżek rowerowych w Krakowie. Wyróżnikiem ich podejścia było zastosowanie dwóch komplementarnych metod analitycznych.",
+      "Pierwsza metoda polegała na podziale obszaru Krakowa na ponad 4 tysiące heksagonów, dla każdego z których zebrano 10 parametrów środowiskowych i infrastrukturalnych: gęstość przystanków, odczyty z liczników rowerowych, gęstość stojaków rowerowych, dane o jakości powietrza z GIOŚ, bliskość terenów zielonych, gęstość zaludnienia oraz kluczowe punkty usługowe.",
+      "Algorytm DBSCAN grupował heksagony w większe klastry bez konieczności z góry określonej liczby klastrów. Heksagony zbyt oddalone od skupisk były automatycznie odrzucane.",
+      "Druga metoda operowała na grafie ulic Krakowa. Skrzyżowania stanowiły węzły, ulice krawędzie. Dla każdej krawędzi obliczano wagę zależną od 7 czynników, w tym hałasu, zanieczyszczenia powietrza i obecności istniejącej infrastruktury. Parametr blokujący zapewniał, że algorytm nie proponował tras tam, gdzie ścieżka już istnieje."
+    ],
+    "key_features": [
+      "Analiza heksagonalna z 10 parametrami środowiskowymi",
+      "Klasteryzacja DBSCAN bez z góry określonej liczby klastrów",
+      "Algorytm Dijkstry na grafie ulic z 7 czynnikami wagowymi",
+      "Parametr blokujący — nie duplikuje istniejących ścieżek",
+      "Podział na dzielnice (istotny administracyjnie)",
+      "Łączenie istniejących tras w odległości poniżej 150m",
+      "Porównanie Krakowa z innymi miastami pod kątem infrastruktury"
+    ],
+    "technologies": ["Python", "DBSCAN", "Dijkstra", "GIS", "OpenStreetMap", "GIOŚ"],
+    "images": [],
+    "presentation_file": ""
+  },
+  {
+    "slug": "databees",
+    "name": "DataBees",
+    "placement": null,
+    "placement_label": null,
+    "special_mention": null,
+    "challenge": "geospatial",
+    "members": ["Bartłomiej Wieloch", "Jakub Zydroń", "Piotr Bacior", "Konrad Podstawski"],
+    "university": "",
+    "project_name": "Digital Twin — symulacja wieloagentowa sieci komunikacyjnej Krakowa",
+    "short_description": "Cyfrowa kopia sieci komunikacyjnej Krakowa z pełną symulacją wieloagentową 36 000 rowerzystów w modelu MATSim, walidowana na 19 stacjach pomiarowych.",
+    "full_description": [
+      "Zespół DataBees obrał najbardziej naukowo zaawansowane podejście — stworzyli cyfrowy bliźniak sieci komunikacyjnej Krakowa i przeprowadzili symulację wieloagentową z wykorzystaniem modelu MATSim.",
+      "System bazował na danych z OpenStreetMap, Zarządu Transportu Publicznego Krakowa oraz z 19 stacji pomiarowych dostarczających dane dzienne z ostatnich 10 lat. Na podstawie dokumentów miejskich wyestymowano rozkład godzinowy ruchu.",
+      "Sieć obejmowała trzy typy krawędzi: ścieżki rowerowe, chodniki (z obniżoną sztuczną prędkością odzwierciedlającą niższy komfort) oraz ulice. 36 000 agentów-rowerzystów generowano na podstawie gęstości zaludnienia z OpenStreetMap.",
+      "Walidację przeprowadzono za pomocą metryki GEH na 19 punktach pomiarowych. Uzyskano zgodność na poziomie ok. 80%. Model wykazał, że wzrost ruchu nie powoduje liniowego wzrostu opóźnień."
+    ],
+    "key_features": [
+      "Cyfrowy bliźniak (digital twin) sieci komunikacyjnej",
+      "36 000 agentów-rowerzystów w symulacji wieloagentowej",
+      "Model MATSim z algorytmami genetycznymi (10 iteracji)",
+      "Walidacja GEH na 19 stacjach pomiarowych — 80% zgodność",
+      "Symulacja wzrostu ruchu o 50%",
+      "Identyfikacja wąskich gardeł (chodniki, mosty)",
+      "Dashboard z animacją godzinową przepustowości"
+    ],
+    "technologies": ["Python", "Java", "MATSim", "OpenStreetMap", "GEH", "GPR"],
+    "images": [],
+    "presentation_file": "/assets/presentations/databees.pdf"
+  },
+  {
+    "slug": "apex-velo",
+    "name": "Apex Velo AI",
+    "placement": null,
+    "placement_label": null,
+    "special_mention": null,
+    "challenge": "geospatial",
+    "members": ["Marcin Pawłowski", "Jakub Minorczyk", "Paweł Wypych"],
+    "university": "",
+    "project_name": "Nawigacja rowerowa z uwzględnieniem jakości powietrza",
+    "short_description": "System nawigacji skupiony na zdrowiu rowerzystów — trasy omijające smog i hałas, z modułem dla urzędników do planowania nowej infrastruktury.",
+    "full_description": [
+      "Apex Velo AI postawił na motyw zdrowotny i ekologiczny. Zespół rozpoczął od danych o zanieczyszczeniu powietrza w Krakowie — jednym z najbardziej zanieczyszczonych miast w Europie.",
+      "Aplikacja miała dwa moduły: dla użytkowników indywidualnych (trasy omijające miejsca o wysokim stężeniu PM2.5/PM10) i dla decydentów miejskich (algorytm wskazujący, gdzie nowe drogi rowerowe są najbardziej potrzebne).",
+      "Rozwiązanie bazowało na grafie, w którym węzły to skrzyżowania, a krawędzie to odcinki ulic z wagami uwzględniającymi zanieczyszczenie, hałas, bliskość terenów zielonych i bezpieczeństwo."
+    ],
+    "key_features": [
+      "Motywacja zdrowotna — ochrona przed ekspozycją na smog",
+      "Dwa moduły: dla rowerzystów i dla decydentów miejskich",
+      "Wagi uwzględniające PM2.5, PM10, hałas i zieleń",
+      "Wybór między trasą szybszą a zdrowszą"
+    ],
+    "technologies": ["Python", "Graph algorithms", "OpenStreetMap", "GIOŚ"],
+    "images": [],
+    "presentation_file": "/assets/presentations/apex-velo.pdf"
+  },
+  {
+    "slug": "beznazwy",
+    "name": "Beznazwy",
+    "placement": null,
+    "placement_label": null,
+    "special_mention": null,
+    "challenge": "process-automation",
+    "members": ["Szymon Adamczyk", "Kamil Adamski", "Patryk Chwalik"],
+    "university": "",
+    "project_name": "Nawigacja multimodalna — rower + hulajnogi + pieszo",
+    "short_description": "Aplikacja mobilna łącząca nawigację rowerową z integracją hulajnóg elektrycznych, oferująca trzy tryby tras: klasyczny, wygodny i cichy.",
+    "full_description": [
+      "Zespół Beznazwy zaprojektował aplikację mobilną łączącą nawigację rowerową z integracją hulajnóg elektrycznych i mikromobilności (standard GBF-S, API firmy TOD).",
+      "Trzy tryby tras: klasyczny (najkrótsza droga z OSM), wygodny (priorytet ścieżek rowerowych) i cichy (analiza natężenia hałasu, co przekłada się na bezpieczeństwo).",
+      "System pobierał dane o lokalizacjach stojaków rowerowych z CEPP i automatycznie planował trasy multimodalne: pieszo do punktu odbioru hulajnogi, hulajnogą do punktu zwrotu, pieszo do celu."
+    ],
+    "key_features": [
+      "Zespół sformowany przypadkowo dzień przed hackathonem",
+      "Trzy tryby tras: klasyczny, wygodny, cichy",
+      "Integracja z hulajnogami (API TOD, standard GBF-S)",
+      "Automatyczne planowanie trasy multimodalnej",
+      "Priorytetyzacja: drogi rowerowe > pasy > kontrapasy",
+      "Matematyka komfortu — system wag dla unikania dróg głównych"
+    ],
+    "technologies": ["Python", "NetworkX", "FastAPI", "OpenStreetMap", "GBF-S API"],
+    "images": [],
+    "presentation_file": "/assets/presentations/beznazwy.pdf"
+  },
+  {
+    "slug": "bydgoskabears",
+    "name": "BydgoskaBears — Prism",
+    "placement": null,
+    "placement_label": null,
+    "special_mention": null,
+    "challenge": "geospatial",
+    "members": ["Anand Chavan", "Pratixan Sarmah", "Ashutosh Pattnaik", "Pooja Tanty"],
+    "university": "",
+    "project_name": "Prism — personalizacja tras rowerowych",
+    "short_description": "System personalizacji tras jak pryzmat rozszczepiający światło — różne optymalizowane trasy w zależności od profilu użytkownika (shortest, nature, tourist, mixed, custom).",
+    "full_description": [
+      "Międzynarodowy zespół BydgoskaBears zaprezentował Prism — system personalizacji tras rowerowych. Jak pryzmat rozdziela światło na kolory, tak Prism oferuje różne zoptymalizowane trasy.",
+      "4 predefiniowane profile plus profil niestandardowy: shortest (najkrótsza), nature (przez tereny zielone), tourist (muzea, galerie, toalety, bankomaty), mixed (kompromis) i custom (pełna personalizacja wag).",
+      "Scoring opierał się na wielowymiarowej ocenie każdego odcinka: bezpieczeństwo, hałas, bliskość natury, dostęp do infrastruktury turystycznej."
+    ],
+    "key_features": [
+      "Zespół międzynarodowy",
+      "5 profili tras: shortest, nature, tourist, mixed, custom",
+      "Wielowymiarowy scoring odcinków",
+      "Wizja: transfer wiedzy z miast o rozwiniętej infrastrukturze (Amsterdam)"
+    ],
+    "technologies": ["Python", "Graph algorithms", "Scoring model"],
+    "images": [],
+    "presentation_file": ""
+  },
+  {
+    "slug": "mpz",
+    "name": "MPZ",
+    "placement": 2,
+    "placement_label": "2. miejsce — Infrastructure",
+    "special_mention": null,
+    "challenge": "geospatial",
+    "members": ["Emilia Masiak", "Łukasz Jęcek", "Alicja Świercz"],
+    "university": "Politechnika Łódzka",
+    "project_name": "NLP-driven nawigacja rowerowa + dashboard analityczny",
+    "short_description": "Dwumodułowy system z przetwarzaniem języka naturalnego — rowerzysta opisuje potrzeby po polsku, a system wydobywa parametry trasy i generuje optymalne przejazdy.",
+    "full_description": [
+      "MPZ zaprezentowało dwumodułowy system, w którym kluczową rolę odgrywa NLP. Użytkownik-rowerzysta komunikuje się z systemem po polsku, opisując swoje potrzeby naturalnym językiem.",
+      "Warstwa NLP (LLM) wydobywała strukturyzowane dane z zapytania użytkownika i zamieniała na Structured Output. Zespół jasno podkreślił: LLM nie wyznacza trasy, służy wyłącznie do komunikacji.",
+      "Silnik geoanalizy przetwarzał infrastrukturę liniową Krakowa jako graf ważony, gdzie kosztem krawędzi była autorska funkcja uwzględniająca długość trasy, bliskość terenów zielonych i poziom hałasu.",
+      "Moduł analityczny dla urzędników oferował dashboard z mapą, preferencjami użytkowników, heat mapą punktów startowych/docelowych i rankingiem niebezpiecznych miejsc."
+    ],
+    "key_features": [
+      "Komunikacja naturalnym językiem polskim z LLM",
+      "Jasne rozgraniczenie: LLM = komunikacja, nie routing",
+      "Autorska funkcja kosztu na grafie ważonym",
+      "Dashboard urzędnika: preferencje, heat mapy, ranking miejsc",
+      "Demo na żywo z dwoma zapytaniami",
+      "Wizja: trasy wielopunktowe, Karta Mieszkańca, dane live"
+    ],
+    "technologies": ["Python", "LLM", "Structured Output", "OpenStreetMap", "ZTP Kraków"],
+    "images": [],
+    "presentation_file": "/assets/presentations/mpz.pdf"
+  },
+  {
+    "slug": "vibecoders",
+    "name": "VibeCoders (WorkTrace)",
+    "placement": 1,
+    "placement_label": "1. miejsce — Process Mining",
+    "special_mention": null,
+    "challenge": "process-automation",
+    "members": ["Mateusz Caputa", "Marcin Pałys", "Kacper Smaga"],
+    "university": "",
+    "project_name": "Dashboard analityczny process mining",
+    "short_description": "Kompleksowy dashboard analityczny generujący raporty z logów CSV, identyfikujący wąskie gardła i proponujący automatyzację procesów z wykorzystaniem AI.",
+    "full_description": [
+      "VibeCoders stworzyli kompleksowy dashboard analityczny, który na podstawie załadowanych logów CSV generuje raporty, identyfikuje wąskie gardła i proponuje automatyzację procesów.",
+      "Rozbudowane zakładki: Overview (przegląd), User Learning (analiza pracowników), Bottlenecks (zatory), Process Paths (warianty sekwencji), Live Monitoring (symulacja real-time), Automatyzacja (propozycje AI).",
+      "Każda zawiła metryka miała przycisk generujący wyjaśnienie AI, co czyniło aplikację przyjazną dla nowych użytkowników.",
+      "Kluczowe odkrycie z danych: średni przestój ok. 4 godzin, 452 tysiące operacji kopiowania, 25 aplikacji używanych przez pracowników."
+    ],
+    "key_features": [
+      "Dashboard z 6 zakładkami analitycznymi",
+      "AI wyjaśnienia dla każdej zawiłej metryki",
+      "Porównywanie efektywności pracowników",
+      "Symulacja automatyzacji z rankingiem opłacalności",
+      "Live monitoring z aktywnościami na żywo",
+      "Identyfikacja: 4h przestoju, 452k operacji kopiowania"
+    ],
+    "technologies": ["React", "Python", "AI/LLM", "CSV processing", "Process Mining"],
+    "images": [
+      {"url": "/assets/teams/vibecoders/1_dashboard.png", "alt": "WorkTrace Dashboard", "caption": "Dashboard — przegląd procesu z kluczowymi metrykami i analizą kosztów"},
+      {"url": "/assets/teams/vibecoders/2_userjourney.png", "alt": "WorkTrace User Journey", "caption": "User Journey — timeline aktywności użytkowników z analizą sekwencji"},
+      {"url": "/assets/teams/vibecoders/3_overview.png", "alt": "WorkTrace Overview", "caption": "Overview — statystyki procesu, health score i kategorie pracy"},
+      {"url": "/assets/teams/vibecoders/4_businessimpact.png", "alt": "WorkTrace Business Impact", "caption": "Business Impact — analiza kosztów, waste breakdown i efektywność per user"},
+      {"url": "/assets/teams/vibecoders/5_bottlenecks.png", "alt": "WorkTrace Bottlenecks", "caption": "Bottlenecks — identyfikacja wąskich gardeł z AI-generowaną analizą"},
+      {"url": "/assets/teams/vibecoders/6_processpaths.png", "alt": "WorkTrace Process Paths", "caption": "Process Paths — warianty sekwencji procesowych z czasami wykonania"},
+      {"url": "/assets/teams/vibecoders/7_aianalysis.png", "alt": "WorkTrace AI Analysis", "caption": "AI Analysis — rekomendacje automatyzacji z matrycą gotowości"},
+      {"url": "/assets/teams/vibecoders/8_aianalysis.png", "alt": "WorkTrace AI Analysis Detail", "caption": "AI Analysis — szczegółowa analiza z Automation Readiness Matrix"},
+      {"url": "/assets/teams/vibecoders/9_livemonitor.png", "alt": "WorkTrace Live Monitor", "caption": "Live Monitor — monitoring aktywności w czasie rzeczywistym"}
+    ],
+    "presentation_file": "/assets/presentations/vibecoders.pdf"
+  },
+  {
+    "slug": "process-refactor",
+    "name": "ProcessRefactor",
+    "placement": 2,
+    "placement_label": "2. miejsce — Process Mining",
+    "special_mention": null,
+    "challenge": "process-automation",
+    "members": ["Daniel Szarek", "Jakub Zborowski", "Bartosz Szydłak", "Liliana Ucher"],
+    "university": "AGH",
+    "project_name": "Autonomous Copilot — automatyczna analiza procesów",
+    "short_description": "System AI do automatycznej analizy procesów biznesowych, redukujący czas analizy z 3-6 tygodni do minut. Pipeline: reprodukcja wariantów, wykrywanie wąskich gardeł, klasyfikacja i generowanie BPMN.",
+    "full_description": [
+      "ProcessRefactor stworzyli Autonomous Copilot — system AI do automatycznej analizy procesów biznesowych. Rozwiązanie celowało w problem, który normalnie zajmuje konsultantom 3-6 tygodni.",
+      "Pipeline obejmował: reprodukcję wariantów procesowych, wykrywanie opóźnień i wąskich gardeł, analizę behawioralną (click, copy-paste patterns), klasyfikację przez AI i generowanie raportu z diagramem BPMN.",
+      "System łączył się z internetem w celu wyszukiwania najnowszych rozwiązań optymalizacyjnych, oferował automatyczny ranking procesów według potencjału oszczędności."
+    ],
+    "key_features": [
+      "Redukcja czasu analizy z 3-6 tygodni do minut",
+      "Pipeline: reprodukcja, detekcja, klasyfikacja, rekomendacje",
+      "Analiza behawioralna: click, copy-paste patterns",
+      "Automatyczny ranking procesów wg potencjału oszczędności",
+      "Generowanie raportów BPMN",
+      "Zastosowanie: finanse, ochrona zdrowia, produkcja, e-commerce"
+    ],
+    "technologies": ["Python", "AI/LLM", "BPMN", "Process Mining"],
+    "images": [],
+    "presentation_file": ""
+  },
+  {
+    "slug": "the-boys",
+    "name": "The Boys",
+    "placement": null,
+    "placement_label": null,
+    "special_mention": null,
+    "challenge": "geospatial",
+    "members": ["Tymon Szyler", "Mikołaj Klima", "Miłosz Nowak", "Michał Mróz"],
+    "university": "AGH",
+    "project_name": "SMART BIKE — nawigacja rowerowa",
+    "short_description": "System nawigacji rowerowej z algorytmami optymalizacji tras, uwzględniający bezpieczeństwo i komfort jazdy na podstawie danych infrastrukturalnych Krakowa.",
+    "full_description": [
+      "The Boys stworzyli SMART BIKE — system nawigacji rowerowej z algorytmami optymalizacji tras.",
+      "Rozwiązanie uwzględnia bezpieczeństwo i komfort jazdy na podstawie danych infrastrukturalnych Krakowa."
+    ],
+    "key_features": [
+      "Algorytmy optymalizacji tras rowerowych",
+      "Uwzględnienie bezpieczeństwa i komfortu jazdy",
+      "Analiza danych infrastrukturalnych Krakowa"
+    ],
+    "technologies": ["Python", "GIS", "OpenStreetMap"],
+    "images": [],
+    "presentation_file": "/assets/presentations/the-boys-slides.pdf"
+  },
+  {
+    "slug": "konrad-podstawski",
+    "name": "Konrad Podstawski (solo)",
+    "placement": null,
+    "placement_label": null,
+    "special_mention": "Wyróżnienie specjalne — jedyny solowy uczestnik, 67/80",
+    "challenge": "geospatial",
+    "members": ["Konrad Podstawski"],
+    "university": "",
+    "project_name": "By Your Trip — codzienna przygoda na rowerze",
+    "short_description": "Jedyny solowy uczestnik — aplikacja odchodząca od \"z A do B najszybciej\" na rzecz urozmaicania codziennych dojazdów przez wybór \"vibe'ów\" trasy.",
+    "full_description": [
+      "Konrad Podstawski, jedyny solowy uczestnik hackathonu, zaprezentował By Your Trip — aplikację, która odchodzi od tradycyjnego podejścia na rzecz urozmaicania codziennych dojazdów.",
+      "Użytkownik wybiera \"vibe\" — kierunek, w którym chce przesunąć trasę: zdrowotny (najlepsza jakość powietrza), miejski (tętniące życiem ulice), a nawet POS APO — celowo najgorsza trasa.",
+      "Suwak regulował bliskość wybranego vibe'u vs najkrótszej trasy. Architektura w pełni modularna — nowe moduły danych można dodawać bez przebudowy, system automatycznie balansuje wagi."
+    ],
+    "key_features": [
+      "Jedyny solowy uczestnik hackathonu",
+      "Koncepcja \"vibe'ów\" — kierunków urozmaicenia trasy",
+      "Tryb POS APO — celowo najgorsza trasa",
+      "Suwak regulacji bliskości vibe vs najkrótsza trasa",
+      "W pełni modularna architektura",
+      "Wizja: scraper + LLM do automatycznego wzbogacania danych"
+    ],
+    "technologies": ["React", "Heksagonalna siatka danych", "Modular architecture"],
+    "images": [],
+    "presentation_file": ""
+  }
+]

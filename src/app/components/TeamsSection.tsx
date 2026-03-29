@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Trophy, ArrowRight, Users, Star, Award } from 'lucide-react';
 import { TEAMS, SPECIAL_MENTIONS } from '@/data/teams';
 import results from '@/data/results.json';
+import { useEditionOptional } from '@/app/hooks/useEdition';
 
 function getScores(teamId: string) {
   for (const challenge of Object.values(results.challenges)) {
@@ -46,6 +47,9 @@ const otherTeams = TEAMS.filter(t =>
 );
 
 export function TeamsSection() {
+  const edCtx = useEditionOptional();
+  const teamLink = (id: string) => edCtx ? edCtx.teamPath(id) : `/zespoly/${id}`;
+
   return (
     <section id="zespoly" className="py-20 bg-gradient-to-b from-gray-900 to-black">
       <div className="container mx-auto px-4">
@@ -69,7 +73,7 @@ export function TeamsSection() {
             const challengeLabel = team.challenge === 'geospatial' ? 'Infrastructure' : 'Process Mining';
             return (
               <motion.div key={team.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}>
-                <Link to={`/zespoly/${team.id}`}
+                <Link to={teamLink(team.id)}
                   className="group flex flex-col p-6 bg-gradient-to-br from-pink-500/5 to-purple-500/3 border border-pink-500/20 rounded-2xl hover:border-pink-500/40 transition-all h-full">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-pink-500/20 rounded-full text-pink-400 text-xs font-bold">
@@ -105,7 +109,7 @@ export function TeamsSection() {
             const challengeLabel = team.challenge === 'geospatial' ? 'Infrastructure' : 'Process Mining';
             return (
               <motion.div key={team.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}>
-                <Link to={`/zespoly/${team.id}`}
+                <Link to={teamLink(team.id)}
                   className="group flex flex-col p-6 bg-white/3 border border-white/10 rounded-2xl hover:border-pink-500/30 transition-all h-full">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/10 rounded-full text-gray-300 text-xs font-bold">
@@ -139,7 +143,7 @@ export function TeamsSection() {
           <div className="mb-12 max-w-md mx-auto">
             {SPECIAL_MENTIONS.map((team) => (
               <motion.div key={team.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-                <Link to={`/zespoly/${team.id}`}
+                <Link to={teamLink(team.id)}
                   className="group block p-5 bg-white/3 border border-cyan-500/15 rounded-2xl hover:border-cyan-500/30 transition-all text-center">
                   <Star className="w-6 h-6 text-cyan-400 mx-auto mb-2" />
                   <h4 className="text-white font-bold mb-1">{team.name}</h4>
@@ -158,7 +162,7 @@ export function TeamsSection() {
               const scores = getScores(team.id);
               return (
                 <motion.div key={team.id} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.05 }}>
-                  <Link to={`/zespoly/${team.id}`}
+                  <Link to={teamLink(team.id)}
                     className="group flex flex-col p-4 bg-white/3 border border-white/8 rounded-2xl hover:bg-white/5 hover:border-white/15 transition-all h-full min-h-[160px]">
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${team.challenge === 'geospatial' ? 'bg-blue-500/15 text-blue-400' : 'bg-purple-500/15 text-purple-400'}`}>

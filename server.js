@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import QRCode from 'qrcode';
+import multer from 'multer';
 import {
   createCertificateHash,
   signCertificate,
@@ -24,6 +25,20 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Multer configuration for PDF uploads
+const uploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(__dirname, 'public', 'assets', 'presentations')),
+  filename: (req, file, cb) => cb(null, `${req.params.slug}-presentation.pdf`)
+});
+const uploadPresentation = multer({
+  storage: uploadStorage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') cb(null, true);
+    else cb(new Error('Tylko pliki PDF'));
+  }
+});
 
 // PostgreSQL
 const pool = new pg.Pool({
@@ -116,7 +131,83 @@ async function initDB() {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS team_projects (
+      id SERIAL PRIMARY KEY,
+      edition_number INTEGER NOT NULL DEFAULT 3,
+      slug VARCHAR(100) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      placement INTEGER,
+      placement_label VARCHAR(100),
+      special_mention VARCHAR(255),
+      challenge VARCHAR(50) NOT NULL,
+      members TEXT[] NOT NULL DEFAULT '{}',
+      university VARCHAR(255) DEFAULT '',
+      project_name VARCHAR(255) DEFAULT '',
+      short_description TEXT DEFAULT '',
+      full_description TEXT[] DEFAULT '{}',
+      key_features TEXT[] DEFAULT '{}',
+      technologies TEXT[] DEFAULT '{}',
+      images JSONB DEFAULT '[]',
+      presentation_file VARCHAR(500) DEFAULT '',
+      presentation_slides JSONB DEFAULT '[]',
+      edit_token VARCHAR(64) UNIQUE,
+      edit_token_created_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(edition_number, slug)
+    );
   `);
+
+  // Add email_last_sent_at column if it doesn't exist (migration)
+  await pool.query(`
+    ALTER TABLE team_projects ADD COLUMN IF NOT EXISTS email_last_sent_at TIMESTAMP WITH TIME ZONE;
+  `).catch(() => {}); // ignore if table doesn't exist yet
+
+  // Add edit_password column (migration)
+  await pool.query(`
+    ALTER TABLE team_projects ADD COLUMN IF NOT EXISTS edit_password VARCHAR(20);
+  `).catch(() => {});
+
+  // Add edit_history column (migration)
+  await pool.query(`
+    ALTER TABLE team_projects ADD COLUMN IF NOT EXISTS edit_history JSONB DEFAULT '[]';
+  `).catch(() => {});
+
+  // Auto-seed team_projects from teams-seed.json if table is empty
+  try {
+    const countResult = await pool.query('SELECT COUNT(*) FROM team_projects');
+    if (parseInt(countResult.rows[0].count) === 0) {
+      const seedPath = path.join(__dirname, 'src/data/editions/edition-2026/teams-seed.json');
+      if (fs.existsSync(seedPath)) {
+        const teams = JSON.parse(fs.readFileSync(seedPath, 'utf-8'));
+        for (const team of teams) {
+          const token = crypto.randomBytes(16).toString('hex');
+          const password = Math.random().toString(36).slice(2, 8).toUpperCase();
+          await pool.query(
+            `INSERT INTO team_projects (
+              edition_number, slug, name, placement, placement_label, special_mention, challenge,
+              members, university, project_name, short_description, full_description,
+              key_features, technologies, images, presentation_file, presentation_slides,
+              edit_token, edit_token_created_at, edit_password
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),$19)
+            ON CONFLICT (edition_number, slug) DO NOTHING`,
+            [
+              team.edition_number || 3, team.slug, team.name, team.placement || null,
+              team.placement_label || null, team.special_mention || null, team.challenge,
+              team.members, team.university || '', team.project_name || '',
+              team.short_description || '', team.full_description || [],
+              team.key_features || [], team.technologies || [],
+              JSON.stringify(team.images || []), team.presentation_file || '',
+              JSON.stringify(team.presentation_slides || []), token, password
+            ]
+          );
+        }
+        console.log(`[DB] Auto-seeded ${teams.length} teams from teams-seed.json`);
+      }
+    }
+  } catch (err) {
+    console.error('[DB] Auto-seed team_projects failed:', err);
+  }
 
   // Auto-sync teams from submissions if they don't exist in attendance
   try {
@@ -2136,6 +2227,733 @@ app.post('/api/admin/mail/club-invite', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[Mailing] Club invite error:', err);
     res.status(500).json({ error: 'Błąd wysyłki zaproszeń do koła' });
+  }
+});
+
+// ─── Team Projects API ──────────────────────────────────────
+
+// POST /api/admin/team-projects/seed — Seed from JSON data (admin)
+app.post('/api/admin/team-projects/seed', requireAdmin, async (req, res) => {
+  try {
+    const teams = req.body;
+    if (!Array.isArray(teams) || teams.length === 0) {
+      return res.status(400).json({ error: 'Body must be a non-empty array of team objects' });
+    }
+
+    const created = [];
+    for (const team of teams) {
+      const editToken = crypto.randomBytes(16).toString('hex');
+      const editPassword = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const result = await pool.query(
+        `INSERT INTO team_projects
+          (edition_number, slug, name, placement, placement_label, special_mention, challenge,
+           members, university, project_name, short_description, full_description,
+           key_features, technologies, images, presentation_file, edit_token, edit_token_created_at, edit_password)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), $18)
+         ON CONFLICT (edition_number, slug) DO NOTHING
+         RETURNING *`,
+        [
+          team.edition_number || 3,
+          team.slug,
+          team.name,
+          team.placement || null,
+          team.placement_label || null,
+          team.special_mention || null,
+          team.challenge,
+          team.members || [],
+          team.university || '',
+          team.project_name || '',
+          team.short_description || '',
+          team.full_description || [],
+          team.key_features || [],
+          team.technologies || [],
+          JSON.stringify(team.images || []),
+          team.presentation_file || '',
+          editToken,
+          editPassword,
+        ]
+      );
+      if (result.rows.length > 0) {
+        created.push(result.rows[0]);
+      }
+    }
+
+    res.json({ success: true, created: created.length, skipped: teams.length - created.length, teams: created });
+  } catch (err) {
+    console.error('[TeamProjects] Seed error:', err);
+    res.status(500).json({ error: 'Blad seedowania zespolow' });
+  }
+});
+
+// GET /api/admin/team-projects — List all teams (admin)
+app.get('/api/admin/team-projects', requireAdmin, async (req, res) => {
+  try {
+    const edition = parseInt(req.query.edition) || 3;
+    const result = await pool.query(
+      'SELECT * FROM team_projects WHERE edition_number = $1 ORDER BY placement NULLS LAST, name',
+      [edition]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[TeamProjects] List error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// GET /api/admin/team-projects/:id — Get single team (admin)
+app.get('/api/admin/team-projects/:id', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM team_projects WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono zespolu' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[TeamProjects] Get error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// PATCH /api/admin/team-projects/:id — Edit any field (admin)
+app.patch('/api/admin/team-projects/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const allowedFields = [
+      'slug', 'name', 'placement', 'placement_label', 'special_mention', 'challenge',
+      'members', 'university', 'project_name', 'short_description', 'full_description',
+      'key_features', 'technologies', 'images', 'presentation_file', 'presentation_slides',
+      'edition_number',
+    ];
+
+    const updates = [];
+    const params = [];
+    let paramIdx = 1;
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        const value = ['images', 'presentation_slides'].includes(field)
+          ? JSON.stringify(req.body[field])
+          : req.body[field];
+        updates.push(`${field} = $${paramIdx++}`);
+        params.push(value);
+      }
+    }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'Brak danych do aktualizacji' });
+
+    updates.push(`updated_at = NOW()`);
+    params.push(id);
+
+    const result = await pool.query(
+      `UPDATE team_projects SET ${updates.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      params
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono zespolu' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[TeamProjects] Update error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// POST /api/admin/team-projects/:id/regenerate-token — New edit token (admin)
+app.post('/api/admin/team-projects/:id/regenerate-token', requireAdmin, async (req, res) => {
+  try {
+    const token = crypto.randomBytes(16).toString('hex');
+    const result = await pool.query(
+      'UPDATE team_projects SET edit_token = $1, edit_token_created_at = NOW(), updated_at = NOW() WHERE id = $2 RETURNING *',
+      [token, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono zespolu' });
+    res.json({ success: true, edit_token: token, team: result.rows[0] });
+  } catch (err) {
+    console.error('[TeamProjects] Regenerate token error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// POST /api/admin/team-projects/:id/send-edit-link — Send edit link email (admin)
+app.post('/api/admin/team-projects/:id/send-edit-link', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM team_projects WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono zespolu' });
+
+    const team = result.rows[0];
+    if (!team.edit_token) {
+      return res.status(400).json({ error: 'Brak tokenu edycji — wygeneruj go najpierw' });
+    }
+
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const editLink = `${baseUrl}/zespoly/${team.slug}/edytuj/${team.edit_token}`;
+
+    // Find submission emails matching team members
+    const memberEmails = [];
+    for (const member of team.members) {
+      const parts = member.trim().split(' ');
+      if (parts.length >= 2) {
+        const emailResult = await pool.query(
+          "SELECT DISTINCT email FROM submissions WHERE type = 'participant' AND data->>'firstName' = $1 AND data->>'lastName' = $2 AND email IS NOT NULL AND email != ''",
+          [parts[0], parts.slice(1).join(' ')]
+        );
+        for (const row of emailResult.rows) {
+          if (row.email && !memberEmails.includes(row.email)) {
+            memberEmails.push(row.email);
+          }
+        }
+      }
+    }
+
+    const html = `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI KRAK HACK 2026</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Edycja profilu zespolu</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Czesc, zespol ${team.name}!</p>
+      <p>Mozecie teraz edytowac profil swojego projektu na stronie AI Krak Hack. Dodajcie opis, technologie, screeny i prezentacje.</p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${editLink}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Edytuj profil zespolu &rarr;</a>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0;">
+        <p style="font-size: 13px; color: #64748b; margin: 0 0 8px;">Link do edycji (nie udostepniajcie go publicznie):</p>
+        <code style="font-size: 12px; color: #0f172a; word-break: break-all;">${editLink}</code>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Pozdrawiamy,<br><strong>Zespol AI Krak Hack 2026</strong><br>AI Possibilities Lab &bull; WSEI Krakow
+      </p>
+    </div>
+  </div>
+</div>`;
+
+    let emailSent = false;
+    if (memberEmails.length > 0) {
+      for (const email of memberEmails) {
+        const ok = await sendResendEmail(email, 'Edytuj profil swojego zespolu — AI Krak Hack 2026', html);
+        if (ok) emailSent = true;
+      }
+    }
+
+    if (emailSent) {
+      await pool.query('UPDATE team_projects SET email_last_sent_at = NOW() WHERE id = $1', [team.id]);
+    }
+
+    res.json({
+      success: true,
+      edit_link: editLink,
+      emails_found: memberEmails,
+      email_sent: emailSent,
+    });
+  } catch (err) {
+    console.error('[TeamProjects] Send edit link error:', err);
+    res.status(500).json({ error: 'Blad wysylki linku edycji' });
+  }
+});
+
+// POST /api/admin/team-projects/bulk-send-edit-links — Send edit links to all teams (admin)
+app.post('/api/admin/team-projects/bulk-send-edit-links', requireAdmin, async (req, res) => {
+  try {
+    const edition = parseInt(req.query.edition) || 3;
+    const result = await pool.query(
+      'SELECT * FROM team_projects WHERE edition_number = $1 AND edit_token IS NOT NULL ORDER BY name',
+      [edition]
+    );
+    const teams = result.rows;
+
+    let sent = 0;
+    let failed = 0;
+    const details = [];
+
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+
+    for (const team of teams) {
+      const editLink = `${baseUrl}/zespoly/${team.slug}/edytuj/${team.edit_token}`;
+
+      // Find submission emails matching team members
+      const memberEmails = [];
+      for (const member of team.members) {
+        const parts = member.trim().split(' ');
+        if (parts.length >= 2) {
+          const emailResult = await pool.query(
+            "SELECT DISTINCT email FROM submissions WHERE type = 'participant' AND data->>'firstName' = $1 AND data->>'lastName' = $2 AND email IS NOT NULL AND email != ''",
+            [parts[0], parts.slice(1).join(' ')]
+          );
+          for (const row of emailResult.rows) {
+            if (row.email && !memberEmails.includes(row.email)) {
+              memberEmails.push(row.email);
+            }
+          }
+        }
+      }
+
+      const html = `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI KRAK HACK 2026</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Edycja profilu zespolu</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Czesc, zespol ${team.name}!</p>
+      <p>Mozecie teraz edytowac profil swojego projektu na stronie AI Krak Hack. Dodajcie opis, technologie, screeny i prezentacje.</p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${editLink}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Edytuj profil zespolu &rarr;</a>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0;">
+        <p style="font-size: 13px; color: #64748b; margin: 0 0 8px;">Link do edycji (nie udostepniajcie go publicznie):</p>
+        <code style="font-size: 12px; color: #0f172a; word-break: break-all;">${editLink}</code>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Pozdrawiamy,<br><strong>Zespol AI Krak Hack 2026</strong><br>AI Possibilities Lab &bull; WSEI Krakow
+      </p>
+    </div>
+  </div>
+</div>`;
+
+      let teamSent = false;
+      if (memberEmails.length > 0) {
+        for (const email of memberEmails) {
+          const ok = await sendResendEmail(email, 'Edytuj profil swojego zespolu — AI Krak Hack 2026', html);
+          if (ok) teamSent = true;
+        }
+      }
+
+      if (teamSent) {
+        sent++;
+        await pool.query('UPDATE team_projects SET email_last_sent_at = NOW() WHERE id = $1', [team.id]);
+      } else {
+        failed++;
+      }
+
+      details.push({
+        id: team.id,
+        name: team.name,
+        slug: team.slug,
+        emails_found: memberEmails,
+        sent: teamSent,
+        edit_link: editLink,
+      });
+    }
+
+    res.json({ success: true, total: teams.length, sent, failed, details });
+  } catch (err) {
+    console.error('[TeamProjects] Bulk send error:', err);
+    res.status(500).json({ error: 'Blad wysylki zbiorczej' });
+  }
+});
+
+// Helper: build team edit-link email HTML
+function buildTeamEditLinkHtml(team, editLink) {
+  return `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI KRAK HACK 2026</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Edycja profilu zespolu</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Czesc, zespol ${team.name}!</p>
+      <p>Mozecie teraz edytowac profil swojego projektu na stronie AI Krak Hack. Dodajcie opis, technologie, screeny i prezentacje.</p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${editLink}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Edytuj profil zespolu &rarr;</a>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0;">
+        <p style="font-size: 13px; color: #64748b; margin: 0 0 8px;">Link do edycji (nie udostepniajcie go publicznie):</p>
+        <code style="font-size: 12px; color: #0f172a; word-break: break-all;">${editLink}</code>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Pozdrawiamy,<br><strong>Zespol AI Krak Hack 2026</strong><br>AI Possibilities Lab &bull; WSEI Krakow
+      </p>
+    </div>
+  </div>
+</div>`;
+}
+
+// Helper: build certificate email HTML
+function buildCertEmailHtml(cert, verifyUrl) {
+  const isWinner = cert.certificate_type === 'winner';
+  return `
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, ${isWinner ? '#f59e0b, #ef4444' : '#06b6d4, #3b82f6, #8b5cf6'}); padding: 40px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI KRAK HACK 2026</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'}</p>
+    </div>
+    <div style="padding: 40px; color: #334155; line-height: 1.6;">
+      <p style="font-size: 18px; font-weight: 600;">Czesc ${cert.participant_name}!</p>
+      <p>${isWinner
+        ? `Gratulacje! Twoj zespol <strong>${cert.team_name}</strong> zwyciezyl w AI Krak Hack 2026!`
+        : `Dziekujemy za udzial w AI Krak Hack 2026 w zespole <strong>${cert.team_name}</strong>!`
+      }</p>
+      ${cert.project_name ? `<p>Projekt: <strong>${cert.project_name}</strong></p>` : ''}
+      <p>Twoj certyfikat jest dostepny online i mozesz go udostepnic na LinkedIn:</p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${verifyUrl}" style="display: inline-block; padding: 16px 32px; background: ${isWinner ? 'linear-gradient(135deg, #f59e0b, #ef4444)' : 'linear-gradient(135deg, #06b6d4, #3b82f6)'}; color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Zobacz certyfikat &rarr;</a>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center; margin: 20px 0;">
+        <p style="font-size: 12px; color: #64748b; margin: 0 0 4px;">Hash weryfikacyjny</p>
+        <code style="font-size: 14px; color: #0f172a; font-weight: 600;">${cert.hash}</code>
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
+        Pozdrawiamy,<br><strong>Zespol AI Krak Hack 2026</strong><br>AI Possibilities Lab &bull; WSEI Krakow
+      </p>
+    </div>
+  </div>
+</div>`;
+}
+
+// GET /api/admin/team-projects/preview-email — Preview team edit-link email
+app.get('/api/admin/team-projects/preview-email', requireAdmin, async (req, res) => {
+  try {
+    let query, params;
+    if (req.query.id) {
+      query = 'SELECT * FROM team_projects WHERE id = $1';
+      params = [req.query.id];
+    } else {
+      query = 'SELECT * FROM team_projects WHERE edit_token IS NOT NULL ORDER BY id LIMIT 1';
+      params = [];
+    }
+    const result = await pool.query(query, params);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Brak zespolu' });
+
+    const team = result.rows[0];
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const editLink = `${baseUrl}/zespoly/${team.slug}/edytuj/${team.edit_token || 'TOKEN_PLACEHOLDER'}`;
+    const html = buildTeamEditLinkHtml(team, editLink);
+
+    res.json({
+      subject: 'Edytuj profil swojego zespolu — AI Krak Hack 2026',
+      html,
+      team_name: team.name,
+      edit_link: editLink,
+      id: team.id,
+    });
+  } catch (err) {
+    console.error('[TeamProjects] Preview email error:', err);
+    res.status(500).json({ error: 'Blad podgladu emaila' });
+  }
+});
+
+// POST /api/admin/team-projects/:id/send-test-email — Send team edit-link email to test address
+app.post('/api/admin/team-projects/:id/send-test-email', requireAdmin, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Brak adresu email' });
+
+    const result = await pool.query('SELECT * FROM team_projects WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono zespolu' });
+
+    const team = result.rows[0];
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const editLink = team.edit_token
+      ? `${baseUrl}/zespoly/${team.slug}/edytuj/${team.edit_token}`
+      : `${baseUrl}/zespoly/${team.slug}/edytuj/TOKEN_PLACEHOLDER`;
+    const html = buildTeamEditLinkHtml(team, editLink);
+
+    const success = await sendResendEmail(email, 'Edytuj profil swojego zespolu — AI Krak Hack 2026', html);
+    if (!success) return res.status(500).json({ success: false, message: 'Wysylka nie powiodla sie — sprawdz RESEND_API_KEY' });
+
+    res.json({ success: true, message: `Email testowy wyslany na ${email}` });
+  } catch (err) {
+    console.error('[TeamProjects] Send test email error:', err);
+    res.status(500).json({ success: false, message: 'Blad wysylki testowej' });
+  }
+});
+
+// GET /api/admin/certificates/preview-email — Preview certificate email
+app.get('/api/admin/certificates/preview-email', requireAdmin, async (req, res) => {
+  try {
+    let query, params;
+    if (req.query.id) {
+      query = "SELECT * FROM certificates WHERE id = $1 AND status = 'issued'";
+      params = [req.query.id];
+    } else {
+      query = "SELECT * FROM certificates WHERE status = 'issued' AND hash IS NOT NULL ORDER BY id LIMIT 1";
+      params = [];
+    }
+    const result = await pool.query(query, params);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Brak wydanego certyfikatu do podgladu' });
+
+    const cert = result.rows[0];
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const verifyUrl = `${baseUrl}/verify/${cert.hash}`;
+    const isWinner = cert.certificate_type === 'winner';
+    const html = buildCertEmailHtml(cert, verifyUrl);
+
+    res.json({
+      subject: `${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'} - AI Krak Hack 2026`,
+      html,
+      participant_name: cert.participant_name,
+      id: cert.id,
+    });
+  } catch (err) {
+    console.error('[Certs] Preview email error:', err);
+    res.status(500).json({ error: 'Blad podgladu emaila certyfikatu' });
+  }
+});
+
+// POST /api/admin/certificates/:id/send-test-email — Send certificate email to test address
+app.post('/api/admin/certificates/:id/send-test-email', requireAdmin, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Brak adresu email' });
+
+    const result = await pool.query("SELECT * FROM certificates WHERE id = $1 AND status = 'issued'", [req.params.id]);
+    if (result.rows.length === 0) return res.status(400).json({ success: false, message: 'Certyfikat musi byc wydany (issued)' });
+
+    const cert = result.rows[0];
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const verifyUrl = `${baseUrl}/verify/${cert.hash}`;
+    const isWinner = cert.certificate_type === 'winner';
+    const html = buildCertEmailHtml(cert, verifyUrl);
+
+    const success = await sendResendEmail(
+      email,
+      `${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'} - AI Krak Hack 2026`,
+      html
+    );
+    if (!success) return res.status(500).json({ success: false, message: 'Wysylka nie powiodla sie — sprawdz RESEND_API_KEY' });
+
+    res.json({ success: true, message: `Email testowy wyslany na ${email}` });
+  } catch (err) {
+    console.error('[Certs] Send test email error:', err);
+    res.status(500).json({ success: false, message: 'Blad wysylki testowej' });
+  }
+});
+
+// GET /api/teams/edition/:editionNumber — List teams for edition (public)
+app.get('/api/teams/edition/:editionNumber', async (req, res) => {
+  try {
+    const edition = parseInt(req.params.editionNumber);
+    if (isNaN(edition)) return res.status(400).json({ error: 'Nieprawidlowy numer edycji' });
+
+    const result = await pool.query(
+      `SELECT id, edition_number, slug, name, placement, placement_label, special_mention,
+              challenge, members, university, project_name, short_description, full_description,
+              key_features, technologies, images, presentation_file, presentation_slides,
+              created_at, updated_at
+       FROM team_projects WHERE edition_number = $1
+       ORDER BY placement NULLS LAST, name`,
+      [edition]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[TeamProjects] Public list error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// GET /api/teams/edition/:editionNumber/:slug — Single team (public)
+app.get('/api/teams/edition/:editionNumber/:slug', async (req, res) => {
+  try {
+    const edition = parseInt(req.params.editionNumber);
+    if (isNaN(edition)) return res.status(400).json({ error: 'Nieprawidlowy numer edycji' });
+
+    const result = await pool.query(
+      `SELECT id, edition_number, slug, name, placement, placement_label, special_mention,
+              challenge, members, university, project_name, short_description, full_description,
+              key_features, technologies, images, presentation_file, presentation_slides,
+              created_at, updated_at
+       FROM team_projects WHERE edition_number = $1 AND slug = $2`,
+      [edition, req.params.slug]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono zespolu' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[TeamProjects] Public get error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// GET /api/teams/:slug/edit/:token — Get team data for editing (token-based, public)
+app.get('/api/teams/:slug/edit/:token', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, edition_number, slug, name, placement, placement_label, special_mention,
+              challenge, members, university, project_name, short_description, full_description,
+              key_features, technologies, images, presentation_file, presentation_slides,
+              edit_password, edit_history,
+              created_at, updated_at
+       FROM team_projects WHERE slug = $1 AND edit_token = $2`,
+      [req.params.slug, req.params.token]
+    );
+    if (result.rows.length === 0) return res.status(403).json({ error: 'Nieprawidlowy token edycji' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[TeamProjects] Token get error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// POST /api/teams/:slug/verify-edit-password/:token — Verify team edit password
+app.post('/api/teams/:slug/verify-edit-password/:token', async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Brak hasla' });
+
+    const result = await pool.query(
+      'SELECT edit_password FROM team_projects WHERE slug = $1 AND edit_token = $2',
+      [req.params.slug, req.params.token]
+    );
+    if (result.rows.length === 0) return res.status(403).json({ error: 'Nieprawidlowy token edycji' });
+
+    const team = result.rows[0];
+    const adminPassword = process.env.ADMIN_PASSWORD || 'MakaPaka2026';
+
+    if (password === team.edit_password || password === adminPassword) {
+      return res.json({ success: true });
+    }
+    return res.status(403).json({ error: 'Nieprawidlowe haslo' });
+  } catch (err) {
+    console.error('[TeamProjects] Verify password error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// PATCH /api/teams/:slug/edit/:token — Update editable fields (token-based, public)
+app.patch('/api/teams/:slug/edit/:token', async (req, res) => {
+  try {
+    const adminPassword = process.env.ADMIN_PASSWORD || 'MakaPaka2026';
+    const providedPassword = req.headers['x-edit-password'];
+
+    // Verify token and get current data for history
+    const check = await pool.query(
+      'SELECT id, edit_password, edit_history FROM team_projects WHERE slug = $1 AND edit_token = $2',
+      [req.params.slug, req.params.token]
+    );
+    if (check.rows.length === 0) return res.status(403).json({ error: 'Nieprawidlowy token edycji' });
+
+    const team = check.rows[0];
+
+    // Validate password
+    if (!providedPassword || (providedPassword !== team.edit_password && providedPassword !== adminPassword)) {
+      return res.status(403).json({ error: 'Nieprawidlowe haslo edycji' });
+    }
+
+    const teamId = team.id;
+    const editableFields = [
+      'project_name', 'short_description', 'full_description',
+      'key_features', 'technologies', 'images', 'presentation_file', 'university',
+    ];
+
+    const updates = [];
+    const params = [];
+    let paramIdx = 1;
+
+    const changedFields = [];
+    for (const field of editableFields) {
+      if (req.body[field] !== undefined) {
+        changedFields.push(field);
+        const value = field === 'images'
+          ? JSON.stringify(req.body[field])
+          : req.body[field];
+        updates.push(`${field} = $${paramIdx++}`);
+        params.push(value);
+      }
+    }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'Brak danych do aktualizacji' });
+
+    // Build edit history entry
+    const historyEntry = {
+      timestamp: new Date().toISOString(),
+      editor: providedPassword === adminPassword ? 'admin' : 'team',
+      fields: changedFields,
+    };
+    const currentHistory = team.edit_history || [];
+    const newHistory = [historyEntry, ...currentHistory].slice(0, 20);
+
+    updates.push(`edit_history = $${paramIdx++}`);
+    params.push(JSON.stringify(newHistory));
+    updates.push(`updated_at = NOW()`);
+    params.push(teamId);
+
+    const result = await pool.query(
+      `UPDATE team_projects SET ${updates.join(', ')} WHERE id = $${paramIdx}
+       RETURNING id, edition_number, slug, name, placement, placement_label, special_mention,
+                 challenge, members, university, project_name, short_description, full_description,
+                 key_features, technologies, images, presentation_file, presentation_slides,
+                 edit_history, created_at, updated_at`,
+      params
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[TeamProjects] Token update error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// POST /api/teams/:slug/upload-presentation/:token — Upload PDF presentation (token-based)
+app.post('/api/teams/:slug/upload-presentation/:token', (req, res, next) => {
+  // Validate token before allowing upload
+  const { slug, token } = req.params;
+  pool.query(
+    'SELECT id, edit_password FROM team_projects WHERE slug = $1 AND edit_token = $2',
+    [slug, token]
+  ).then(check => {
+    if (check.rows.length === 0) return res.status(403).json({ error: 'Nieprawidlowy token edycji' });
+
+    const team = check.rows[0];
+    const adminPassword = process.env.ADMIN_PASSWORD || 'MakaPaka2026';
+    const providedPassword = req.headers['x-edit-password'];
+
+    if (!providedPassword || (providedPassword !== team.edit_password && providedPassword !== adminPassword)) {
+      return res.status(403).json({ error: 'Nieprawidlowe haslo edycji' });
+    }
+
+    // Proceed with multer upload
+    uploadPresentation.single('file')(req, res, async (err) => {
+      if (err) {
+        if (err.message === 'Tylko pliki PDF') return res.status(400).json({ error: 'Tylko pliki PDF sa dozwolone' });
+        if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Plik jest za duzy (maks. 20MB)' });
+        return res.status(400).json({ error: err.message || 'Blad przeslania pliku' });
+      }
+      if (!req.file) return res.status(400).json({ error: 'Brak pliku' });
+
+      const presentationPath = `/assets/presentations/${slug}-presentation.pdf`;
+      try {
+        await pool.query(
+          'UPDATE team_projects SET presentation_file = $1, updated_at = NOW() WHERE id = $2',
+          [presentationPath, team.id]
+        );
+        res.json({ success: true, presentation_file: presentationPath });
+      } catch (dbErr) {
+        console.error('[TeamProjects] Upload presentation DB error:', dbErr);
+        res.status(500).json({ error: 'Blad zapisywania sciezki pliku' });
+      }
+    });
+  }).catch(err => {
+    console.error('[TeamProjects] Upload presentation token check error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  });
+});
+
+// POST /api/admin/team-projects/:id/upload-presentation — Upload PDF presentation (admin)
+app.post('/api/admin/team-projects/:id/upload-presentation', requireAdmin, async (req, res) => {
+  try {
+    const teamResult = await pool.query('SELECT slug FROM team_projects WHERE id = $1', [req.params.id]);
+    if (teamResult.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono zespolu' });
+
+    // Set slug on params so multer filename callback can use it
+    req.params.slug = teamResult.rows[0].slug;
+
+    uploadPresentation.single('file')(req, res, async (err) => {
+      if (err) {
+        if (err.message === 'Tylko pliki PDF') return res.status(400).json({ error: 'Tylko pliki PDF sa dozwolone' });
+        if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Plik jest za duzy (maks. 20MB)' });
+        return res.status(400).json({ error: err.message || 'Blad przeslania pliku' });
+      }
+      if (!req.file) return res.status(400).json({ error: 'Brak pliku' });
+
+      const presentationPath = `/assets/presentations/${req.params.slug}-presentation.pdf`;
+      await pool.query(
+        'UPDATE team_projects SET presentation_file = $1, updated_at = NOW() WHERE id = $2',
+        [presentationPath, req.params.id]
+      );
+      res.json({ success: true, presentation_file: presentationPath });
+    });
+  } catch (err) {
+    console.error('[TeamProjects] Admin upload presentation error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
   }
 });
 

@@ -6,22 +6,25 @@ import { FileDownload } from '@/app/components/FileDownload';
 import { editions } from '@/data/editions';
 import { Header } from '@/app/components/Header';
 import { Footer } from '@/app/components/Footer';
+import { useEditionOptional } from '@/app/hooks/useEdition';
 
 export function TaskDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const edCtx = useEditionOptional();
   const [dynamicResources, setDynamicResources] = useState<{materials?: string, task?: string} | null>(null);
-  
-  // Find which edition/challenge this slug belongs to
-  const edition2026 = editions['2026'];
+
+  // Use edition context if available, otherwise fall back to 2026
+  const currentEdition = edCtx?.edition ?? editions['2026'];
+  const backLink = edCtx ? edCtx.basePath : '/';
   const slugIdMap: Record<string, string> = {
     'infrasruktura': 'geospatial',
     'asystent': 'process-automation',
     'urban-analytics': 'real-time-analytics'
   };
-  
+
   const challengeId = slugIdMap[slug || ''] || slug;
-  const challenge = edition2026.challenges?.find(c => c.id === challengeId);
+  const challenge = currentEdition.challenges?.find(c => c.id === challengeId);
 
   const defaultLinks: Record<string, {materials: string}> = {
     'process-automation': {
@@ -82,7 +85,7 @@ export function TaskDetail() {
         
         <div className="container mx-auto px-6 relative z-10">
           <Link
-            to="/"
+            to={backLink}
             className="inline-flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors mb-12 backdrop-blur-md bg-white/5 px-4 py-2 rounded-full border border-white/10 uppercase font-black tracking-wider text-[10px]"
           >
             <ArrowLeft className="w-4 h-4" />

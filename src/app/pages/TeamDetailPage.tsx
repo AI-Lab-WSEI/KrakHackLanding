@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight, Trophy, Users, Code, Check, MapPin, Cpu, Star, Download, X, Monitor } from 'lucide-react';
-import { getTeamBySlug, TEAMS } from '@/data/teams';
+import { getTeamBySlug, TEAMS, type TeamProject } from '@/data/teams';
 import { Footer } from '@/app/components/Footer';
 import results from '@/data/results.json';
+import { useEditionOptional } from '@/app/hooks/useEdition';
 
 interface CarouselImage {
   url: string;
@@ -135,16 +136,55 @@ function ScreenshotCarousel({ images, teamName }: { images: CarouselImage[]; tea
   );
 }
 
+/** Map API snake_case row to TeamProject interface */
+function apiToTeamProject(row: any): TeamProject {
+  return {
+    id: row.slug,
+    name: row.name,
+    placement: row.placement ?? undefined,
+    placementLabel: row.placement_label ?? undefined,
+    specialMention: row.special_mention ?? undefined,
+    challenge: row.challenge,
+    members: row.members ?? [],
+    university: row.university ?? undefined,
+    projectName: row.project_name ?? undefined,
+    shortDescription: row.short_description ?? '',
+    fullDescription: row.full_description ?? [],
+    keyFeatures: row.key_features ?? [],
+    technologies: row.technologies ?? [],
+    images: row.images ?? [],
+    presentationFile: row.presentation_file ?? undefined,
+    presentationSlides: row.presentation_slides ?? undefined,
+  };
+}
+
 export function TeamDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const team = slug ? getTeamBySlug(slug) : undefined;
+  const edCtx = useEditionOptional();
+  const [apiTeam, setApiTeam] = useState<TeamProject | null>(null);
+
+  const editionNumber = edCtx?.meta.number ?? 3;
+
+  useEffect(() => {
+    if (!slug) return;
+    fetch(`/api/teams/edition/${editionNumber}/${slug}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setApiTeam(apiToTeamProject(data)); })
+      .catch(() => {});
+  }, [slug, editionNumber]);
+
+  const allTeams = edCtx?.teams ?? TEAMS;
+  const staticTeam = slug ? (allTeams.find(t => t.id === slug) ?? getTeamBySlug(slug)) : undefined;
+  const team = apiTeam ?? staticTeam;
 
   if (!team) { navigate('/'); return null; }
 
-  const currentIdx = TEAMS.findIndex((t) => t.id === team.id);
-  const prev = currentIdx > 0 ? TEAMS[currentIdx - 1] : undefined;
-  const next = currentIdx < TEAMS.length - 1 ? TEAMS[currentIdx + 1] : undefined;
+  const currentIdx = allTeams.findIndex((t) => t.id === team.id);
+  const prev = currentIdx > 0 ? allTeams[currentIdx - 1] : undefined;
+  const next = currentIdx < allTeams.length - 1 ? allTeams[currentIdx + 1] : undefined;
+  const teamLink = (id: string) => edCtx ? edCtx.teamPath(id) : `/zespoly/${id}`;
+  const backLink = edCtx ? edCtx.basePath : '/';
   const isWinner = team.placement !== undefined;
   const challengeLabel = team.challenge === 'geospatial' ? 'Smart Infrastructure Challenge' : 'Process-to-Automation Copilot';
 
@@ -152,13 +192,13 @@ export function TeamDetailPage() {
     <div className="min-h-screen bg-black relative">
       {/* Fixed nav */}
       {prev && (
-        <Link to={`/zespoly/${prev.id}`}
+        <Link to={teamLink(prev.id)}
           className="fixed left-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-full bg-white/5 border border-white/10 backdrop-blur-md flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-white/10 transition-all">
           <ChevronLeft className="w-6 h-6" />
         </Link>
       )}
       {next && (
-        <Link to={`/zespoly/${next.id}`}
+        <Link to={teamLink(next.id)}
           className="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-full bg-white/5 border border-white/10 backdrop-blur-md flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-white/10 transition-all">
           <ChevronRight className="w-6 h-6" />
         </Link>
@@ -172,7 +212,7 @@ export function TeamDetailPage() {
         <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] ${isWinner ? 'bg-pink-500' : 'bg-cyan-500'} opacity-10 rounded-full blur-[120px]`} />
 
         <div className="container mx-auto px-4 relative z-10">
-          <Link to="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors mb-8 text-sm">
+          <Link to={backLink} className="inline-flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors mb-8 text-sm">
             <ChevronLeft className="w-4 h-4" /> Wróć do strony głównej
           </Link>
 

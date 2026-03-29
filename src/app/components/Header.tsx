@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router';
 import { ChevronDown, ChevronLeft, Menu, X, ExternalLink } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useSiteConfig } from '@/app/hooks/useSiteConfig';
+import { getVisibleEditions, CURRENT_EDITION_NUMBER, resolveEditionParam } from '@/data/edition-registry';
 
 export function Header() {
   const { isLab, hackathonUrl } = useSiteConfig();
@@ -12,8 +13,15 @@ export function Header() {
   const editionRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
-  const currentEdition = location.pathname === '/2025' ? '2025' : '2026';
-  const isHackathonPage = location.pathname === '/' || location.pathname === '/2025' || location.pathname.startsWith('/zadania') || location.pathname === '/forms';
+  // Detect current edition from URL
+  const editionMatch = location.pathname.match(/^\/edycja\/(\w+)/);
+  const resolvedEdition = editionMatch ? resolveEditionParam(editionMatch[1]) : null;
+  const currentEditionDisplay = resolvedEdition
+    ? resolvedEdition.meta.year
+    : location.pathname === '/2025' ? '2025' : String(CURRENT_EDITION_NUMBER);
+  const visibleEditions = getVisibleEditions();
+
+  const isHackathonPage = location.pathname === '/' || location.pathname === '/2025' || location.pathname.startsWith('/zadania') || location.pathname === '/forms' || location.pathname.startsWith('/edycja');
   const isPostHackathon = new Date() >= new Date('2026-03-28T18:00:00');
 
   // Reset hackathon nav when navigating away
@@ -150,21 +158,23 @@ export function Header() {
                 onClick={() => setEditionDropdownOpen(!editionDropdownOpen)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors text-xs"
               >
-                {currentEdition}
+                {currentEditionDisplay}
                 <ChevronDown className={`w-3 h-3 transition-transform ${editionDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               {editionDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-44 bg-gray-800 rounded-lg shadow-xl border border-gray-700 overflow-hidden z-50">
-                  <Link to="/" onClick={() => setEditionDropdownOpen(false)}
-                    className="block px-4 py-2.5 hover:bg-gray-700 text-white transition-colors border-b border-gray-700">
-                    <div className="font-medium text-sm">2026</div>
-                    <div className="text-xs text-gray-400">Aktualna edycja</div>
-                  </Link>
-                  <Link to="/2025" onClick={() => setEditionDropdownOpen(false)}
-                    className="block px-4 py-2.5 hover:bg-gray-700 text-white transition-colors">
-                    <div className="font-medium text-sm">2025</div>
-                    <div className="text-xs text-gray-400">Archiwum</div>
-                  </Link>
+                  {visibleEditions.map((ed, idx) => {
+                    const isCurrent = ed.number === CURRENT_EDITION_NUMBER;
+                    const linkTo = isCurrent ? '/' : `/edycja/${ed.number}`;
+                    const label = isCurrent ? 'Aktualna edycja' : 'Archiwum';
+                    return (
+                      <Link key={ed.number} to={linkTo} onClick={() => setEditionDropdownOpen(false)}
+                        className={`block px-4 py-2.5 hover:bg-gray-700 text-white transition-colors ${idx < visibleEditions.length - 1 ? 'border-b border-gray-700' : ''}`}>
+                        <div className="font-medium text-sm">{ed.year} <span className="text-gray-500 text-xs">({ed.number}. edycja)</span></div>
+                        <div className="text-xs text-gray-400">{label}</div>
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>

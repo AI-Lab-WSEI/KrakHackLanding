@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { ChevronDown, MapPin, Workflow, Code, Zap, ArrowRight } from 'lucide-react';
 import { Challenge } from '@/types/edition';
+import { useEditionOptional } from '@/app/hooks/useEdition';
 
 interface ChallengesSectionProps {
   challenges: Challenge[];
@@ -16,6 +17,7 @@ const iconMap = {
 
 export function ChallengesSection({ challenges }: ChallengesSectionProps) {
   const navigate = useNavigate();
+  const edCtx = useEditionOptional();
 
   const handleChallengeClick = (challengeId: string) => {
     const slugMap: { [key: string]: string } = {
@@ -23,7 +25,8 @@ export function ChallengesSection({ challenges }: ChallengesSectionProps) {
       'process-automation': 'asystent'
     };
     const slug = slugMap[challengeId] || challengeId;
-    navigate(`/zadania/${slug}`);
+    const path = edCtx ? edCtx.taskPath(slug) : `/zadania/${slug}`;
+    navigate(path);
   };
 
   return (

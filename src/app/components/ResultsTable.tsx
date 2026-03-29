@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Trophy } from 'lucide-react';
 import results from '@/data/results.json';
 import { getTeamBySlug } from '@/data/teams';
+import { useEditionOptional } from '@/app/hooks/useEdition';
 
 const GRID_COLS = 'grid grid-cols-[40px_1fr_repeat(4,minmax(50px,80px))_60px]';
 
@@ -32,13 +33,13 @@ function HeaderRow() {
   );
 }
 
-function Row({ teamId, placement, scores, note }: { teamId: string; placement: number; scores: any; note?: string }) {
+function Row({ teamId, placement, scores, note, teamLink }: { teamId: string; placement: number; scores: any; note?: string; teamLink: (id: string) => string }) {
   const team = getTeamBySlug(teamId);
   const name = team?.name || teamId;
   const isTop = placement <= 2;
 
   return (
-    <Link to={`/zespoly/${teamId}`} className="group">
+    <Link to={teamLink(teamId)} className="group">
       <div className={`${GRID_COLS} items-center border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${isTop ? 'bg-white/3' : ''}`}>
         <div className="px-2 py-3 text-center">
           {placement <= 2 ? (
@@ -73,6 +74,7 @@ function ChallengeTable({
   borderColor,
   teamCount,
   animateFrom,
+  teamLink,
 }: {
   challenge: any;
   color: string;
@@ -81,6 +83,7 @@ function ChallengeTable({
   borderColor: string;
   teamCount: string;
   animateFrom: 'left' | 'right';
+  teamLink: (id: string) => string;
 }) {
   return (
     <motion.div
@@ -102,7 +105,7 @@ function ChallengeTable({
         <div className="min-w-[500px]">
           <HeaderRow />
           {challenge.results.map((r: any) => (
-            <Row key={r.teamId} teamId={r.teamId} placement={r.placement} scores={r.scores} note={r.note} />
+            <Row key={r.teamId} teamId={r.teamId} placement={r.placement} scores={r.scores} note={r.note} teamLink={teamLink} />
           ))}
         </div>
       </div>
@@ -114,6 +117,8 @@ function ChallengeTable({
 }
 
 export function ResultsTable() {
+  const edCtx = useEditionOptional();
+  const teamLink = (id: string) => edCtx ? edCtx.teamPath(id) : `/zespoly/${id}`;
   const geo = results.challenges.geospatial;
   const proc = results.challenges['process-automation'];
 
@@ -129,6 +134,7 @@ export function ResultsTable() {
             borderColor="border-blue-500/20"
             teamCount="7 zespołów"
             animateFrom="left"
+            teamLink={teamLink}
           />
           <ChallengeTable
             challenge={proc}
@@ -138,6 +144,7 @@ export function ResultsTable() {
             borderColor="border-purple-500/20"
             teamCount="3 zespoły"
             animateFrom="right"
+            teamLink={teamLink}
           />
         </div>
       </div>

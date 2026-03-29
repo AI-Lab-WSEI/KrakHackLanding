@@ -1,6 +1,6 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { Lock, LogOut, Eye, EyeOff } from 'lucide-react';
+import { Lock, Eye, EyeOff } from 'lucide-react';
 
 interface AdminAuthProps {
   children: ReactNode;
@@ -200,47 +200,6 @@ export function AdminAuth({ children }: AdminAuthProps) {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background">
-      {/* Admin Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-card/60 backdrop-blur-xl border-b border-border/50 sticky top-0 z-50"
-      >
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-full flex items-center justify-center">
-                <Lock className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                Panel Administracyjny
-              </h1>
-            </div>
-
-            <motion.button
-              onClick={handleLogout}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-destructive border border-border/50 hover:border-destructive/30 rounded-xl transition-all"
-            >
-              <LogOut className="w-4 h-4" />
-              Wyloguj
-            </motion.button>
-          </div>
-        </div>
-      </motion.header>
-
-      {/* Admin Content */}
-      <motion.main
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="container mx-auto px-6 py-8"
-      >
-        {children}
-      </motion.main>
-    </div>
-  );
+  // Dashboard owns the full layout — just pass children through
+  return <>{children}</>;
 }

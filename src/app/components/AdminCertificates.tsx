@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAdminToken } from './AdminAuth';
 import { motion, AnimatePresence } from 'motion/react';
+import { EmailPreviewModal } from './EmailPreviewModal';
 import {
   Award,
   Search,
@@ -83,6 +84,8 @@ export function AdminCertificates() {
   const [editForm, setEditForm] = useState<Partial<Certificate>>({});
   const [actionStatus, setActionStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [certPreviewData, setCertPreviewData] = useState<{ subject: string; html: string; participant_name: string; id: string } | null>(null);
 
   const loadCertificates = async () => {
     setLoading(true);
@@ -186,12 +189,38 @@ export function AdminCertificates() {
     }
   };
 
-  const bulkSendEmail = async () => {
+  const openBulkSendPreview = async () => {
+    try {
+      const data = await certFetch('/api/admin/certificates/preview-email');
+      setCertPreviewData(data);
+      setShowPreviewModal(true);
+    } catch (err: unknown) {
+      showStatus('error', err instanceof Error ? err.message : 'Blad ladowania podgladu emaila');
+    }
+  };
+
+  const handleCertSendTest = async (email: string) => {
+    if (!certPreviewData) return { success: false, message: 'Brak danych podgladu' };
+    try {
+      const result = await certFetch(`/api/admin/certificates/${certPreviewData.id}/send-test-email`, {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      return { success: result.success, message: result.message || 'Wyslano' };
+    } catch (err: unknown) {
+      return { success: false, message: err instanceof Error ? err.message : 'Blad wysylki testowej' };
+    }
+  };
+
+  const handleCertSendAll = async () => {
     try {
       const result = await certFetch('/api/certificates/bulk-send-email', { method: 'POST' });
       showStatus('success', `Wyslano ${result.sent}/${result.total} emaili`);
+      setShowPreviewModal(false);
+      return { sent: result.sent ?? 0, failed: (result.total ?? 0) - (result.sent ?? 0) };
     } catch (err: unknown) {
       showStatus('error', err instanceof Error ? err.message : 'Blad');
+      return { sent: 0, failed: 0 };
     }
   };
 
@@ -359,7 +388,7 @@ export function AdminCertificates() {
         <button onClick={bulkIssue} className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
           <ShieldCheck className="w-3.5 h-3.5" /> Wydaj wszystkie zatwierdzone
         </button>
-        <button onClick={bulkSendEmail} className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
+        <button onClick={openBulkSendPreview} className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
           <Mail className="w-3.5 h-3.5" /> Wyslij emaile (wydane)
         </button>
         <button onClick={exportCerts} className="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
@@ -659,6 +688,20 @@ export function AdminCertificates() {
           })
         )}
       </div>
+
+      {/* Email Preview Modal */}
+      {certPreviewData && (
+        <EmailPreviewModal
+          open={showPreviewModal}
+          subject={certPreviewData.subject}
+          previewHtml={certPreviewData.html}
+          previewLabel={certPreviewData.participant_name}
+          sendAllLabel={`Wyslij do ${stats.issued} uczestnikow`}
+          onClose={() => setShowPreviewModal(false)}
+          onSendTest={handleCertSendTest}
+          onSendAll={handleCertSendAll}
+        />
+      )}
     </motion.div>
   );
 }
