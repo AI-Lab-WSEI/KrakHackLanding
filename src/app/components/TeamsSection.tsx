@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
-import { Trophy, ArrowRight, Users, MapPin } from 'lucide-react';
-import { TEAMS, WINNERS } from '@/data/teams';
+import { Trophy, ArrowRight, Users, MapPin, Star } from 'lucide-react';
+import { TEAMS, WINNERS, SPECIAL_MENTIONS } from '@/data/teams';
 
 export function TeamsSection() {
   return (
@@ -71,10 +71,15 @@ export function TeamsSection() {
                 to={`/zespoly/${team.id}`}
                 className="group flex flex-col p-5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/8 hover:border-cyan-500/30 transition-all h-full"
               >
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${team.challenge === 'geospatial' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'}`}>
                     {team.challenge === 'geospatial' ? 'Infrastructure' : 'Process'}
                   </span>
+                  {team.specialMention && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center gap-1">
+                      <Star className="w-2.5 h-2.5" /> Wyróżnienie
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-lg font-bold text-white mb-1">{team.name}</h3>
                 {team.projectName && <p className="text-cyan-400 text-xs font-medium mb-2">{team.projectName}</p>}

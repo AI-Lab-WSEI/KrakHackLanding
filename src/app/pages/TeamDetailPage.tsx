@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router';
 import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, Trophy, Users, Code, Check, MapPin, Cpu } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, Users, Code, Check, MapPin, Cpu, Star } from 'lucide-react';
 import { getTeamBySlug, TEAMS } from '@/data/teams';
 import { Footer } from '@/app/components/Footer';
 
@@ -55,6 +55,11 @@ export function TeamDetailPage() {
               <span className={`px-3 py-1 rounded-full text-xs font-bold ${team.challenge === 'geospatial' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'}`}>
                 {challengeLabel}
               </span>
+              {team.specialMention && (
+                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-400 text-sm font-bold">
+                  <Star className="w-4 h-4" /> {team.specialMention}
+                </span>
+              )}
             </div>
 
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">{team.name}</h1>

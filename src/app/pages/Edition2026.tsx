@@ -12,6 +12,7 @@ import { MentorSection } from '@/app/components/MentorSection';
 import { PartnersSection } from '@/app/components/PartnersSection';
 import { editions } from '@/data/editions';
 import { TeamsSection } from '@/app/components/TeamsSection';
+import { ResultsTable } from '@/app/components/ResultsTable';
 import { Link } from 'react-router';
 import { motion } from 'motion/react';
 
@@ -55,6 +56,8 @@ export function Edition2026() {
       <RegistrationForm />
 
       <TeamsSection />
+
+      <ResultsTable />
 
       {/* CTA: Pre/Post hackathon */}
       <section className="py-20 bg-gradient-to-br from-black via-purple-950/40 to-black relative overflow-hidden">

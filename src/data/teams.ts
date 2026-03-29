@@ -3,6 +3,7 @@ export interface TeamProject {
   name: string;
   placement?: number; // 1, 2, etc. or undefined for participation
   placementLabel?: string; // "1. miejsce", "2. miejsce"
+  specialMention?: string; // "Wyróżnienie specjalne" etc.
   challenge: 'geospatial' | 'process-automation';
   members: string[];
   university?: string;
@@ -55,6 +56,7 @@ export const TEAMS: TeamProject[] = [
   {
     id: 'databees',
     name: 'DataBees',
+    specialMention: 'Wyróżnienie za podejście naukowe',
     challenge: 'geospatial',
     members: ['Bartłomiej Wieloch', 'Jakub Zydroń', 'Piotr Bacior', 'Konrad Podstawski'],
     projectName: 'Digital Twin — symulacja wieloagentowa sieci komunikacyjnej Krakowa',
@@ -172,6 +174,8 @@ export const TEAMS: TeamProject[] = [
   {
     id: 'vibecoders',
     name: 'VibeCoders (Bikeholders)',
+    placement: 1,
+    placementLabel: '1. miejsce — Process Mining',
     challenge: 'process-automation',
     members: ['Mateusz Caputa', 'Marcin Pałys', 'Kacper Smaga'],
     projectName: 'Dashboard analityczny process mining',
@@ -196,6 +200,8 @@ export const TEAMS: TeamProject[] = [
   {
     id: 'the-boys',
     name: 'The Boys',
+    placement: 2,
+    placementLabel: '2. miejsce — Process Mining',
     challenge: 'process-automation',
     members: ['Tymon Szyler', 'Mikołaj Klima', 'Miłosz Nowak', 'Michał Mróz'],
     university: 'AGH',
@@ -220,6 +226,7 @@ export const TEAMS: TeamProject[] = [
   {
     id: 'konrad-podstawski',
     name: 'Konrad Podstawski (solo)',
+    specialMention: 'Wyróżnienie specjalne — jedyny solowy uczestnik',
     challenge: 'geospatial',
     members: ['Konrad Podstawski'],
     projectName: 'By Your Trip — codzienna przygoda na rowerze',
@@ -247,5 +254,6 @@ export function getTeamBySlug(slug: string): TeamProject | undefined {
 }
 
 export const WINNERS = TEAMS.filter((t) => t.placement !== undefined).sort((a, b) => (a.placement || 99) - (b.placement || 99));
+export const SPECIAL_MENTIONS = TEAMS.filter((t) => t.specialMention !== undefined);
 export const GEOSPATIAL_TEAMS = TEAMS.filter((t) => t.challenge === 'geospatial');
 export const PROCESS_TEAMS = TEAMS.filter((t) => t.challenge === 'process-automation');

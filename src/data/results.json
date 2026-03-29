@@ -1,0 +1,102 @@
+{
+  "event": "AI Krak Hack 2026",
+  "date": "27-28 marca 2026",
+  "challenges": {
+    "geospatial": {
+      "name": "Smart Infrastructure Challenge",
+      "description": "Optymalizacja infrastruktury rowerowej Krakowa z wykorzystaniem danych GIS",
+      "results": [
+        {
+          "teamId": "jakobiany",
+          "placement": 1,
+          "scores": {
+            "innovation": 18,
+            "technicalValue": 19,
+            "usefulness": 19,
+            "presentationQuality": 19,
+            "total": 75
+          }
+        },
+        {
+          "teamId": "mpz",
+          "placement": 2,
+          "scores": {
+            "innovation": 18,
+            "technicalValue": 18,
+            "usefulness": 17,
+            "presentationQuality": 19,
+            "total": 72
+          }
+        }
+      ],
+      "maxScorePerCategory": 20,
+      "maxTotal": 80
+    },
+    "process-automation": {
+      "name": "Process-to-Automation Copilot",
+      "description": "Analiza i automatyzacja procesów biznesowych z wykorzystaniem AI",
+      "results": [
+        {
+          "teamId": "vibecoders",
+          "placement": 1,
+          "scores": {
+            "innovation": 16,
+            "technicalValue": 16,
+            "usefulness": 16,
+            "presentationQuality": 16,
+            "total": 64
+          }
+        },
+        {
+          "teamId": "the-boys",
+          "placement": 2,
+          "note": "Process Refactor — nazwa aplikacji",
+          "scores": {
+            "innovation": 11,
+            "technicalValue": 14,
+            "usefulness": 13,
+            "presentationQuality": 14,
+            "total": 52
+          }
+        }
+      ],
+      "maxScorePerCategory": 20,
+      "maxTotal": 80
+    }
+  },
+  "specialMentions": [
+    {
+      "teamId": "konrad-podstawski",
+      "award": "Wyróżnienie specjalne",
+      "reason": "Jedyny solowy uczestnik hackathonu — imponujący projekt By Your Trip zrealizowany samodzielnie"
+    },
+    {
+      "teamId": "databees",
+      "award": "Wyróżnienie za podejście naukowe",
+      "reason": "Najbardziej naukowo zaawansowane podejście — pełna symulacja wieloagentowa z walidacją na danych rzeczywistych"
+    },
+    {
+      "teamId": "beznazwy",
+      "award": "Wyróżnienie za kreatywność",
+      "reason": "Zespół sformowany przypadkowo dzień przed hackathonem — innowacyjna integracja multimodalna",
+      "scores": {
+        "innovation": 8,
+        "technicalValue": 8,
+        "usefulness": 9,
+        "presentationQuality": 11,
+        "total": 36
+      }
+    }
+  ],
+  "scoringCategories": [
+    { "id": "innovation", "label": "Innowacyjność", "maxScore": 20 },
+    { "id": "technicalValue", "label": "Wartość techniczna", "maxScore": 20 },
+    { "id": "usefulness", "label": "Użyteczność", "maxScore": 20 },
+    { "id": "presentationQuality", "label": "Jakość prezentacji", "maxScore": 20 }
+  ],
+  "_meta": {
+    "lastUpdated": "2026-03-29",
+    "updatedBy": "AI Krak Hack organizers",
+    "instructions": "Edytuj ten plik aby zaktualizować wyniki. Komponenty automatycznie pobierają dane stąd."
+  }
+}
