@@ -2575,6 +2575,12 @@ app.post('/api/admin/team-projects/bulk-send-edit-links', requireAdmin, async (r
 
 // Helper: build team edit-link email HTML
 function buildTeamEditLinkHtml(team, editLink) {
+  const passwordBlock = team.edit_password ? `
+      <div style="background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+        <p style="font-size: 13px; color: #3b82f6; margin: 0 0 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Haslo do edycji</p>
+        <code style="font-size: 22px; color: #1e40af; font-weight: 800; letter-spacing: 0.1em;">${team.edit_password}</code>
+        <p style="font-size: 12px; color: #64748b; margin: 8px 0 0;">Bedziecie go potrzebowac przy pierwszym logowaniu do formularza edycji.</p>
+      </div>` : '';
   return `
 <div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
@@ -2588,6 +2594,7 @@ function buildTeamEditLinkHtml(team, editLink) {
       <div style="margin: 30px 0; text-align: center;">
         <a href="${editLink}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Edytuj profil zespolu &rarr;</a>
       </div>
+      ${passwordBlock}
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0;">
         <p style="font-size: 13px; color: #64748b; margin: 0 0 8px;">Link do edycji (nie udostepniajcie go publicznie):</p>
         <code style="font-size: 12px; color: #0f172a; word-break: break-all;">${editLink}</code>
