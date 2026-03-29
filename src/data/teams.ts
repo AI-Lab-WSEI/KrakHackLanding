@@ -171,7 +171,7 @@ export const TEAMS: TeamProject[] = [
       'Wizja: trasy wielopunktowe, Karta Mieszkańca, dane live',
     ],
     technologies: ['Python', 'LLM', 'Structured Output', 'OpenStreetMap', 'ZTP Kraków'],
-    presentationFile: '/assets/presentations/mpz.pdf',
+    presentationFile: '/assets/presentations/mpz.pptx',
     images: [],
   },
   {
@@ -198,7 +198,7 @@ export const TEAMS: TeamProject[] = [
       'Identyfikacja: 4h przestoju, 452k operacji kopiowania',
     ],
     technologies: ['React', 'Python', 'AI/LLM', 'CSV processing', 'Process Mining'],
-    presentationFile: '/assets/presentations/vibecoders.pdf',
+    presentationFile: '/assets/presentations/vibecoders.pptx',
     images: [],
   },
   {
