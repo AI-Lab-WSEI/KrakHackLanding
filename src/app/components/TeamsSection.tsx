@@ -43,16 +43,15 @@ export function TeamsSection() {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Zwycięzcy</h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">9 zespołów, 2 wyzwania, setki godzin pracy</p>
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 flex items-center justify-center gap-4">
+            <Trophy className="w-10 h-10 text-pink-400" /> Zwycięzcy
+          </h2>
+          <p className="text-gray-400 max-w-2xl mx-auto">9 zespołów, 2 wyzwania, 24 godziny pracy</p>
           <div className="w-20 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mt-4" />
         </motion.div>
 
         {/* Winners */}
         <div className="mb-12">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-pink-400 text-center mb-6 flex items-center justify-center gap-2">
-            <Trophy className="w-4 h-4" /> Zwycięzcy
-          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {WINNERS.map((team, idx) => {
               const scores = getScores(team.id);
