@@ -230,9 +230,7 @@ export const TEAMS: TeamProject[] = [
   {
     id: 'konrad-podstawski',
     name: 'Konrad Podstawski (solo)',
-    placement: 3,
-    placementLabel: '3. miejsce — Infrastructure',
-    specialMention: 'Wyróżnienie specjalne — jedyny solowy uczestnik',
+    specialMention: 'Wyróżnienie specjalne — jedyny solowy uczestnik, 67/80',
     challenge: 'geospatial',
     members: ['Konrad Podstawski'],
     projectName: 'By Your Trip — codzienna przygoda na rowerze',

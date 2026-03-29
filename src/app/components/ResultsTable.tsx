@@ -61,24 +61,38 @@ export function ResultsTable() {
                 <p className="text-gray-500 text-[10px]">7 zespołów</p>
               </div>
             </div>
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-white/5 text-[9px] uppercase tracking-widest text-gray-600">
-                  <th className="px-4 py-2 text-center w-12">#</th>
-                  <th className="px-4 py-2">Zespół</th>
-                  <th className="px-4 py-2 text-center" title="Innowacyjność">Inn.</th>
-                  <th className="px-4 py-2 text-center" title="Wartość techniczna">Tech.</th>
-                  <th className="px-4 py-2 text-center" title="Użyteczność">Użyt.</th>
-                  <th className="px-4 py-2 text-center" title="Jakość prezentacji">Prez.</th>
-                  <th className="px-4 py-2 text-center">Suma</th>
-                </tr>
-              </thead>
-              <tbody>
-                {geo.results.map((r: any) => (
-                  <Row key={r.teamId} teamId={r.teamId} placement={r.placement} scores={r.scores} note={r.note} />
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left table-fixed">
+                <thead>
+                  <tr className="border-b border-white/5 text-[9px] uppercase tracking-widest text-gray-600">
+                    <th className="px-3 py-2 text-center w-[40px]">#</th>
+                    <th className="px-3 py-2 w-[30%]">Zespół</th>
+                    <th className="px-2 py-2 text-center">
+                      <div>Inn.</div>
+                      <div className="text-[7px] normal-case tracking-normal text-gray-700">innowacyjność</div>
+                    </th>
+                    <th className="px-2 py-2 text-center">
+                      <div>Tech.</div>
+                      <div className="text-[7px] normal-case tracking-normal text-gray-700">wart. techniczna</div>
+                    </th>
+                    <th className="px-2 py-2 text-center">
+                      <div>Użyt.</div>
+                      <div className="text-[7px] normal-case tracking-normal text-gray-700">użyteczność</div>
+                    </th>
+                    <th className="px-2 py-2 text-center">
+                      <div>Prez.</div>
+                      <div className="text-[7px] normal-case tracking-normal text-gray-700">jakość prezentacji</div>
+                    </th>
+                    <th className="px-3 py-2 text-center w-[50px]">Suma</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {geo.results.map((r: any) => (
+                    <Row key={r.teamId} teamId={r.teamId} placement={r.placement} scores={r.scores} note={r.note} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="px-5 py-2 border-t border-white/5 text-[9px] text-gray-600 text-right">
               Maks. 20 pkt / kategoria · 80 pkt łącznie
             </div>
@@ -100,24 +114,38 @@ export function ResultsTable() {
                 <p className="text-gray-500 text-[10px]">3 zespoły</p>
               </div>
             </div>
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-white/5 text-[9px] uppercase tracking-widest text-gray-600">
-                  <th className="px-4 py-2 text-center w-12">#</th>
-                  <th className="px-4 py-2">Zespół</th>
-                  <th className="px-4 py-2 text-center" title="Innowacyjność">Inn.</th>
-                  <th className="px-4 py-2 text-center" title="Wartość techniczna">Tech.</th>
-                  <th className="px-4 py-2 text-center" title="Użyteczność">Użyt.</th>
-                  <th className="px-4 py-2 text-center" title="Jakość prezentacji">Prez.</th>
-                  <th className="px-4 py-2 text-center">Suma</th>
-                </tr>
-              </thead>
-              <tbody>
-                {proc.results.map((r: any) => (
-                  <Row key={r.teamId + '-proc'} teamId={r.teamId} placement={r.placement} scores={r.scores} note={r.note} />
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left table-fixed">
+                <thead>
+                  <tr className="border-b border-white/5 text-[9px] uppercase tracking-widest text-gray-600">
+                    <th className="px-3 py-2 text-center w-[40px]">#</th>
+                    <th className="px-3 py-2 w-[30%]">Zespół</th>
+                    <th className="px-2 py-2 text-center">
+                      <div>Inn.</div>
+                      <div className="text-[7px] normal-case tracking-normal text-gray-700">innowacyjność</div>
+                    </th>
+                    <th className="px-2 py-2 text-center">
+                      <div>Tech.</div>
+                      <div className="text-[7px] normal-case tracking-normal text-gray-700">wart. techniczna</div>
+                    </th>
+                    <th className="px-2 py-2 text-center">
+                      <div>Użyt.</div>
+                      <div className="text-[7px] normal-case tracking-normal text-gray-700">użyteczność</div>
+                    </th>
+                    <th className="px-2 py-2 text-center">
+                      <div>Prez.</div>
+                      <div className="text-[7px] normal-case tracking-normal text-gray-700">jakość prezentacji</div>
+                    </th>
+                    <th className="px-3 py-2 text-center w-[50px]">Suma</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {proc.results.map((r: any) => (
+                    <Row key={r.teamId + '-proc'} teamId={r.teamId} placement={r.placement} scores={r.scores} note={r.note} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="px-5 py-2 border-t border-white/5 text-[9px] text-gray-600 text-right">
               Maks. 20 pkt / kategoria · 80 pkt łącznie
             </div>
