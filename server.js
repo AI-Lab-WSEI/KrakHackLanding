@@ -3311,7 +3311,9 @@ app.get('/api/admin/gallery/:edition', requireAdmin, async (req, res) => {
       sortOrder: prefsMap[p.publicId]?.sort_order || 999,
     }));
 
-    res.json({ photos: enriched, collectionUrl, hasApiCredentials: !!(process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) });
+    const hasKey = !!process.env.CLOUDINARY_API_KEY;
+    const hasSecret = !!process.env.CLOUDINARY_API_SECRET;
+    res.json({ photos: enriched, collectionUrl, hasApiCredentials: hasKey && hasSecret, missingVars: [...(!hasKey ? ['CLOUDINARY_API_KEY'] : []), ...(!hasSecret ? ['CLOUDINARY_API_SECRET'] : [])] });
   } catch (err) {
     console.error('[Gallery] Admin GET error:', err);
     res.status(500).json({ error: 'Błąd serwera' });

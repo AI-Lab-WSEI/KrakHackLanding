@@ -1,6 +1,19 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Images, Loader2, Star, EyeOff, Eye, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { getAdminToken } from './AdminAuth';
+
+function adminFetch(path: string, options?: RequestInit) {
+  const token = getAdminToken();
+  return fetch(path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...(options?.headers || {}),
+    },
+  }).then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error || 'Błąd')));
+}
 
 interface GalleryPhoto {
   publicId: string;
@@ -22,20 +35,19 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
   const [loading, setLoading] = useState(true);
   const [collectionUrl, setCollectionUrl] = useState('');
   const [hasApiCredentials, setHasApiCredentials] = useState(false);
+  const [missingVars, setMissingVars] = useState<string[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const load = (bust = false) => {
     setLoading(true);
     setError('');
-    fetch(`/api/admin/gallery/${edition}${bust ? '?bust=1' : ''}`, {
-      headers: { 'x-admin-token': localStorage.getItem('adminToken') || '' },
-    })
-      .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.error)))
+    adminFetch(`/api/admin/gallery/${edition}${bust ? '?bust=1' : ''}`)
       .then(d => {
         setPhotos(d.photos || []);
         setCollectionUrl(d.collectionUrl || '');
         setHasApiCredentials(d.hasApiCredentials || false);
+        setMissingVars(d.missingVars || []);
       })
       .catch(e => setError(typeof e === 'string' ? e : 'Błąd ładowania galerii'))
       .finally(() => setLoading(false));
@@ -50,15 +62,10 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
       if (field === 'isStarred') body.isStarred = !current;
       if (field === 'isHidden') body.isHidden = !current;
 
-      const r = await fetch(`/api/admin/gallery/${edition}/photo`, {
+      await adminFetch(`/api/admin/gallery/${edition}/photo`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-token': localStorage.getItem('adminToken') || '',
-        },
         body: JSON.stringify(body),
       });
-      if (!r.ok) throw new Error();
 
       setPhotos(prev => prev.map(p =>
         p.publicId === publicId ? { ...p, [field]: !current } : p
@@ -106,12 +113,15 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
       </div>
 
       {/* API credentials warning */}
-      {!hasApiCredentials && (
+      {!hasApiCredentials && missingVars.length > 0 && (
         <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-sm text-yellow-300">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold mb-1">Brak kluczy Cloudinary API</p>
-            <p className="text-yellow-400/70 text-xs">Ustaw <code>CLOUDINARY_API_KEY</code> i <code>CLOUDINARY_API_SECRET</code> w zmiennych środowiskowych, żeby załadować zdjęcia z Cloudinary.</p>
+            <p className="font-semibold mb-1">Brakuje zmiennych środowiskowych:</p>
+            <ul className="text-yellow-400/80 text-xs space-y-0.5">
+              {missingVars.map(v => <li key={v}><code>{v}</code></li>)}
+            </ul>
+            <p className="text-yellow-400/60 text-xs mt-1">Ustaw je w Railway → Variables i zrestartuj serwer.</p>
           </div>
         </div>
       )}
