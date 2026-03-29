@@ -15,6 +15,7 @@ import { CertificateView } from '@/app/pages/CertificateView';
 import { AboutPage } from '@/app/pages/AboutPage';
 import { ValueDetailPage } from '@/app/pages/ValueDetailPage';
 import { CollaborationDetailPage } from '@/app/pages/CollaborationDetailPage';
+import { TeamDetailPage } from '@/app/pages/TeamDetailPage';
 import { MembershipForm } from '@/app/pages/MembershipForm';
 import { Layout } from '@/app/Layout';
 
@@ -94,6 +95,10 @@ export const router = createBrowserRouter([
       {
         path: 'dolacz',
         Component: MembershipForm,
+      },
+      {
+        path: 'zespoly/:slug',
+        Component: TeamDetailPage,
       },
     ],
   },
