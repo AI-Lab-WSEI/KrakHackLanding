@@ -35,7 +35,7 @@ export function Edition2026() {
             {/* ══ POST-HACKATHON LAYOUT ══ */}
 
             {/* 1. Gallery slider — right after hero */}
-            {edition.gallery && <ImageSlider images={edition.gallery} title="Atmosfera AI Krak Hack" />}
+            <ImageSlider images={edition.gallery} title="Atmosfera AI Krak Hack" editionNumber={3} />
 
             {/* 2. Results table — exact replica of jury scores */}
             <ResultsTable />
@@ -129,7 +129,7 @@ export function Edition2026() {
           <>
             {/* ══ PRE-HACKATHON LAYOUT (original) ══ */}
             <ValueCards cards={edition.highlights} title="Dlaczego warto wziąć udział?" />
-            {edition.gallery && <ImageSlider images={edition.gallery} title="Atmosfera AI Krak Hack" />}
+            <ImageSlider images={edition.gallery} title="Atmosfera AI Krak Hack" editionNumber={3} />
             {edition.categories && <Categories categories={edition.categories} />}
             {edition.challenges && <ChallengesSection challenges={edition.challenges} />}
             <Timeline steps={edition.timelineSteps} title="Harmonogram wydarzeń" />

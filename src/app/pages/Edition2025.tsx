@@ -36,7 +36,7 @@ export function Edition2025() {
 
       <ValueCards cards={edition.highlights} title="Co oferowaliśmy?" />
 
-      {edition.gallery && <ImageSlider images={edition.gallery} title="Z naszego wydarzenia" />}
+      <ImageSlider images={edition.gallery} title="Z naszego wydarzenia" editionNumber={2} />
 
       <Timeline steps={edition.timelineSteps} title="Plan wydarzenia (30-31.05.2025)" />
 

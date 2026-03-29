@@ -40,8 +40,11 @@ export function ImageSlider({ images: staticImages, title = 'Z naszego wydarzeni
     ? apiPhotos.slice(0, 12).map(p => ({ imageUrl: p.url, alt: '' }))
     : (staticImages || []);
 
-  // Gallery link
-  const galleryLink = edCtx ? `/edycja/${edCtx.id}/galeria` : (edition ? `/galeria/${edition}` : null);
+  // Gallery link — use edCtx if inside EditionLayout, otherwise map edition number → year path
+  const editionYearMap: Record<number, string> = { 2: '2025', 3: '2026' };
+  const galleryLink = edCtx
+    ? `/edycja/${edCtx.id}/galeria`
+    : (edition && editionYearMap[edition] ? `/edycja/${editionYearMap[edition]}/galeria` : null);
   const totalCount = apiPhotos?.length ?? images.length;
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
