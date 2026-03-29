@@ -64,7 +64,7 @@
         {
           "teamId": "the-boys",
           "placement": 6,
-          "note": "SMART BIKE — nazwa projektu w tym wyzwaniu",
+          "note": "SMART BIKE",
           "scores": {
             "innovation": 15,
             "technicalValue": 16,
@@ -106,7 +106,7 @@
         {
           "teamId": "the-boys",
           "placement": 2,
-          "note": "Process Refactor — nazwa aplikacji",
+          "note": "Process Refactor — druga aplikacja zespołu The Boys",
           "scores": {
             "innovation": 11,
             "technicalValue": 14,
@@ -136,11 +136,6 @@
       "teamId": "konrad-podstawski",
       "award": "Wyróżnienie specjalne",
       "reason": "Jedyny solowy uczestnik hackathonu — 3. miejsce z wynikiem 67/80, najwyższa innowacyjność (19/20)"
-    },
-    {
-      "teamId": "databees",
-      "award": "Wyróżnienie za podejście naukowe",
-      "reason": "Najbardziej naukowo zaawansowane podejście — pełna symulacja wieloagentowa z walidacją, 67/80 na równi z 3. miejscem"
     }
   ],
   "scoringCategories": [
@@ -151,7 +146,6 @@
   ],
   "_meta": {
     "lastUpdated": "2026-03-29",
-    "updatedBy": "AI Krak Hack organizers",
-    "instructions": "Edytuj ten plik aby zaktualizować wyniki. Komponenty automatycznie pobierają dane stąd."
+    "updatedBy": "AI Krak Hack organizers"
   }
 }
