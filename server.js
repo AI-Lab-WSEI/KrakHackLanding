@@ -226,6 +226,11 @@ async function initDB() {
     ALTER TABLE edition_config ADD COLUMN IF NOT EXISTS cloudinary_collection_url VARCHAR(500) DEFAULT '';
   `).catch(() => {});
 
+  // Add cloudinary_folder to edition_config (folder-based photo fetching)
+  await pool.query(`
+    ALTER TABLE edition_config ADD COLUMN IF NOT EXISTS cloudinary_folder VARCHAR(500) DEFAULT '';
+  `).catch(() => {});
+
   // Auto-seed team_projects from teams-seed.json if table is empty
   try {
     const countResult = await pool.query('SELECT COUNT(*) FROM team_projects');
@@ -3083,85 +3088,81 @@ function parseCloudinaryCollectionUrl(url) {
   return { cloudName: m[1], collectionId: m[2] };
 }
 
-// Fetch only assets that belong to a specific Cloudinary collection (by share token)
-// The share token doubles as a tag applied to all assets in the collection.
-async function fetchCloudinaryPhotos(cloudName, shareToken) {
+// Fetch photos from a specific Cloudinary folder
+async function fetchCloudinaryPhotosByFolder(cloudName, folder) {
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-  if (!apiKey || !apiSecret) {
-    console.warn('[Gallery] Missing CLOUDINARY_API_KEY or CLOUDINARY_API_SECRET');
-    return null;
-  }
+  if (!apiKey || !apiSecret) return null;
 
   const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
   const headers = { Authorization: `Basic ${auth}` };
+  const allResources = [];
+  let nextCursor = null;
 
-  // Strategy 1: Fetch resources by tag — the share token is used as a tag on collection assets
-  // Confirmed: GET https://res.cloudinary.com/{cloud}/image/list/{token}.json returns 401 (not 404),
-  // meaning the tag exists but listing is auth-restricted. Admin API bypasses this restriction.
-  try {
-    const allResources = [];
-    let nextCursor = null;
-    do {
-      const url = new URL(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image/tags/${shareToken}`);
-      url.searchParams.set('max_results', '500');
-      if (nextCursor) url.searchParams.set('next_cursor', nextCursor);
+  // Normalize folder path — strip trailing slash
+  const prefix = folder.replace(/\/$/, '');
 
+  do {
+    const url = new URL(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image`);
+    url.searchParams.set('type', 'upload');
+    url.searchParams.set('prefix', prefix + '/');
+    url.searchParams.set('max_results', '500');
+    if (nextCursor) url.searchParams.set('next_cursor', nextCursor);
+
+    try {
       const resp = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(15000) });
       if (!resp.ok) {
-        const body = await resp.text();
-        console.warn(`[Gallery] Tag fetch failed (${resp.status}):`, body);
+        console.warn(`[Gallery] Folder fetch failed (${resp.status}):`, await resp.text());
         break;
       }
       const data = await resp.json();
       allResources.push(...(data.resources || []));
       nextCursor = data.next_cursor || null;
-    } while (nextCursor);
-
-    if (allResources.length > 0) {
-      console.log(`[Gallery] Found ${allResources.length} images via tag "${shareToken}"`);
-      allResources.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      return allResources.map(r => mapCloudinaryResource(r, cloudName));
+    } catch (e) {
+      console.warn('[Gallery] Folder fetch error:', e.message);
+      break;
     }
-    console.warn(`[Gallery] Tag "${shareToken}" returned 0 images`);
-  } catch (e) {
-    console.warn('[Gallery] Tag-based fetch error:', e.message);
+  } while (nextCursor);
+
+  if (allResources.length === 0) {
+    console.warn(`[Gallery] Folder "${prefix}" returned 0 images in cloud "${cloudName}"`);
+    return null;
   }
 
-  // Strategy 2: Try the Collections Admin API (enterprise/DAM plan only)
+  console.log(`[Gallery] Found ${allResources.length} images in folder "${prefix}"`);
+  allResources.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  return allResources.map(r => mapCloudinaryResource(r, cloudName));
+}
+
+// List all top-level (and one level deep) Cloudinary folders
+async function listCloudinaryFolders(cloudName) {
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!apiKey || !apiSecret) return null;
+
+  const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+  const headers = { Authorization: `Basic ${auth}` };
+
   try {
-    const listResp = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/collections?max_results=100`,
+    const resp = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/folders`,
       { headers, signal: AbortSignal.timeout(10000) }
     );
-    if (listResp.ok) {
-      const { collections = [] } = await listResp.json();
-      console.log(`[Gallery] Collections API: found ${collections.length} collections`);
-      const match = collections.find(c =>
-        (c.share_link || '').includes(shareToken) ||
-        c.external_id === shareToken || c.id === shareToken
-      );
-      if (match) {
-        const id = match.id || match.external_id;
-        const assetsResp = await fetch(
-          `https://api.cloudinary.com/v1_1/${cloudName}/collections/${id}/assets?max_results=500`,
-          { headers, signal: AbortSignal.timeout(15000) }
-        );
-        if (assetsResp.ok) {
-          const { assets = [] } = await assetsResp.json();
-          if (assets.length > 0) {
-            console.log(`[Gallery] Collections API: ${assets.length} assets in "${match.name}"`);
-            return assets.map(r => mapCloudinaryResource(r, cloudName));
-          }
-        }
-      }
-    }
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return (data.folders || []).map(f => f.path || f.name);
   } catch (e) {
-    console.warn('[Gallery] Collections API error:', e.message);
+    console.warn('[Gallery] List folders error:', e.message);
+    return null;
   }
+}
 
-  console.warn(`[Gallery] No images found for token "${shareToken}" in cloud "${cloudName}"`);
+// Main entry — use folder if configured, otherwise skip
+async function fetchCloudinaryPhotos(cloudName, _shareToken, folder) {
+  if (folder && folder.trim()) {
+    return fetchCloudinaryPhotosByFolder(cloudName, folder.trim());
+  }
+  console.warn('[Gallery] No folder configured for cloud:', cloudName);
   return null;
 }
 
@@ -3185,22 +3186,22 @@ app.get('/api/gallery/:editionNumber', async (req, res) => {
     const edition = parseInt(req.params.editionNumber);
     if (isNaN(edition)) return res.status(400).json({ error: 'Nieprawidlowy numer edycji' });
 
-    // Get edition_config for cloudinary URL
     const cfgResult = await pool.query(
-      'SELECT cloudinary_collection_url FROM edition_config WHERE edition_number = $1',
+      'SELECT cloudinary_collection_url, cloudinary_folder FROM edition_config WHERE edition_number = $1',
       [edition]
     );
     const collectionUrl = cfgResult.rows[0]?.cloudinary_collection_url || '';
+    const folder = cfgResult.rows[0]?.cloudinary_folder || '';
     const parsed = parseCloudinaryCollectionUrl(collectionUrl);
+    const cloudName = parsed?.cloudName || process.env.CLOUDINARY_CLOUD_NAME || '';
 
     let photos = [];
 
-    // Check cache
     const cached = galleryCache[edition];
     if (cached && Date.now() - cached.fetchedAt < GALLERY_CACHE_TTL) {
       photos = cached.photos;
-    } else if (parsed) {
-      const fetched = await fetchCloudinaryPhotos(parsed.cloudName, parsed.collectionId);
+    } else if (cloudName && folder) {
+      const fetched = await fetchCloudinaryPhotos(cloudName, null, folder);
       if (fetched) {
         photos = fetched;
         galleryCache[edition] = { photos, fetchedAt: Date.now() };
@@ -3247,18 +3248,20 @@ app.get('/api/admin/gallery/:edition', requireAdmin, async (req, res) => {
     const edition = parseInt(req.params.edition);
 
     const cfgResult = await pool.query(
-      'SELECT cloudinary_collection_url FROM edition_config WHERE edition_number = $1',
+      'SELECT cloudinary_collection_url, cloudinary_folder FROM edition_config WHERE edition_number = $1',
       [edition]
     );
     const collectionUrl = cfgResult.rows[0]?.cloudinary_collection_url || '';
+    const folder = cfgResult.rows[0]?.cloudinary_folder || '';
     const parsed = parseCloudinaryCollectionUrl(collectionUrl);
+    const cloudName = parsed?.cloudName || process.env.CLOUDINARY_CLOUD_NAME || '';
 
     let photos = [];
     const cached = galleryCache[edition];
     if (cached && Date.now() - cached.fetchedAt < GALLERY_CACHE_TTL) {
       photos = cached.photos;
-    } else if (parsed) {
-      const fetched = await fetchCloudinaryPhotos(parsed.cloudName, parsed.collectionId);
+    } else if (cloudName && folder) {
+      const fetched = await fetchCloudinaryPhotos(cloudName, null, folder);
       if (fetched) {
         photos = fetched;
         galleryCache[edition] = { photos, fetchedAt: Date.now() };
@@ -3281,7 +3284,11 @@ app.get('/api/admin/gallery/:edition', requireAdmin, async (req, res) => {
 
     const hasKey = !!process.env.CLOUDINARY_API_KEY;
     const hasSecret = !!process.env.CLOUDINARY_API_SECRET;
-    res.json({ photos: enriched, collectionUrl, hasApiCredentials: hasKey && hasSecret, missingVars: [...(!hasKey ? ['CLOUDINARY_API_KEY'] : []), ...(!hasSecret ? ['CLOUDINARY_API_SECRET'] : [])] });
+    res.json({
+      photos: enriched, collectionUrl, folder, cloudName,
+      hasApiCredentials: hasKey && hasSecret,
+      missingVars: [...(!hasKey ? ['CLOUDINARY_API_KEY'] : []), ...(!hasSecret ? ['CLOUDINARY_API_SECRET'] : [])],
+    });
   } catch (err) {
     console.error('[Gallery] Admin GET error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
@@ -3313,22 +3320,57 @@ app.patch('/api/admin/gallery/:edition/photo', requireAdmin, async (req, res) =>
   }
 });
 
-// PATCH /api/admin/edition-config/:number/gallery-url — update only cloudinary_collection_url
+// PATCH /api/admin/edition-config/:number/gallery-url — update cloudinary_collection_url + cloudinary_folder
 app.patch('/api/admin/edition-config/:number/gallery-url', requireAdmin, async (req, res) => {
   try {
-    const { cloudinary_collection_url } = req.body;
-    await pool.query(`
-      INSERT INTO edition_config (edition_number, cloudinary_collection_url, updated_at)
-      VALUES ($1, $2, NOW())
-      ON CONFLICT (edition_number) DO UPDATE SET
-        cloudinary_collection_url = EXCLUDED.cloudinary_collection_url, updated_at = NOW()
-    `, [parseInt(req.params.number), cloudinary_collection_url || '']);
-    // Clear cache
+    const { cloudinary_collection_url, cloudinary_folder } = req.body;
     const edition = parseInt(req.params.number);
+    await pool.query(`
+      INSERT INTO edition_config (edition_number, cloudinary_collection_url, cloudinary_folder, updated_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (edition_number) DO UPDATE SET
+        cloudinary_collection_url = EXCLUDED.cloudinary_collection_url,
+        cloudinary_folder = EXCLUDED.cloudinary_folder,
+        updated_at = NOW()
+    `, [edition, cloudinary_collection_url || '', cloudinary_folder || '']);
     delete galleryCache[edition];
     res.json({ ok: true });
   } catch (err) {
     console.error('[Config] gallery-url PATCH error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// GET /api/admin/cloudinary-folders — list available folders in Cloudinary
+app.get('/api/admin/cloudinary-folders', requireAdmin, async (req, res) => {
+  try {
+    const cloudName = req.query.cloudName || process.env.CLOUDINARY_CLOUD_NAME || '';
+    if (!cloudName) return res.json({ folders: [] }); // no cloudName — return empty silently
+
+    const folders = await listCloudinaryFolders(cloudName);
+    if (!folders) return res.status(502).json({ error: 'Nie udało się pobrać folderów z Cloudinary' });
+
+    // Also try to list subfolders for each top-level folder
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+    const allFolders = [...folders];
+
+    for (const f of folders.slice(0, 20)) {
+      try {
+        const r = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/folders/${encodeURIComponent(f)}`,
+          { headers: { Authorization: `Basic ${auth}` }, signal: AbortSignal.timeout(5000) }
+        );
+        if (r.ok) {
+          const d = await r.json();
+          (d.folders || []).forEach(sub => allFolders.push(sub.path || `${f}/${sub.name}`));
+        }
+      } catch {}
+    }
+
+    res.json({ folders: allFolders });
+  } catch (err) {
     res.status(500).json({ error: 'Błąd serwera' });
   }
 });

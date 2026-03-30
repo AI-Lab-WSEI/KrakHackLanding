@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Images, Loader2, Star, EyeOff, Eye, AlertCircle, RefreshCw, ExternalLink, Save, Bug } from 'lucide-react';
+import { Images, Loader2, Star, EyeOff, Eye, AlertCircle, RefreshCw, ExternalLink, Save, Bug, Folder, FolderOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { getAdminToken } from './AdminAuth';
 
 function adminFetch(path: string, options?: RequestInit) {
@@ -34,13 +34,19 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [collectionUrl, setCollectionUrl] = useState('');
+  const [folder, setFolder] = useState('');
+  const [cloudName, setCloudName] = useState('');
   const [hasApiCredentials, setHasApiCredentials] = useState(false);
   const [missingVars, setMissingVars] = useState<string[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [urlInput, setUrlInput] = useState('');
+  const [folderInput, setFolderInput] = useState('');
   const [savingUrl, setSavingUrl] = useState(false);
   const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null);
+  const [availableFolders, setAvailableFolders] = useState<string[]>([]);
+  const [loadingFolders, setLoadingFolders] = useState(false);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
 
   const load = (bust = false) => {
     setLoading(true);
@@ -50,6 +56,9 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
         setPhotos(d.photos || []);
         setCollectionUrl(d.collectionUrl || '');
         setUrlInput(d.collectionUrl || '');
+        setFolder(d.folder || '');
+        setFolderInput(d.folder || '');
+        setCloudName(d.cloudName || '');
         setHasApiCredentials(d.hasApiCredentials || false);
         setMissingVars(d.missingVars || []);
       })
@@ -59,19 +68,37 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
 
   useEffect(() => { load(); }, [edition]);
 
-  const saveUrl = async () => {
+  const saveConfig = async () => {
     setSavingUrl(true);
     try {
       await adminFetch(`/api/admin/edition-config/${edition}/gallery-url`, {
         method: 'PATCH',
-        body: JSON.stringify({ cloudinary_collection_url: urlInput }),
+        body: JSON.stringify({
+          cloudinary_collection_url: urlInput,
+          cloudinary_folder: folderInput,
+        }),
       });
       setCollectionUrl(urlInput);
+      setFolder(folderInput);
       load(true);
-    } catch (e) {
-      setError('Nie udało się zapisać URL');
+    } catch {
+      setError('Nie udało się zapisać konfiguracji');
     } finally {
       setSavingUrl(false);
+    }
+  };
+
+  const browseFolders = async () => {
+    setLoadingFolders(true);
+    setShowFolderPicker(true);
+    try {
+      // cloudName comes from server — if empty, server uses CLOUDINARY_CLOUD_NAME env var
+      const d = await adminFetch(`/api/admin/cloudinary-folders${cloudName ? `?cloudName=${encodeURIComponent(cloudName)}` : ''}`);
+      setAvailableFolders(d.folders || []);
+    } catch {
+      setAvailableFolders([]);
+    } finally {
+      setLoadingFolders(false);
     }
   };
 
@@ -106,6 +133,8 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
       setSaving(null);
     }
   };
+
+  const isDirty = urlInput !== collectionUrl || folderInput !== folder;
 
   const starred = photos.filter(p => p.isStarred && !p.isHidden);
   const visible = photos.filter(p => !p.isStarred && !p.isHidden);
@@ -142,24 +171,85 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
         </div>
       </div>
 
-      {/* Cloudinary URL config */}
-      <div className="bg-white/3 border border-white/10 rounded-xl p-4 space-y-3">
-        <p className="text-xs text-gray-400 font-semibold">URL kolekcji Cloudinary</p>
-        <div className="flex gap-2">
+      {/* Cloudinary config panel */}
+      <div className="bg-white/3 border border-white/10 rounded-xl p-4 space-y-4">
+        <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Konfiguracja Cloudinary</p>
+
+        {/* Collection URL row */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] text-gray-500">URL kolekcji (opcjonalny — tylko do linku zewnętrznego)</label>
           <input
             type="url"
             value={urlInput}
             onChange={e => setUrlInput(e.target.value)}
             placeholder="https://collection.cloudinary.com/cloud-name/token"
-            className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-500/50"
+            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-500/50"
           />
+        </div>
+
+        {/* Folder row */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] text-gray-500">Folder Cloudinary (ścieżka do zdjęć)</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={folderInput}
+              onChange={e => setFolderInput(e.target.value)}
+              placeholder="np. hackathon2025 lub events/ai-krak-hack/2025"
+              className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-500/50 font-mono"
+            />
+            <button
+              onClick={showFolderPicker ? () => setShowFolderPicker(false) : browseFolders}
+              disabled={loadingFolders}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs transition-all whitespace-nowrap"
+              title="Przeglądaj foldery w Cloudinary"
+            >
+              {loadingFolders
+                ? <Loader2 className="w-3 h-3 animate-spin" />
+                : showFolderPicker ? <ChevronUp className="w-3 h-3" /> : <FolderOpen className="w-3 h-3" />
+              }
+              {showFolderPicker ? 'Schowaj' : 'Przeglądaj'}
+            </button>
+          </div>
+
+          {/* Folder picker */}
+          {showFolderPicker && (
+            <div className="bg-black/40 border border-white/10 rounded-lg p-2 max-h-40 overflow-y-auto space-y-0.5">
+              {loadingFolders ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+                </div>
+              ) : availableFolders.length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-3">Brak folderów lub brak kluczy API</p>
+              ) : (
+                availableFolders.map(f => (
+                  <button
+                    key={f}
+                    onClick={() => { setFolderInput(f); setShowFolderPicker(false); }}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-left text-xs transition-colors ${
+                      folderInput === f
+                        ? 'bg-cyan-500/20 text-cyan-300'
+                        : 'text-gray-300 hover:bg-white/5'
+                    }`}
+                  >
+                    <Folder className="w-3 h-3 text-yellow-500 shrink-0" />
+                    {f}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 pt-1">
           <button
-            onClick={saveUrl}
-            disabled={savingUrl || urlInput === collectionUrl}
-            className="flex items-center gap-1.5 px-3 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-xs font-bold transition-all disabled:opacity-40"
+            onClick={saveConfig}
+            disabled={savingUrl || !isDirty}
+            className="flex items-center gap-1.5 px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-xs font-bold transition-all disabled:opacity-40"
           >
             {savingUrl ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-            Zapisz
+            Zapisz konfigurację
           </button>
           <button
             onClick={runDebug}
@@ -168,7 +258,14 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
           >
             <Bug className="w-3 h-3" /> Debug
           </button>
+          {folder && (
+            <span className="text-[11px] text-gray-500 flex items-center gap-1 ml-auto">
+              <Folder className="w-3 h-3 text-yellow-500" />
+              Aktualny folder: <code className="text-yellow-400 font-mono">{folder}</code>
+            </span>
+          )}
         </div>
+
         {debugInfo && (
           <pre className="text-[10px] text-gray-400 bg-black/40 rounded-lg p-3 overflow-auto max-h-48 whitespace-pre-wrap">
             {JSON.stringify(debugInfo, null, 2)}
@@ -190,6 +287,18 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
         </div>
       )}
 
+      {!folder && !loading && hasApiCredentials && (
+        <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-sm text-blue-300">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold mb-1">Nie skonfigurowano folderu Cloudinary</p>
+            <p className="text-blue-400/70 text-xs">
+              Wpisz nazwę folderu (np. <code>hackathon2025</code>) lub kliknij „Przeglądaj" aby wybrać z listy, następnie Zapisz konfigurację.
+            </p>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
@@ -203,7 +312,7 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
       ) : photos.length === 0 ? (
         <div className="text-center py-24 text-gray-500">
           <Images className="w-12 h-12 mx-auto mb-4 opacity-30" />
-          <p>Brak zdjęć. Upewnij się, że klucze Cloudinary są skonfigurowane.</p>
+          <p>{folder ? `Brak zdjęć w folderze „${folder}". Sprawdź nazwę folderu i klucze Cloudinary.` : 'Skonfiguruj folder Cloudinary powyżej, aby załadować zdjęcia.'}</p>
         </div>
       ) : (
         <div className="space-y-8">
