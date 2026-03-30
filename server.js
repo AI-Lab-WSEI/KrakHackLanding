@@ -3290,6 +3290,19 @@ app.get('/api/gallery/:editionNumber', async (req, res) => {
   }
 });
 
+// GET /api/platform-screenshots — public: screenshots from ai-krak-hack-ss-gallery folder
+app.get('/api/platform-screenshots', async (req, res) => {
+  try {
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || '';
+    if (!cloudName) return res.json({ photos: [] });
+    const photos = await fetchCloudinaryPhotosByFolder(cloudName, 'ai-krak-hack-ss-gallery');
+    res.json({ photos: photos || [] });
+  } catch (err) {
+    console.error('[Platform Screenshots] GET error:', err);
+    res.status(500).json({ error: 'Błąd serwera', photos: [] });
+  }
+});
+
 // GET /api/admin/gallery/:edition — admin: all photos with prefs
 app.get('/api/admin/gallery/:edition', requireAdmin, async (req, res) => {
   try {

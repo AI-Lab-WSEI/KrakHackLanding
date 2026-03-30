@@ -1,12 +1,11 @@
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ClipboardList, Users, Scale, Trophy, Award, Images, Mail, BarChart2,
   Building2, UserCircle, Globe, ChevronRight, ArrowDown,
   UserPlus, CheckCircle, MessageSquare, Gavel, X, Lightbulb,
   Puzzle, Rocket, GraduationCap, CalendarDays, Medal, Send, Loader2,
 } from 'lucide-react';
-import platformContent from '@/data/platform-content.json';
 
 /* ─── FAQ data (mirrors JSON-LD in server.js) ───────────────── */
 const FAQ = [
@@ -220,12 +219,24 @@ function FaqItem({ q, a, index }: { q: string; a: string; index: number }) {
   );
 }
 
+type Screenshot = { publicId: string; url: string; thumbnail: string };
+
 export function PlatformPage() {
-  const [lightbox, setLightbox] = useState<null | { file: string; title: string; description: string }>(null);
+  const [lightbox, setLightbox] = useState<null | { file: string; title: string }>(null);
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [formError, setFormError] = useState('');
+  const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
+  const [screenshotsLoading, setScreenshotsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/platform-screenshots')
+      .then(r => r.json())
+      .then(d => setScreenshots(d.photos || []))
+      .catch(() => setScreenshots([]))
+      .finally(() => setScreenshotsLoading(false));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -492,26 +503,28 @@ export function PlatformPage() {
             <div className="w-20 h-1.5 bg-gradient-to-r from-purple-400 to-pink-400 mx-auto rounded-full" />
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto">
-            {platformContent.screenshots.map((s, i) => (
-              <motion.button key={s.id} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.07 }}
-                onClick={() => setLightbox(s)}
-                className="group relative rounded-2xl overflow-hidden border border-white/8 hover:border-cyan-500/40 bg-white/3 transition-all text-left">
-                <div className="aspect-video relative overflow-hidden">
-                  <img src={s.file} alt={s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
-                  <div className="absolute top-3 left-3 w-6 h-6 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-[10px] font-bold text-gray-400">
-                    {i + 1}
+          {screenshotsLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+            </div>
+          ) : screenshots.length === 0 ? (
+            <p className="text-center text-gray-600 text-sm py-12">Screenshoty niedługo dostępne.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-7xl mx-auto">
+              {screenshots.map((s, i) => (
+                <motion.button key={s.publicId} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.06 }}
+                  onClick={() => setLightbox({ file: s.url, title: '' })}
+                  className="group relative rounded-2xl overflow-hidden border border-white/8 hover:border-purple-500/40 bg-white/3 transition-all">
+                  <div className="aspect-video relative overflow-hidden">
+                    <img src={s.thumbnail || s.url} alt={`Screenshot ${i + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
                   </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="text-sm font-bold text-white mb-1">{s.title}</h3>
-                  <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{s.description}</p>
-                </div>
-              </motion.button>
-            ))}
-          </div>
+                </motion.button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -735,15 +748,14 @@ export function PlatformPage() {
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             className="max-w-5xl w-full" onClick={e => e.stopPropagation()}>
             <img src={lightbox.file} alt={lightbox.title} className="w-full rounded-2xl border border-white/10 shadow-2xl" />
-            <div className="mt-4 flex items-start justify-between">
-              <div>
-                <h3 className="text-white font-bold text-lg">{lightbox.title}</h3>
-                <p className="text-gray-400 text-sm mt-1">{lightbox.description}</p>
+            <div className="mt-4 flex items-center justify-between">
+              {lightbox.title && <h3 className="text-white font-bold text-lg">{lightbox.title}</h3>}
+              <div className="ml-auto">
+                <button onClick={() => setLightbox(null)}
+                  className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button onClick={() => setLightbox(null)}
-                className="ml-4 shrink-0 w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors">
-                <X className="w-4 h-4" />
-              </button>
             </div>
           </motion.div>
         </motion.div>
