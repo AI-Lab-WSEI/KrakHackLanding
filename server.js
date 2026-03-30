@@ -3294,12 +3294,15 @@ app.get('/api/gallery/:editionNumber', async (req, res) => {
 app.get('/api/platform-screenshots', async (req, res) => {
   try {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME || '';
-    if (!cloudName) return res.json({ photos: [] });
+    const apiKey = process.env.CLOUDINARY_API_KEY || '';
+    const apiSecret = process.env.CLOUDINARY_API_SECRET || '';
+    if (!cloudName) return res.json({ photos: [], _debug: 'no CLOUDINARY_CLOUD_NAME' });
+    if (!apiKey || !apiSecret) return res.json({ photos: [], _debug: 'no CLOUDINARY_API_KEY or SECRET' });
     const photos = await fetchCloudinaryPhotosByFolder(cloudName, 'ai-krak-hack-ss-gallery');
-    res.json({ photos: photos || [] });
+    res.json({ photos: photos || [], _debug: `cloudName=${cloudName}, found=${photos?.length ?? 'null'}` });
   } catch (err) {
     console.error('[Platform Screenshots] GET error:', err);
-    res.status(500).json({ error: 'Błąd serwera', photos: [] });
+    res.status(500).json({ error: 'Błąd serwera', photos: [], _debug: err.message });
   }
 });
 
