@@ -3382,53 +3382,74 @@ app.get('/api/admin/gallery-debug/:edition', requireAdmin, async (req, res) => {
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
   const cfgResult = await pool.query(
-    'SELECT cloudinary_collection_url FROM edition_config WHERE edition_number = $1', [edition]
+    'SELECT cloudinary_collection_url, cloudinary_folder FROM edition_config WHERE edition_number = $1', [edition]
   ).catch(() => ({ rows: [] }));
   const collectionUrl = cfgResult.rows[0]?.cloudinary_collection_url || '';
+  const folder = cfgResult.rows[0]?.cloudinary_folder || '';
   const parsed = parseCloudinaryCollectionUrl(collectionUrl);
+  const cloudName = parsed?.cloudName || process.env.CLOUDINARY_CLOUD_NAME || '';
 
   const debug = {
     hasApiKey: !!apiKey,
     hasApiSecret: !!apiSecret,
     collectionUrl,
-    parsedCloudName: parsed?.cloudName,
-    parsedToken: parsed?.collectionId,
+    folder,
+    cloudName,
     cacheSize: galleryCache[edition]?.photos?.length ?? 0,
-    cloudinaryTestResult: null,
-    cloudinaryTestError: null,
   };
 
-  if (apiKey && apiSecret && parsed) {
+  if (apiKey && apiSecret && cloudName) {
     const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
     const headers = { Authorization: `Basic ${auth}` };
 
-    // Test 1: resources by tag (share token as tag)
-    try {
-      const resp = await fetch(
-        `https://api.cloudinary.com/v1_1/${parsed.cloudName}/resources/image/tags/${parsed.collectionId}?max_results=5`,
-        { headers, signal: AbortSignal.timeout(8000) }
-      );
-      const body = await resp.json();
-      debug.tagApiResult = resp.ok
-        ? `OK — ${body.resources?.length ?? 0} images found with tag "${parsed.collectionId}"`
-        : `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
-      if (resp.ok) debug.tagApiSample = (body.resources || []).slice(0, 3).map(r => r.public_id);
-    } catch (e) {
-      debug.tagApiResult = `EXCEPTION: ${e.message}`;
+    // Test 1: folder-based resource fetch (primary approach)
+    if (folder) {
+      try {
+        const prefix = folder.replace(/\/$/, '');
+        const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&prefix=${encodeURIComponent(prefix + '/')}&max_results=5`;
+        const resp = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+        const body = await resp.json();
+        debug.folderApiStatus = resp.status;
+        debug.folderApiResult = resp.ok
+          ? `OK — ${body.resources?.length ?? 0} images found (total: ${body.total_count ?? '?'}), next_cursor: ${body.next_cursor ? 'yes' : 'no'}`
+          : `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
+        debug.folderApiSample = (body.resources || []).slice(0, 3).map(r => r.public_id);
+        debug.folderApiRaw = resp.ok ? { total_count: body.total_count, rate_limit_remaining: body.rate_limit_remaining } : body;
+      } catch (e) {
+        debug.folderApiResult = `EXCEPTION: ${e.message}`;
+      }
+    } else {
+      debug.folderApiResult = 'No folder configured';
     }
 
-    // Test 2: collections list API
+    // Test 2: list top-level folders
     try {
       const resp = await fetch(
-        `https://api.cloudinary.com/v1_1/${parsed.cloudName}/collections?max_results=5`,
+        `https://api.cloudinary.com/v1_1/${cloudName}/folders`,
         { headers, signal: AbortSignal.timeout(8000) }
       );
       const body = await resp.json();
-      debug.collectionsApiResult = resp.ok
-        ? `OK — ${(body.collections || []).length} collections`
+      debug.foldersApiResult = resp.ok
+        ? `OK — ${(body.folders || []).length} top-level folders`
         : `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
+      debug.foldersApiList = (body.folders || []).slice(0, 10).map(f => f.path || f.name);
     } catch (e) {
-      debug.collectionsApiResult = `EXCEPTION: ${e.message}`;
+      debug.foldersApiResult = `EXCEPTION: ${e.message}`;
+    }
+
+    // Test 3: list all resources without filter (first 5, to check API access)
+    try {
+      const resp = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&max_results=5`,
+        { headers, signal: AbortSignal.timeout(8000) }
+      );
+      const body = await resp.json();
+      debug.allResourcesResult = resp.ok
+        ? `OK — sample of ${body.resources?.length ?? 0} images (total not shown)`
+        : `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
+      debug.allResourcesSample = (body.resources || []).slice(0, 3).map(r => r.public_id);
+    } catch (e) {
+      debug.allResourcesResult = `EXCEPTION: ${e.message}`;
     }
   }
 
