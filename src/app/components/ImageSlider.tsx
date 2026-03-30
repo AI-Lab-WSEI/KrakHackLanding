@@ -40,9 +40,9 @@ export function ImageSlider({ images: staticImages, title = 'Z naszego wydarzeni
   // Gallery link — use basePath from EditionContext
   const galleryLink = edCtx ? `${edCtx.basePath}/galeria` : null;
 
-  // Image list: if editionNumber set, use API photos only; otherwise use static
-  const images: GalleryImage[] = edition
-    ? (apiPhotos ? apiPhotos.slice(0, 12).map(p => ({ imageUrl: p.url, alt: '' })) : [])
+  // Image list: API photos if available, static as fallback
+  const images: GalleryImage[] = apiPhotos
+    ? apiPhotos.slice(0, 12).map(p => ({ imageUrl: p.url, alt: '' }))
     : (staticImages || []);
 
   const totalCount = apiPhotos?.length ?? images.length;

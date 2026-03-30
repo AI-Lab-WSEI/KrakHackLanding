@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Images, Loader2, Star, EyeOff, Eye, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { Images, Loader2, Star, EyeOff, Eye, AlertCircle, RefreshCw, ExternalLink, Save, Bug } from 'lucide-react';
 import { getAdminToken } from './AdminAuth';
 
 function adminFetch(path: string, options?: RequestInit) {
@@ -38,6 +38,9 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
   const [missingVars, setMissingVars] = useState<string[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [urlInput, setUrlInput] = useState('');
+  const [savingUrl, setSavingUrl] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null);
 
   const load = (bust = false) => {
     setLoading(true);
@@ -46,6 +49,7 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
       .then(d => {
         setPhotos(d.photos || []);
         setCollectionUrl(d.collectionUrl || '');
+        setUrlInput(d.collectionUrl || '');
         setHasApiCredentials(d.hasApiCredentials || false);
         setMissingVars(d.missingVars || []);
       })
@@ -54,6 +58,32 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
   };
 
   useEffect(() => { load(); }, [edition]);
+
+  const saveUrl = async () => {
+    setSavingUrl(true);
+    try {
+      await adminFetch(`/api/admin/edition-config/${edition}/gallery-url`, {
+        method: 'PATCH',
+        body: JSON.stringify({ cloudinary_collection_url: urlInput }),
+      });
+      setCollectionUrl(urlInput);
+      load(true);
+    } catch (e) {
+      setError('Nie udało się zapisać URL');
+    } finally {
+      setSavingUrl(false);
+    }
+  };
+
+  const runDebug = async () => {
+    setDebugInfo(null);
+    try {
+      const d = await adminFetch(`/api/admin/gallery-debug/${edition}`);
+      setDebugInfo(d);
+    } catch (e) {
+      setDebugInfo({ error: String(e) });
+    }
+  };
 
   const togglePref = async (publicId: string, field: 'isStarred' | 'isHidden', current: boolean) => {
     setSaving(publicId + field);
@@ -110,6 +140,40 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
             Odśwież
           </button>
         </div>
+      </div>
+
+      {/* Cloudinary URL config */}
+      <div className="bg-white/3 border border-white/10 rounded-xl p-4 space-y-3">
+        <p className="text-xs text-gray-400 font-semibold">URL kolekcji Cloudinary</p>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={urlInput}
+            onChange={e => setUrlInput(e.target.value)}
+            placeholder="https://collection.cloudinary.com/cloud-name/token"
+            className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-500/50"
+          />
+          <button
+            onClick={saveUrl}
+            disabled={savingUrl || urlInput === collectionUrl}
+            className="flex items-center gap-1.5 px-3 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 rounded-lg text-xs font-bold transition-all disabled:opacity-40"
+          >
+            {savingUrl ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+            Zapisz
+          </button>
+          <button
+            onClick={runDebug}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-400 rounded-lg text-xs transition-all"
+            title="Diagnostyka połączenia Cloudinary"
+          >
+            <Bug className="w-3 h-3" /> Debug
+          </button>
+        </div>
+        {debugInfo && (
+          <pre className="text-[10px] text-gray-400 bg-black/40 rounded-lg p-3 overflow-auto max-h-48 whitespace-pre-wrap">
+            {JSON.stringify(debugInfo, null, 2)}
+          </pre>
+        )}
       </div>
 
       {/* API credentials warning */}

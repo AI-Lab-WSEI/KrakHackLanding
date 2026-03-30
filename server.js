@@ -3083,106 +3083,58 @@ function parseCloudinaryCollectionUrl(url) {
   return { cloudName: m[1], collectionId: m[2] };
 }
 
-// Fetch photos from a Cloudinary collection using multiple strategies
+// Fetch all images from a Cloudinary cloud using the Admin API
 async function fetchCloudinaryPhotos(cloudName, collectionToken) {
-  // Strategy 1: Cloudinary Admin API — list collection by token
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-  if (apiKey && apiSecret) {
-    const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+  if (!apiKey || !apiSecret) {
+    console.warn('[Gallery] Missing CLOUDINARY_API_KEY or CLOUDINARY_API_SECRET');
+    return null;
+  }
 
-    // Try the collections/access/:token endpoint (fetches assets for a shared collection)
-    try {
-      const url = `https://api.cloudinary.com/v1_1/${cloudName}/collections/access/${collectionToken}`;
-      const resp = await fetch(url, { headers: { Authorization: `Basic ${auth}` } });
-      if (resp.ok) {
-        const data = await resp.json();
-        const assets = data.assets || data.resources || [];
-        if (assets.length > 0) {
-          return assets.map(r => mapCloudinaryResource(r, cloudName));
-        }
-      }
-    } catch (e) {
-      console.warn('[Gallery] collections/access endpoint failed:', e.message);
-    }
+  const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+  const allResources = [];
+  let nextCursor = null;
 
-    // Try listing all collections and finding the matching one
+  // Paginate through all images (max 500 per request, up to 3 pages = 1500 total)
+  for (let page = 0; page < 3; page++) {
+    const url = new URL(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image`);
+    url.searchParams.set('max_results', '500');
+    url.searchParams.set('resource_type', 'image');
+    if (nextCursor) url.searchParams.set('next_cursor', nextCursor);
+
     try {
-      const listResp = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/collections?max_results=100`,
-        { headers: { Authorization: `Basic ${auth}` } }
-      );
-      if (listResp.ok) {
-        const listData = await listResp.json();
-        const collections = listData.collections || [];
-        const match = collections.find(c =>
-          c.external_id === collectionToken || c.share_token === collectionToken || c.id === collectionToken
-        );
-        if (match) {
-          const assetsResp = await fetch(
-            `https://api.cloudinary.com/v1_1/${cloudName}/collections/${match.id || match.external_id}?max_results=500`,
-            { headers: { Authorization: `Basic ${auth}` } }
-          );
-          if (assetsResp.ok) {
-            const assetsData = await assetsResp.json();
-            const assets = assetsData.assets || assetsData.resources || [];
-            if (assets.length > 0) {
-              return assets.map(r => mapCloudinaryResource(r, cloudName));
-            }
-          }
-        }
+      const resp = await fetch(url.toString(), {
+        headers: { Authorization: `Basic ${auth}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!resp.ok) {
+        const body = await resp.text();
+        console.error('[Gallery] Cloudinary API error:', resp.status, body);
+        break;
       }
+      const data = await resp.json();
+      const resources = data.resources || [];
+      allResources.push(...resources);
+      console.log(`[Gallery] Fetched page ${page + 1}: ${resources.length} images (total: ${allResources.length})`);
+      nextCursor = data.next_cursor;
+      if (!nextCursor) break;
     } catch (e) {
-      console.warn('[Gallery] collections list endpoint failed:', e.message);
+      console.error('[Gallery] Cloudinary fetch error:', e.message);
+      break;
     }
   }
 
-  // Strategy 2: Fetch public collection page HTML and extract __NEXT_DATA__
-  try {
-    const pageUrl = `https://collection.cloudinary.com/${cloudName}/${collectionToken}`;
-    const pageResp = await fetch(pageUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GalleryBot/1.0)' },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (pageResp.ok) {
-      const html = await pageResp.text();
-      // Extract __NEXT_DATA__ JSON embedded in the page
-      const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]+)<\/script>/);
-      if (match) {
-        const nextData = JSON.parse(match[1]);
-        // Navigate the Next.js data structure to find assets
-        const props = nextData?.props?.pageProps;
-        const assets =
-          props?.collection?.assets ||
-          props?.assets ||
-          props?.gallery?.assets ||
-          props?.resources ||
-          [];
-        if (assets.length > 0) {
-          return assets.map(r => mapCloudinaryResourceFromPage(r, cloudName));
-        }
-      }
-      // Also try to find JSON blobs with image arrays in the HTML
-      const imgMatches = [...html.matchAll(/"public_id"\s*:\s*"([^"]+)"/g)];
-      if (imgMatches.length > 0) {
-        return imgMatches.map(m => {
-          const publicId = m[1];
-          return {
-            publicId,
-            url: `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto/${publicId}`,
-            thumbnail: `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto,w_400,c_fill/${publicId}`,
-            width: 800, height: 600, format: 'jpg', createdAt: new Date().toISOString(),
-          };
-        });
-      }
-    }
-  } catch (e) {
-    console.warn('[Gallery] Public page fetch failed:', e.message);
+  if (allResources.length === 0) {
+    console.warn('[Gallery] No images returned from Cloudinary for cloud:', cloudName);
+    return null;
   }
 
-  console.warn('[Gallery] All strategies failed for collection:', collectionToken);
-  return null;
+  // Sort by created_at desc (newest first)
+  allResources.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  return allResources.map(r => mapCloudinaryResource(r, cloudName));
 }
 
 function mapCloudinaryResource(r, cloudName) {
@@ -3198,18 +3150,6 @@ function mapCloudinaryResource(r, cloudName) {
   };
 }
 
-function mapCloudinaryResourceFromPage(r, cloudName) {
-  const publicId = r.public_id || r.publicId;
-  return {
-    publicId,
-    url: r.secure_url || r.url || `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto/${publicId}`,
-    thumbnail: `https://res.cloudinary.com/${cloudName}/image/upload/q_auto,f_auto,w_400,c_fill/${publicId}`,
-    width: r.width || 800,
-    height: r.height || 600,
-    format: r.format || 'jpg',
-    createdAt: r.created_at || r.createdAt || new Date().toISOString(),
-  };
-}
 
 // GET /api/gallery/:editionNumber — public: starred first, hidden excluded
 app.get('/api/gallery/:editionNumber', async (req, res) => {
@@ -3343,6 +3283,68 @@ app.patch('/api/admin/gallery/:edition/photo', requireAdmin, async (req, res) =>
     console.error('[Gallery] PATCH error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
   }
+});
+
+// PATCH /api/admin/edition-config/:number/gallery-url — update only cloudinary_collection_url
+app.patch('/api/admin/edition-config/:number/gallery-url', requireAdmin, async (req, res) => {
+  try {
+    const { cloudinary_collection_url } = req.body;
+    await pool.query(`
+      INSERT INTO edition_config (edition_number, cloudinary_collection_url, updated_at)
+      VALUES ($1, $2, NOW())
+      ON CONFLICT (edition_number) DO UPDATE SET
+        cloudinary_collection_url = EXCLUDED.cloudinary_collection_url, updated_at = NOW()
+    `, [parseInt(req.params.number), cloudinary_collection_url || '']);
+    // Clear cache
+    const edition = parseInt(req.params.number);
+    delete galleryCache[edition];
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Config] gallery-url PATCH error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// GET /api/admin/gallery-debug/:edition — diagnose Cloudinary connection
+app.get('/api/admin/gallery-debug/:edition', requireAdmin, async (req, res) => {
+  const edition = parseInt(req.params.edition);
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+  const cfgResult = await pool.query(
+    'SELECT cloudinary_collection_url FROM edition_config WHERE edition_number = $1', [edition]
+  ).catch(() => ({ rows: [] }));
+  const collectionUrl = cfgResult.rows[0]?.cloudinary_collection_url || '';
+  const parsed = parseCloudinaryCollectionUrl(collectionUrl);
+
+  const debug = {
+    hasApiKey: !!apiKey,
+    hasApiSecret: !!apiSecret,
+    collectionUrl,
+    parsedCloudName: parsed?.cloudName,
+    parsedToken: parsed?.collectionId,
+    cacheSize: galleryCache[edition]?.photos?.length ?? 0,
+    cloudinaryTestResult: null,
+    cloudinaryTestError: null,
+  };
+
+  if (apiKey && apiSecret && parsed) {
+    try {
+      const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+      const resp = await fetch(
+        `https://api.cloudinary.com/v1_1/${parsed.cloudName}/resources/image?max_results=1`,
+        { headers: { Authorization: `Basic ${auth}` }, signal: AbortSignal.timeout(8000) }
+      );
+      const body = await resp.json();
+      debug.cloudinaryTestResult = resp.ok ? `OK — ${body.resources?.length ?? 0} resources on first page` : `Error ${resp.status}`;
+      if (!resp.ok) debug.cloudinaryTestError = body.error?.message || JSON.stringify(body);
+    } catch (e) {
+      debug.cloudinaryTestResult = 'EXCEPTION';
+      debug.cloudinaryTestError = e.message;
+    }
+  }
+
+  res.json(debug);
 });
 
 // GET /api/teams/edition/:editionNumber — List teams for edition (public)
