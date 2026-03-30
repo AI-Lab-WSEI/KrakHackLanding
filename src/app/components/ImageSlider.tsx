@@ -37,19 +37,14 @@ export function ImageSlider({ images: staticImages, title = 'Z naszego wydarzeni
       .finally(() => setApiFetched(true));
   }, [edition]);
 
-  // When editionNumber is provided: wait for API, use API photos only (no static fallback)
-  // When no editionNumber: use static images directly
+  // Gallery link — use basePath from EditionContext
+  const galleryLink = edCtx ? `${edCtx.basePath}/galeria` : null;
+
+  // Image list: if editionNumber set, use API photos only; otherwise use static
   const images: GalleryImage[] = edition
     ? (apiPhotos ? apiPhotos.slice(0, 12).map(p => ({ imageUrl: p.url, alt: '' })) : [])
     : (staticImages || []);
 
-  // Don't render until API fetch resolves (avoids flash of static images)
-  if (edition && !apiFetched) return null;
-
-  // Gallery link — use basePath from EditionContext
-  const galleryLink = edCtx
-    ? `${edCtx.basePath}/galeria`
-    : null;
   const totalCount = apiPhotos?.length ?? images.length;
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -111,6 +106,8 @@ export function ImageSlider({ images: staticImages, title = 'Z naszego wydarzeni
     };
   }, [emblaApi, onSelect, startAutoplay]);
 
+  // Hide while waiting for API response, or if no images at all
+  if (edition && !apiFetched) return null;
   if (!images || images.length === 0) return null;
 
   return (
