@@ -3084,6 +3084,7 @@ function parseCloudinaryCollectionUrl(url) {
 }
 
 // Fetch only assets that belong to a specific Cloudinary collection (by share token)
+// The share token doubles as a tag applied to all assets in the collection.
 async function fetchCloudinaryPhotos(cloudName, shareToken) {
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -3094,64 +3095,73 @@ async function fetchCloudinaryPhotos(cloudName, shareToken) {
   }
 
   const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-  const headers = { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' };
+  const headers = { Authorization: `Basic ${auth}` };
 
-  // Step 1: List all collections and find the one matching our share token
-  let collectionId = null;
+  // Strategy 1: Fetch resources by tag — the share token is used as a tag on collection assets
+  // Confirmed: GET https://res.cloudinary.com/{cloud}/image/list/{token}.json returns 401 (not 404),
+  // meaning the tag exists but listing is auth-restricted. Admin API bypasses this restriction.
+  try {
+    const allResources = [];
+    let nextCursor = null;
+    do {
+      const url = new URL(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image/tags/${shareToken}`);
+      url.searchParams.set('max_results', '500');
+      if (nextCursor) url.searchParams.set('next_cursor', nextCursor);
+
+      const resp = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(15000) });
+      if (!resp.ok) {
+        const body = await resp.text();
+        console.warn(`[Gallery] Tag fetch failed (${resp.status}):`, body);
+        break;
+      }
+      const data = await resp.json();
+      allResources.push(...(data.resources || []));
+      nextCursor = data.next_cursor || null;
+    } while (nextCursor);
+
+    if (allResources.length > 0) {
+      console.log(`[Gallery] Found ${allResources.length} images via tag "${shareToken}"`);
+      allResources.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return allResources.map(r => mapCloudinaryResource(r, cloudName));
+    }
+    console.warn(`[Gallery] Tag "${shareToken}" returned 0 images`);
+  } catch (e) {
+    console.warn('[Gallery] Tag-based fetch error:', e.message);
+  }
+
+  // Strategy 2: Try the Collections Admin API (enterprise/DAM plan only)
   try {
     const listResp = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/collections?max_results=100`,
       { headers, signal: AbortSignal.timeout(10000) }
     );
     if (listResp.ok) {
-      const listData = await listResp.json();
-      const collections = listData.collections || [];
-      console.log(`[Gallery] Found ${collections.length} collections in cloud ${cloudName}`);
-      // Match by share_link containing our token, or by external_id / id
-      for (const col of collections) {
-        const shareLink = col.share_link || col.shareLink || '';
-        if (
-          shareLink.includes(shareToken) ||
-          col.external_id === shareToken ||
-          col.id === shareToken
-        ) {
-          collectionId = col.id || col.external_id;
-          console.log(`[Gallery] Matched collection: ${collectionId} ("${col.name}")`);
-          break;
+      const { collections = [] } = await listResp.json();
+      console.log(`[Gallery] Collections API: found ${collections.length} collections`);
+      const match = collections.find(c =>
+        (c.share_link || '').includes(shareToken) ||
+        c.external_id === shareToken || c.id === shareToken
+      );
+      if (match) {
+        const id = match.id || match.external_id;
+        const assetsResp = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/collections/${id}/assets?max_results=500`,
+          { headers, signal: AbortSignal.timeout(15000) }
+        );
+        if (assetsResp.ok) {
+          const { assets = [] } = await assetsResp.json();
+          if (assets.length > 0) {
+            console.log(`[Gallery] Collections API: ${assets.length} assets in "${match.name}"`);
+            return assets.map(r => mapCloudinaryResource(r, cloudName));
+          }
         }
       }
-    } else {
-      console.warn('[Gallery] Collections list failed:', listResp.status, await listResp.text());
     }
   } catch (e) {
-    console.warn('[Gallery] Collections list error:', e.message);
+    console.warn('[Gallery] Collections API error:', e.message);
   }
 
-  // Step 2: Fetch assets for the found collection
-  if (collectionId) {
-    try {
-      const assetsResp = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/collections/${collectionId}/assets?max_results=500`,
-        { headers, signal: AbortSignal.timeout(15000) }
-      );
-      if (assetsResp.ok) {
-        const assetsData = await assetsResp.json();
-        const assets = assetsData.assets || assetsData.resources || [];
-        console.log(`[Gallery] Collection ${collectionId} has ${assets.length} assets`);
-        if (assets.length > 0) {
-          return assets.map(r => mapCloudinaryResource(r, cloudName));
-        }
-      } else {
-        console.warn('[Gallery] Collection assets fetch failed:', assetsResp.status, await assetsResp.text());
-      }
-    } catch (e) {
-      console.warn('[Gallery] Collection assets error:', e.message);
-    }
-  }
-
-  // Step 3: If collections API didn't work, try Cloudinary Search API scoped to the token as tag/folder
-  // This is a last resort — NEVER fall back to listing all resources
-  console.warn(`[Gallery] Could not fetch collection "${shareToken}" for cloud "${cloudName}". No photos returned.`);
+  console.warn(`[Gallery] No images found for token "${shareToken}" in cloud "${cloudName}"`);
   return null;
 }
 
@@ -3348,28 +3358,33 @@ app.get('/api/admin/gallery-debug/:edition', requireAdmin, async (req, res) => {
 
   if (apiKey && apiSecret && parsed) {
     const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-    // Test 1: ping the collections list endpoint
+    const headers = { Authorization: `Basic ${auth}` };
+
+    // Test 1: resources by tag (share token as tag)
     try {
       const resp = await fetch(
-        `https://api.cloudinary.com/v1_1/${parsed.cloudName}/collections?max_results=100`,
-        { headers: { Authorization: `Basic ${auth}` }, signal: AbortSignal.timeout(8000) }
+        `https://api.cloudinary.com/v1_1/${parsed.cloudName}/resources/image/tags/${parsed.collectionId}?max_results=5`,
+        { headers, signal: AbortSignal.timeout(8000) }
       );
       const body = await resp.json();
-      if (resp.ok) {
-        const cols = body.collections || [];
-        debug.collectionsApiResult = `OK — ${cols.length} collections found`;
-        debug.collections = cols.map(c => ({
-          id: c.id || c.external_id,
-          name: c.name,
-          shareLink: c.share_link || c.shareLink,
-        }));
-        // Check if our token matches any collection
-        const match = cols.find(c => (c.share_link || c.shareLink || '').includes(parsed.collectionId));
-        debug.tokenMatchFound = !!match;
-        debug.matchedCollection = match ? { id: match.id, name: match.name } : null;
-      } else {
-        debug.collectionsApiResult = `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
-      }
+      debug.tagApiResult = resp.ok
+        ? `OK — ${body.resources?.length ?? 0} images found with tag "${parsed.collectionId}"`
+        : `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
+      if (resp.ok) debug.tagApiSample = (body.resources || []).slice(0, 3).map(r => r.public_id);
+    } catch (e) {
+      debug.tagApiResult = `EXCEPTION: ${e.message}`;
+    }
+
+    // Test 2: collections list API
+    try {
+      const resp = await fetch(
+        `https://api.cloudinary.com/v1_1/${parsed.cloudName}/collections?max_results=5`,
+        { headers, signal: AbortSignal.timeout(8000) }
+      );
+      const body = await resp.json();
+      debug.collectionsApiResult = resp.ok
+        ? `OK — ${(body.collections || []).length} collections`
+        : `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
     } catch (e) {
       debug.collectionsApiResult = `EXCEPTION: ${e.message}`;
     }
