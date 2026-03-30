@@ -189,13 +189,13 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
 
         {/* Folder row */}
         <div className="space-y-1.5">
-          <label className="text-[11px] text-gray-500">Folder Cloudinary (ścieżka do zdjęć)</label>
+          <label className="text-[11px] text-gray-500">Prefix / folder Cloudinary (np. <code className="text-cyan-400">AIKrakHack2026_</code> lub <code className="text-cyan-400">myfolder/</code>)</label>
           <div className="flex gap-2">
             <input
               type="text"
               value={folderInput}
               onChange={e => setFolderInput(e.target.value)}
-              placeholder="np. hackathon2025 lub events/ai-krak-hack/2025"
+              placeholder="np. AIKrakHack2026_ lub ai-krak-hack-2026-photos/"
               className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-cyan-500/50 font-mono"
             />
             <button
@@ -225,7 +225,7 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
                 availableFolders.map(f => (
                   <button
                     key={f}
-                    onClick={() => { setFolderInput(f); setShowFolderPicker(false); }}
+                    onClick={() => { setFolderInput(f + '/'); setShowFolderPicker(false); }}
                     className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-left text-xs transition-colors ${
                       folderInput === f
                         ? 'bg-cyan-500/20 text-cyan-300'
@@ -293,7 +293,7 @@ export function AdminGallery({ edition }: AdminGalleryProps) {
           <div>
             <p className="font-semibold mb-1">Nie skonfigurowano folderu Cloudinary</p>
             <p className="text-blue-400/70 text-xs">
-              Wpisz nazwę folderu (np. <code>hackathon2025</code>) lub kliknij „Przeglądaj" aby wybrać z listy, następnie Zapisz konfigurację.
+              Wpisz prefiks publicznego ID (np. <code>AIKrakHack2026_</code>) lub folder ze slashem (np. <code>myfolder/</code>). Możesz też kliknąć „Przeglądaj" — folder zostanie wybrany z ukośnikiem na końcu.
             </p>
           </div>
         </div>

@@ -3099,13 +3099,13 @@ async function fetchCloudinaryPhotosByFolder(cloudName, folder) {
   const allResources = [];
   let nextCursor = null;
 
-  // Normalize folder path — strip trailing slash
-  const prefix = folder.replace(/\/$/, '');
+  // Use prefix as-is — user may pass a folder (e.g. "myfolder/") or a root prefix (e.g. "AIKrakHack2026_")
+  const prefix = folder.trim();
 
   do {
     const url = new URL(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image`);
     url.searchParams.set('type', 'upload');
-    url.searchParams.set('prefix', prefix + '/');
+    url.searchParams.set('prefix', prefix);
     url.searchParams.set('max_results', '500');
     if (nextCursor) url.searchParams.set('next_cursor', nextCursor);
 
@@ -3405,8 +3405,8 @@ app.get('/api/admin/gallery-debug/:edition', requireAdmin, async (req, res) => {
     // Test 1: folder-based resource fetch (primary approach)
     if (folder) {
       try {
-        const prefix = folder.replace(/\/$/, '');
-        const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&prefix=${encodeURIComponent(prefix + '/')}&max_results=5`;
+        const prefix = folder.trim();
+        const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&prefix=${encodeURIComponent(prefix)}&max_results=5`;
         const resp = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
         const body = await resp.json();
         debug.folderApiStatus = resp.status;
