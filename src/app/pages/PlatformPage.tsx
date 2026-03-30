@@ -4,7 +4,7 @@ import {
   ClipboardList, Users, Scale, Trophy, Award, Images, Mail, BarChart2,
   Building2, UserCircle, Globe, ChevronRight, ArrowDown,
   UserPlus, CheckCircle, MessageSquare, Gavel, X, Lightbulb,
-  Puzzle, Rocket, GraduationCap, CalendarDays, Medal,
+  Puzzle, Rocket, GraduationCap, CalendarDays, Medal, Send, Loader2,
 } from 'lucide-react';
 import platformContent from '@/data/platform-content.json';
 
@@ -177,6 +177,34 @@ const IDEAS = [
 /* ─── Page ───────────────────────────────────────────────────── */
 export function PlatformPage() {
   const [lightbox, setLightbox] = useState<null | { file: string; title: string; description: string }>(null);
+  const [form, setForm] = useState({ name: '', email: '', message: '' });
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    setSending(true);
+    try {
+      const r = await fetch('/api/platform-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setSent(true);
+        setForm({ name: '', email: '', message: '' });
+      } else {
+        setFormError(d.error || 'Coś poszło nie tak');
+      }
+    } catch {
+      setFormError('Błąd połączenia — spróbuj ponownie');
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="bg-black min-h-screen">
@@ -472,7 +500,7 @@ export function PlatformPage() {
         </div>
       </section>
 
-      {/* ── CTA ───────────────────────────────────────────────── */}
+      {/* ── CTA / CONTACT ─────────────────────────────────────── */}
       <section id="kontakt" className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-pink-500/10" />
@@ -480,41 +508,118 @@ export function PlatformPage() {
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-cyan-500/15 blur-[120px] rounded-full" />
         </div>
 
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="max-w-3xl mx-auto">
-            <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight mb-6">
-              Zainteresowany?{' '}
-              <span className="bg-gradient-to-r from-cyan-400 to-pink-400 bg-clip-text text-transparent">
-                Porozmawiajmy.
-              </span>
-            </h2>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-4xl mx-auto">
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-12">
+              <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight mb-4">
+                Zainteresowany?{' '}
+                <span className="bg-gradient-to-r from-cyan-400 to-pink-400 bg-clip-text text-transparent">
+                  Porozmawiajmy.
+                </span>
+              </h2>
+              <p className="text-gray-400 text-lg leading-relaxed max-w-2xl mx-auto">
+                Bezpośredni kontakt do developera, który to stworzył.
+                Hackathon, konkurs, konferencja, demo day — napisz, co planujesz.
+              </p>
+            </motion.div>
 
-            <p className="text-gray-400 text-lg mb-4 leading-relaxed">
-              Nie wiemy jeszcze, czy jest zapotrzebowanie na taką platformę poza naszym ekosystemem.
-              Ale jeśli organizujesz wydarzenie studenckie i szukasz czegoś nowocześniejszego
-              i bardziej scentralizowanego — chętnie porozmawiamy o możliwościach.
-            </p>
-            <p className="text-gray-600 text-sm mb-10">
-              Hackathon, konkurs, konferencja, demo day — jeśli masz pomysł, piszemy.
-            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              {/* Left — personal info */}
+              <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+                className="space-y-5">
+                <div className="bg-white/4 border border-white/10 rounded-2xl p-6">
+                  <p className="text-[11px] text-gray-500 uppercase tracking-widest font-bold mb-4">Twórca platformy</p>
+                  <div className="flex items-center gap-4 mb-5">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-black text-xl shrink-0">
+                      M
+                    </div>
+                    <div>
+                      <p className="text-white font-bold text-lg">Michał Madejski</p>
+                      <p className="text-gray-500 text-sm">Developer · AI Possibilities Lab</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2.5">
+                    <a href="mailto:michalmadejski2@gmail.com"
+                      className="flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/8 rounded-xl text-sm text-gray-300 hover:text-white transition-all">
+                      <Mail className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span className="font-mono text-xs">michalmadejski2@gmail.com</span>
+                    </a>
+                    <a href="https://www.linkedin.com/in/micha%C5%82-madejski-671b60134/"
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/8 hover:border-blue-500/40 rounded-xl text-sm text-gray-300 hover:text-white transition-all group">
+                      <svg className="w-4 h-4 text-blue-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      </svg>
+                      <span>LinkedIn — Michał Madejski</span>
+                      <ChevronRight className="w-3 h-3 ml-auto opacity-40 group-hover:opacity-100 transition-all" />
+                    </a>
+                  </div>
+                </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="mailto:kontakt@krakhack.info?subject=Platforma%20-%20zapytanie"
-                className="flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-2xl font-bold text-lg transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40">
-                Napisz do nas
-                <Mail className="w-5 h-5" />
-              </a>
-              <a href="/"
-                className="flex items-center justify-center gap-2 px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white rounded-2xl font-bold text-lg transition-all">
-                Zobacz AI KrakHack
-                <ChevronRight className="w-5 h-5" />
-              </a>
+                <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
+                  <p className="text-gray-500 text-sm leading-relaxed italic">
+                    „Nie wiemy jeszcze, czy jest zapotrzebowanie na taką platformę poza naszym ekosystemem.
+                    Ale jeśli masz wydarzenie i szukasz czegoś bardziej scentralizowanego —
+                    chętnie porozmawiam."
+                  </p>
+                </div>
+
+                <a href="/"
+                  className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 hover:text-white rounded-xl text-sm font-medium transition-all">
+                  Zobacz AI KrakHack 2026 <ChevronRight className="w-4 h-4" />
+                </a>
+              </motion.div>
+
+              {/* Right — contact form */}
+              <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
+                <div className="bg-white/4 border border-white/10 rounded-2xl p-6">
+                  <p className="text-[11px] text-gray-500 uppercase tracking-widest font-bold mb-5">Wyślij wiadomość</p>
+                  {sent ? (
+                    <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+                      <div className="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center">
+                        <CheckCircle className="w-6 h-6 text-green-400" />
+                      </div>
+                      <p className="text-white font-bold">Wiadomość wysłana!</p>
+                      <p className="text-gray-500 text-sm">Odezwę się możliwie szybko.</p>
+                      <button onClick={() => setSent(false)} className="mt-2 text-xs text-gray-600 hover:text-gray-400 transition-colors underline">
+                        Wyślij kolejną
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <div>
+                        <label className="text-[11px] text-gray-500 font-medium mb-1.5 block">Imię lub nazwa organizacji</label>
+                        <input type="text" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                          placeholder="Jan Kowalski / WSEI Kraków"
+                          className="w-full bg-black/40 border border-white/10 focus:border-cyan-500/50 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-gray-600 focus:outline-none transition-colors" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-gray-500 font-medium mb-1.5 block">Twój email</label>
+                        <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                          placeholder="jan@uczelnia.edu.pl"
+                          className="w-full bg-black/40 border border-white/10 focus:border-cyan-500/50 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-gray-600 focus:outline-none transition-colors" />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-gray-500 font-medium mb-1.5 block">Opisz swoje wydarzenie i potrzeby</label>
+                        <textarea required rows={4} value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
+                          placeholder="Organizuję hackathon dla 80 osób, szukam platformy do rejestracji i certyfikatów..."
+                          className="w-full bg-black/40 border border-white/10 focus:border-cyan-500/50 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-gray-600 focus:outline-none transition-colors resize-none" />
+                      </div>
+                      {formError && <p className="text-red-400 text-xs">{formError}</p>}
+                      <button type="submit" disabled={sending}
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-60 text-white rounded-xl font-bold transition-all shadow-lg shadow-cyan-500/20">
+                        {sending ? <><Loader2 className="w-4 h-4 animate-spin" /> Wysyłanie…</> : <><Send className="w-4 h-4" /> Wyślij wiadomość</>}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </motion.div>
             </div>
 
-            <p className="text-gray-700 text-sm mt-8">
+            <p className="text-center text-gray-700 text-xs mt-8">
               Zbudowane na: React · TypeScript · Node.js · PostgreSQL · Cloudinary · Railway
             </p>
-          </motion.div>
+          </div>
         </div>
       </section>
 

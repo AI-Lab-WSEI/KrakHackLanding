@@ -3850,6 +3850,47 @@ app.get('*', async (req, res) => {
   }
 });
 
+// POST /api/platform-contact — contact form from /platforma page
+app.post('/api/platform-contact', async (req, res) => {
+  try {
+    const { name, email, message } = req.body;
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: 'Wypełnij wszystkie pola' });
+    }
+    if (message.length > 2000) {
+      return res.status(400).json({ error: 'Wiadomość jest za długa (max 2000 znaków)' });
+    }
+
+    const html = `
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+  <h2 style="color:#06b6d4">Nowe zapytanie o platformę</h2>
+  <table style="width:100%;border-collapse:collapse">
+    <tr><td style="padding:8px;color:#888;width:100px">Imię / firma</td><td style="padding:8px;font-weight:bold">${name}</td></tr>
+    <tr><td style="padding:8px;color:#888">Email</td><td style="padding:8px"><a href="mailto:${email}">${email}</a></td></tr>
+  </table>
+  <div style="margin-top:16px;padding:16px;background:#f5f5f5;border-radius:8px;white-space:pre-wrap">${message}</div>
+  <p style="color:#888;font-size:12px;margin-top:16px">Wysłano z /platforma na krakhack.info</p>
+</div>`;
+
+    const sent = await sendResendEmail(
+      'michalmadejski2@gmail.com',
+      `[KrakHack Platforma] Zapytanie od ${name}`,
+      html
+    );
+
+    if (sent) {
+      res.json({ ok: true });
+    } else {
+      // If email fails, still acknowledge — don't lose the message, log it
+      console.log('[Platform contact] Email failed, logging:', { name, email, message });
+      res.json({ ok: true, fallback: true });
+    }
+  } catch (err) {
+    console.error('[Platform contact] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
 // ─── Start ─────────────────────────────────────────────────
 
 initDB()
