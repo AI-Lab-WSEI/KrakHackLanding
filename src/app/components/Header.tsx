@@ -128,6 +128,7 @@ export function Header() {
             /* HACKATHON MODE: main nav */
             <div className="flex items-center gap-1">
               <Link to="/o-nas" className={linkClass}>O nas</Link>
+              <Link to="/platforma" className={linkClass}>Platforma</Link>
               <button
                 onClick={() => setShowHackathonNav(true)}
                 className="flex items-center gap-1 text-gray-300 hover:text-cyan-400 transition-colors font-medium px-3 py-2.5 rounded-lg hover:bg-white/5"
@@ -201,6 +202,12 @@ export function Header() {
               <Link to="/o-nas" onClick={() => setMobileMenuOpen(false)}
                 className="text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
                 O nas
+              </Link>
+            )}
+            {!isLab && (
+              <Link to="/platforma" onClick={() => setMobileMenuOpen(false)}
+                className="text-gray-300 hover:text-cyan-400 transition-colors py-3 px-3 rounded-lg hover:bg-white/5 font-medium">
+                Platforma
               </Link>
             )}
             {isLab ? (

@@ -3821,6 +3821,15 @@ app.get('*', async (req, res) => {
 
     let injections = `<script>window.__SITE_CONFIG__=${siteConfig}</script>`;
 
+    // /platforma route — platform marketing page meta tags
+    if (req.path === '/platforma') {
+      const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+      html = html.replace(/<title>[^<]*<\/title>/, '<title>Platforma Hackatonowa KrakHack — System Eventowy AI | WSEI Kraków</title>');
+      html = html.replace(/content="AI KrakHack 2026 - Hackathon AI \| WSEI Kraków"/g, 'content="Platforma Hackatonowa KrakHack — System Eventowy AI | WSEI Kraków"');
+      html = html.replace(/content="Dołącz do AI KrakHack 2026![^"]*"/g, 'content="Otwarta platforma eventowa i hackatonowa. Zarządzaj zgłoszeniami, oceniaj projekty, wydawaj certyfikaty. System konkursowy i hackathon management."');
+      html = html.replace(/content="https:\/\/krakhack\.info\/"/g, `content="${baseUrl}/platforma"`);
+    }
+
     // In lab mode, replace hackathon meta tags with lab-specific ones
     if (mode === 'lab') {
       const labUrl = process.env.LAB_URL || 'https://possibilitieslab.org';

@@ -19,6 +19,7 @@ import { TeamDetailPage } from '@/app/pages/TeamDetailPage';
 import { TeamEditPage } from '@/app/pages/TeamEditPage';
 import { GalleryPage } from '@/app/pages/GalleryPage';
 import { MembershipForm } from '@/app/pages/MembershipForm';
+import { PlatformPage } from '@/app/pages/PlatformPage';
 import { Layout } from '@/app/Layout';
 import { EditionLayout } from '@/app/pages/EditionLayout';
 import { EditionPage } from '@/app/pages/EditionPage';
@@ -84,6 +85,12 @@ export const router = createBrowserRouter([
       {
         path: 'zadania/:slug',
         Component: TaskDetail,
+      },
+
+      // ══ Platform marketing page ══
+      {
+        path: 'platforma',
+        Component: PlatformPage,
       },
 
       // ══ Utility routes (edition-independent) ══

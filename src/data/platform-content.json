@@ -1,0 +1,52 @@
+{
+  "screenshots": [
+    {
+      "id": "dashboard",
+      "file": "/assets/platforma/dashboard.png",
+      "title": "Panel Główny",
+      "description": "Przegląd edycji: statystyki zgłoszeń, certyfikatów, szybkie akcje administracyjne"
+    },
+    {
+      "id": "rejestracja",
+      "file": "/assets/platforma/rejestracja.png",
+      "title": "Rejestracja Uczestników",
+      "description": "Wielostronicowy formularz zgłoszenia zespołu z walidacją i automatycznym potwierdzeniem"
+    },
+    {
+      "id": "zespoly",
+      "file": "/assets/platforma/zespoly.png",
+      "title": "Projekty Zespołów",
+      "description": "Publiczny katalog projektów z miniaturami, opisami i wynikami — gotowy po evencie"
+    },
+    {
+      "id": "wyniki",
+      "file": "/assets/platforma/wyniki.png",
+      "title": "Wyniki i Ranking",
+      "description": "Transparentna tabela wyników z breakdownem punktowym per kategoria oceniania"
+    },
+    {
+      "id": "certyfikat",
+      "file": "/assets/platforma/certyfikat.png",
+      "title": "Certyfikaty Uczestnictwa",
+      "description": "Personalizowane certyfikaty z kryptograficznym podpisem, QR kodem i weryfikacją online"
+    },
+    {
+      "id": "galeria-admin",
+      "file": "/assets/platforma/galeria-admin.png",
+      "title": "Zarządzanie Galerią",
+      "description": "Integracja z Cloudinary: gwiazdkowanie wyróżnionych zdjęć, ukrywanie, organizacja per folder"
+    },
+    {
+      "id": "komunikacja",
+      "file": "/assets/platforma/komunikacja.png",
+      "title": "Panel Komunikacji",
+      "description": "Mailing do uczestników z harmonogramem, podglądem HTML i historią wysyłek"
+    },
+    {
+      "id": "juror",
+      "file": "/assets/platforma/juror.png",
+      "title": "Panel Jurora",
+      "description": "Dedykowany panel z tokenem dostępu, oceną per kategoria i prywatnymi notatkami"
+    }
+  ]
+}
