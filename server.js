@@ -2668,29 +2668,7 @@ app.post('/api/admin/team-projects/bulk-send-edit-links', requireAdmin, async (r
         }
       }
 
-      const html = `
-<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f4f7f9; padding: 40px 20px;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
-    <div style="background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6); padding: 40px; text-align: center; color: #ffffff;">
-      <h1 style="margin: 0; font-size: 24px; font-weight: 800;">AI KRAK HACK 2026</h1>
-      <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Edycja profilu zespolu</p>
-    </div>
-    <div style="padding: 40px; color: #334155; line-height: 1.6;">
-      <p style="font-size: 18px; font-weight: 600;">Czesc, zespol ${team.name}!</p>
-      <p>Mozecie teraz edytowac profil swojego projektu na stronie AI Krak Hack. Dodajcie opis, technologie, screeny i prezentacje.</p>
-      <div style="margin: 30px 0; text-align: center;">
-        <a href="${editLink}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 16px;">Edytuj profil zespolu &rarr;</a>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0;">
-        <p style="font-size: 13px; color: #64748b; margin: 0 0 8px;">Link do edycji (nie udostepniajcie go publicznie):</p>
-        <code style="font-size: 12px; color: #0f172a; word-break: break-all;">${editLink}</code>
-      </div>
-      <p style="font-size: 13px; color: #94a3b8; text-align: center;">
-        Pozdrawiamy,<br><strong>Zespol AI Krak Hack 2026</strong><br>AI Possibilities Lab &bull; WSEI Krakow
-      </p>
-    </div>
-  </div>
-</div>`;
+      const html = buildTeamEditLinkHtml(team, editLink);
 
       let teamSent = false;
       if (memberEmails.length > 0) {
