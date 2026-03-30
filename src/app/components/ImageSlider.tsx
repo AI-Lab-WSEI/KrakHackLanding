@@ -37,8 +37,12 @@ export function ImageSlider({ images: staticImages, title = 'Z naszego wydarzeni
       .finally(() => setApiFetched(true));
   }, [edition]);
 
-  // Gallery link — use basePath from EditionContext
-  const galleryLink = edCtx ? `${edCtx.basePath}/galeria` : null;
+  // Gallery link — prefer EditionContext basePath, fall back to editionNumber prop
+  const galleryLink = edCtx
+    ? `${edCtx.basePath}/galeria`
+    : editionNumber
+      ? `/edycja/${editionNumber}/galeria`
+      : null;
 
   // Image list: API photos if available, static as fallback
   const images: GalleryImage[] = apiPhotos
