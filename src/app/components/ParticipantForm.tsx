@@ -18,6 +18,7 @@ interface ParticipantFormData {
   teamPreference: string;
   dietaryRestrictions: string;
   additionalNotes: string;
+  howDidYouHear: string;
   acceptRules: boolean;
   consentMarketingEmail: boolean;
   consentMarketingPhone: boolean;
@@ -45,6 +46,7 @@ export function ParticipantForm() {
       teamPreference: '',
       dietaryRestrictions: '',
       additionalNotes: '',
+      howDidYouHear: '',
       acceptRules: false,
       consentMarketingEmail: false,
       consentMarketingPhone: false,
@@ -176,7 +178,7 @@ export function ParticipantForm() {
                   firstName: '', lastName: '', email: '', phone: '', university: '',
                   studyField: '', yearOfStudy: '', experience: '', motivation: '',
                   skills: [], otherSkill: '', teamName: '', teamPreference: '', 
-                  dietaryRestrictions: '', additionalNotes: '', acceptRules: false,
+                  dietaryRestrictions: '', additionalNotes: '', howDidYouHear: '', acceptRules: false,
                   consentMarketingEmail: false, consentMarketingPhone: false,
                   consentMarketingSms: false, consentMarketingChat: false,
                   consentImage: false
@@ -449,6 +451,27 @@ export function ParticipantForm() {
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors resize-none"
                 placeholder="Czy masz już zespół? Jakie umiejętności chciałbyś mieć w zespole?"
               />
+            </div>
+
+            <div className="mt-6">
+              <label htmlFor="howDidYouHear" className="flex items-center gap-2 text-white mb-2">
+                <span>Skąd się o nas dowiedziałeś/aś? <span className="text-gray-400 font-normal text-sm">(opcjonalne)</span></span>
+              </label>
+              <select
+                id="howDidYouHear"
+                value={formData.howDidYouHear}
+                onChange={(e) => setFormData({ ...formData, howDidYouHear: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+              >
+                <option value="">— wybierz —</option>
+                <option value="social_media">Media społecznościowe (Instagram, LinkedIn, Facebook)</option>
+                <option value="uczelnia">Ogłoszenie na uczelni / od wykładowcy</option>
+                <option value="znajomy">Polecenie znajomego / kolegi</option>
+                <option value="wydarzenie">Inne wydarzenie / konferencja</option>
+                <option value="google">Google / wyszukiwarka</option>
+                <option value="newsletter">Newsletter / mailing</option>
+                <option value="inne">Inne</option>
+              </select>
             </div>
 
             <div className="mt-6">

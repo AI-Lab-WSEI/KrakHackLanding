@@ -36,6 +36,7 @@ export interface MembershipFormData {
   expectations: string;
   valuesResonance: string;
   engagementTypes: EngagementType[];
+  howDidYouHear?: string;
 }
 
 export interface MembershipApplication extends MembershipFormData {

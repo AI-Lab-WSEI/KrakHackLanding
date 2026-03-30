@@ -35,6 +35,7 @@ const initialFormData: MembershipFormData = {
   expectations: '',
   valuesResonance: '',
   engagementTypes: [],
+  howDidYouHear: '',
 };
 
 function validateStep(step: number, data: MembershipFormData): string | null {

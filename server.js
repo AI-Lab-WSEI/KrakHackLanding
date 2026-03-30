@@ -231,6 +231,11 @@ async function initDB() {
     ALTER TABLE edition_config ADD COLUMN IF NOT EXISTS cloudinary_folder VARCHAR(500) DEFAULT '';
   `).catch(() => {});
 
+  // Add how_did_you_hear to membership_applications
+  await pool.query(`
+    ALTER TABLE membership_applications ADD COLUMN IF NOT EXISTS how_did_you_hear VARCHAR(255) DEFAULT '';
+  `).catch(() => {});
+
   // Auto-seed team_projects from teams-seed.json if table is empty
   try {
     const countResult = await pool.query('SELECT COUNT(*) FROM team_projects');
@@ -2184,7 +2189,8 @@ app.post('/api/membership-applications', async (req, res) => {
 
     const { firstName, lastName, email, university, fieldOfStudy, yearOrStatus,
             attendMeetings, attendInPerson, monthlyHours, competencies,
-            whatYouBring, expectations, valuesResonance, engagementTypes } = req.body;
+            whatYouBring, expectations, valuesResonance, engagementTypes,
+            howDidYouHear } = req.body;
 
     if (!firstName || !lastName || !email) {
       return res.status(400).json({ error: 'Imię, nazwisko i email są wymagane' });
@@ -2196,14 +2202,14 @@ app.post('/api/membership-applications', async (req, res) => {
       `INSERT INTO membership_applications
         (first_name, last_name, email, university, field_of_study, year_or_status,
          is_wsei, attend_meetings, attend_in_person, monthly_hours, competencies,
-         what_you_bring, expectations, values_resonance, engagement_types)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15)
+         what_you_bring, expectations, values_resonance, engagement_types, how_did_you_hear)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16)
        RETURNING id`,
       [firstName, lastName, email, university || '', fieldOfStudy || '', yearOrStatus || '',
        isWsei, !!attendMeetings, !!attendInPerson, monthlyHours || 5,
        JSON.stringify(competencies || {}),
        whatYouBring || '', expectations || '', valuesResonance || '',
-       engagementTypes || []]
+       engagementTypes || [], howDidYouHear || '']
     );
 
     // Send confirmation email

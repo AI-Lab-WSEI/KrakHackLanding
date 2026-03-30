@@ -8,6 +8,7 @@ interface CompanyFormData {
   email: string;
   phone: string;
   message: string;
+  howDidYouHear: string;
   acceptRules: boolean;
   consentMarketingEmail: boolean;
   consentMarketingPhone: boolean;
@@ -25,6 +26,7 @@ export function CompanyForm() {
       email: '',
       phone: '',
       message: '',
+      howDidYouHear: '',
       acceptRules: false,
       consentMarketingEmail: false,
       consentMarketingPhone: false,
@@ -98,7 +100,7 @@ export function CompanyForm() {
                 setSubmitted(false);
                 setFormData({
                   companyName: '', contactPerson: '', email: '', phone: '', message: '',
-                  acceptRules: false,
+                  howDidYouHear: '', acceptRules: false,
                   consentMarketingEmail: false, consentMarketingPhone: false,
                   consentMarketingSms: false, consentMarketingChat: false,
                   consentImage: false
@@ -218,6 +220,27 @@ export function CompanyForm() {
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors resize-none"
                 placeholder="Jak możemy wspólnie współpracować?"
               />
+            </div>
+
+            <div className="mt-6">
+              <label htmlFor="howDidYouHearCompany" className="flex items-center gap-2 text-white mb-2">
+                <span>Skąd się o nas dowiedzieliście? <span className="text-gray-400 font-normal text-sm">(opcjonalne)</span></span>
+              </label>
+              <select
+                id="howDidYouHearCompany"
+                value={formData.howDidYouHear}
+                onChange={(e) => setFormData({ ...formData, howDidYouHear: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-green-500 transition-colors"
+              >
+                <option value="">— wybierz —</option>
+                <option value="social_media">Media społecznościowe (Instagram, LinkedIn, Facebook)</option>
+                <option value="uczelnia">Rekomendacja uczelni / środowisko akademickie</option>
+                <option value="znajomy">Polecenie znajomego / partnera biznesowego</option>
+                <option value="wydarzenie">Inne wydarzenie / konferencja</option>
+                <option value="google">Google / wyszukiwarka</option>
+                <option value="newsletter">Newsletter / mailing</option>
+                <option value="inne">Inne</option>
+              </select>
             </div>
 
             <div className="mt-8 space-y-6">

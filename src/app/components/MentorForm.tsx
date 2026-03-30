@@ -16,6 +16,7 @@ interface MentorFormData {
   previousMentoring: string;
   linkedIn: string;
   portfolio: string;
+  howDidYouHear: string;
   acceptRules: boolean;
   consentMarketingEmail: boolean;
   consentMarketingPhone: boolean;
@@ -41,6 +42,7 @@ export function MentorForm() {
       previousMentoring: '',
       linkedIn: '',
       portfolio: '',
+      howDidYouHear: '',
       acceptRules: false,
       consentMarketingEmail: false,
       consentMarketingPhone: false,
@@ -131,7 +133,7 @@ export function MentorForm() {
                   firstName: '', lastName: '', email: '', phone: '', company: '',
                   position: '', experience: '', expertise: [], availability: '',
                   motivation: '', previousMentoring: '', linkedIn: '', portfolio: '',
-                  acceptRules: false,
+                  howDidYouHear: '', acceptRules: false,
                   consentMarketingEmail: false, consentMarketingPhone: false,
                   consentMarketingSms: false, consentMarketingChat: false,
                   consentImage: false
@@ -388,6 +390,27 @@ export function MentorForm() {
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500 transition-colors resize-none"
                 placeholder="Opowiedz nam o swoich motywacjach do mentoringu..."
               />
+            </div>
+
+            <div className="mt-6">
+              <label htmlFor="howDidYouHearMentor" className="flex items-center gap-2 text-white mb-2">
+                <span>Skąd się o nas dowiedziałeś/aś? <span className="text-gray-400 font-normal text-sm">(opcjonalne)</span></span>
+              </label>
+              <select
+                id="howDidYouHearMentor"
+                value={formData.howDidYouHear}
+                onChange={(e) => setFormData({ ...formData, howDidYouHear: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-purple-500 transition-colors"
+              >
+                <option value="">— wybierz —</option>
+                <option value="social_media">Media społecznościowe (Instagram, LinkedIn, Facebook)</option>
+                <option value="uczelnia">Ogłoszenie na uczelni / od wykładowcy</option>
+                <option value="znajomy">Polecenie znajomego / kolegi</option>
+                <option value="wydarzenie">Inne wydarzenie / konferencja</option>
+                <option value="google">Google / wyszukiwarka</option>
+                <option value="newsletter">Newsletter / mailing</option>
+                <option value="inne">Inne</option>
+              </select>
             </div>
 
             <div className="mt-8 space-y-6">
