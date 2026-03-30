@@ -3293,16 +3293,25 @@ app.get('/api/gallery/:editionNumber', async (req, res) => {
 // GET /api/platform-screenshots — public: screenshots from ai-krak-hack-ss-gallery folder
 app.get('/api/platform-screenshots', async (req, res) => {
   try {
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || '';
-    const apiKey = process.env.CLOUDINARY_API_KEY || '';
-    const apiSecret = process.env.CLOUDINARY_API_SECRET || '';
-    if (!cloudName) return res.json({ photos: [], _debug: 'no CLOUDINARY_CLOUD_NAME' });
-    if (!apiKey || !apiSecret) return res.json({ photos: [], _debug: 'no CLOUDINARY_API_KEY or SECRET' });
+    // cloudName from env OR from any edition_config that has a collection URL (same as gallery endpoints)
+    let cloudName = process.env.CLOUDINARY_CLOUD_NAME || '';
+    if (!cloudName) {
+      try {
+        const cfgRow = await pool.query(
+          `SELECT cloudinary_collection_url FROM edition_config WHERE cloudinary_collection_url IS NOT NULL AND cloudinary_collection_url <> '' LIMIT 1`
+        );
+        if (cfgRow.rows[0]) {
+          const parsed = parseCloudinaryCollectionUrl(cfgRow.rows[0].cloudinary_collection_url);
+          cloudName = parsed?.cloudName || '';
+        }
+      } catch (_) { /* ignore DB error */ }
+    }
+    if (!cloudName) return res.json({ photos: [] });
     const photos = await fetchCloudinaryPhotosByFolder(cloudName, 'ai-krak-hack-ss-gallery');
-    res.json({ photos: photos || [], _debug: `cloudName=${cloudName}, found=${photos?.length ?? 'null'}` });
+    res.json({ photos: photos || [] });
   } catch (err) {
     console.error('[Platform Screenshots] GET error:', err);
-    res.status(500).json({ error: 'Błąd serwera', photos: [], _debug: err.message });
+    res.status(500).json({ error: 'Błąd serwera', photos: [] });
   }
 });
 
