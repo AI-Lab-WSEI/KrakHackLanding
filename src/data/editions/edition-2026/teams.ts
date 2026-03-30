@@ -58,7 +58,7 @@ export const TEAMS: TeamProject[] = [
     id: 'databees',
     name: 'DataBees',
     challenge: 'geospatial',
-    members: ['Bart\u0142omiej Wieloch', 'Jakub Zydro\u0144', 'Piotr Bacior', 'Konrad Podstawski'],
+    members: ['Bartłomiej Wieloch', 'Jakub Zydroń', 'Piotr Bacior'],
     projectName: 'Digital Twin \u2014 symulacja wieloagentowa sieci komunikacyjnej Krakowa',
     shortDescription: 'Cyfrowa kopia sieci komunikacyjnej Krakowa z pe\u0142n\u0105 symulacj\u0105 wieloagentow\u0105 36 000 rowerzyst\u00f3w w modelu MATSim, walidowana na 19 stacjach pomiarowych.',
     fullDescription: [

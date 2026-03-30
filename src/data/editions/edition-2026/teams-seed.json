@@ -36,7 +36,7 @@
     "placement_label": null,
     "special_mention": null,
     "challenge": "geospatial",
-    "members": ["Bartłomiej Wieloch", "Jakub Zydroń", "Piotr Bacior", "Konrad Podstawski"],
+    "members": ["Bartłomiej Wieloch", "Jakub Zydroń", "Piotr Bacior"],
     "university": "",
     "project_name": "Digital Twin — symulacja wieloagentowa sieci komunikacyjnej Krakowa",
     "short_description": "Cyfrowa kopia sieci komunikacyjnej Krakowa z pełną symulacją wieloagentową 36 000 rowerzystów w modelu MATSim, walidowana na 19 stacjach pomiarowych.",
