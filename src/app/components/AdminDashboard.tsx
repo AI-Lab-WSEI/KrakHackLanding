@@ -1228,15 +1228,15 @@ export function AdminDashboard() {
               )}
 
               {activeTab === 'projekty' && (
-                <AdminTeamProjects edition={selectedEdition} />
+                <AdminTeamProjects key={selectedEdition} edition={selectedEdition} />
               )}
 
               {activeTab === 'wyniki' && (
-                <AdminResults edition={selectedEdition} />
+                <AdminResults key={selectedEdition} edition={selectedEdition} />
               )}
 
               {activeTab === 'galeria' && (
-                <AdminGallery edition={selectedEdition} />
+                <AdminGallery key={selectedEdition} edition={selectedEdition} />
               )}
 
               {activeTab === 'surveys' && (

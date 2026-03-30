@@ -3083,8 +3083,8 @@ function parseCloudinaryCollectionUrl(url) {
   return { cloudName: m[1], collectionId: m[2] };
 }
 
-// Fetch all images from a Cloudinary cloud using the Admin API
-async function fetchCloudinaryPhotos(cloudName, collectionToken) {
+// Fetch only assets that belong to a specific Cloudinary collection (by share token)
+async function fetchCloudinaryPhotos(cloudName, shareToken) {
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
@@ -3094,47 +3094,65 @@ async function fetchCloudinaryPhotos(cloudName, collectionToken) {
   }
 
   const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-  const allResources = [];
-  let nextCursor = null;
+  const headers = { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' };
 
-  // Paginate through all images (max 500 per request, up to 3 pages = 1500 total)
-  for (let page = 0; page < 3; page++) {
-    const url = new URL(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image`);
-    url.searchParams.set('max_results', '500');
-    url.searchParams.set('resource_type', 'image');
-    if (nextCursor) url.searchParams.set('next_cursor', nextCursor);
-
-    try {
-      const resp = await fetch(url.toString(), {
-        headers: { Authorization: `Basic ${auth}` },
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!resp.ok) {
-        const body = await resp.text();
-        console.error('[Gallery] Cloudinary API error:', resp.status, body);
-        break;
+  // Step 1: List all collections and find the one matching our share token
+  let collectionId = null;
+  try {
+    const listResp = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/collections?max_results=100`,
+      { headers, signal: AbortSignal.timeout(10000) }
+    );
+    if (listResp.ok) {
+      const listData = await listResp.json();
+      const collections = listData.collections || [];
+      console.log(`[Gallery] Found ${collections.length} collections in cloud ${cloudName}`);
+      // Match by share_link containing our token, or by external_id / id
+      for (const col of collections) {
+        const shareLink = col.share_link || col.shareLink || '';
+        if (
+          shareLink.includes(shareToken) ||
+          col.external_id === shareToken ||
+          col.id === shareToken
+        ) {
+          collectionId = col.id || col.external_id;
+          console.log(`[Gallery] Matched collection: ${collectionId} ("${col.name}")`);
+          break;
+        }
       }
-      const data = await resp.json();
-      const resources = data.resources || [];
-      allResources.push(...resources);
-      console.log(`[Gallery] Fetched page ${page + 1}: ${resources.length} images (total: ${allResources.length})`);
-      nextCursor = data.next_cursor;
-      if (!nextCursor) break;
+    } else {
+      console.warn('[Gallery] Collections list failed:', listResp.status, await listResp.text());
+    }
+  } catch (e) {
+    console.warn('[Gallery] Collections list error:', e.message);
+  }
+
+  // Step 2: Fetch assets for the found collection
+  if (collectionId) {
+    try {
+      const assetsResp = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/collections/${collectionId}/assets?max_results=500`,
+        { headers, signal: AbortSignal.timeout(15000) }
+      );
+      if (assetsResp.ok) {
+        const assetsData = await assetsResp.json();
+        const assets = assetsData.assets || assetsData.resources || [];
+        console.log(`[Gallery] Collection ${collectionId} has ${assets.length} assets`);
+        if (assets.length > 0) {
+          return assets.map(r => mapCloudinaryResource(r, cloudName));
+        }
+      } else {
+        console.warn('[Gallery] Collection assets fetch failed:', assetsResp.status, await assetsResp.text());
+      }
     } catch (e) {
-      console.error('[Gallery] Cloudinary fetch error:', e.message);
-      break;
+      console.warn('[Gallery] Collection assets error:', e.message);
     }
   }
 
-  if (allResources.length === 0) {
-    console.warn('[Gallery] No images returned from Cloudinary for cloud:', cloudName);
-    return null;
-  }
-
-  // Sort by created_at desc (newest first)
-  allResources.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-  return allResources.map(r => mapCloudinaryResource(r, cloudName));
+  // Step 3: If collections API didn't work, try Cloudinary Search API scoped to the token as tag/folder
+  // This is a last resort — NEVER fall back to listing all resources
+  console.warn(`[Gallery] Could not fetch collection "${shareToken}" for cloud "${cloudName}". No photos returned.`);
+  return null;
 }
 
 function mapCloudinaryResource(r, cloudName) {
@@ -3329,18 +3347,31 @@ app.get('/api/admin/gallery-debug/:edition', requireAdmin, async (req, res) => {
   };
 
   if (apiKey && apiSecret && parsed) {
+    const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+    // Test 1: ping the collections list endpoint
     try {
-      const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
       const resp = await fetch(
-        `https://api.cloudinary.com/v1_1/${parsed.cloudName}/resources/image?max_results=1`,
+        `https://api.cloudinary.com/v1_1/${parsed.cloudName}/collections?max_results=100`,
         { headers: { Authorization: `Basic ${auth}` }, signal: AbortSignal.timeout(8000) }
       );
       const body = await resp.json();
-      debug.cloudinaryTestResult = resp.ok ? `OK — ${body.resources?.length ?? 0} resources on first page` : `Error ${resp.status}`;
-      if (!resp.ok) debug.cloudinaryTestError = body.error?.message || JSON.stringify(body);
+      if (resp.ok) {
+        const cols = body.collections || [];
+        debug.collectionsApiResult = `OK — ${cols.length} collections found`;
+        debug.collections = cols.map(c => ({
+          id: c.id || c.external_id,
+          name: c.name,
+          shareLink: c.share_link || c.shareLink,
+        }));
+        // Check if our token matches any collection
+        const match = cols.find(c => (c.share_link || c.shareLink || '').includes(parsed.collectionId));
+        debug.tokenMatchFound = !!match;
+        debug.matchedCollection = match ? { id: match.id, name: match.name } : null;
+      } else {
+        debug.collectionsApiResult = `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
+      }
     } catch (e) {
-      debug.cloudinaryTestResult = 'EXCEPTION';
-      debug.cloudinaryTestError = e.message;
+      debug.collectionsApiResult = `EXCEPTION: ${e.message}`;
     }
   }
 
