@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Explicitly allow key marketing pages
+Allow: /platforma
+Allow: /o-nas
+Allow: /edycja/
+Allow: /verify/
+
+# Disallow admin and private areas
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /timer
+
+# Sitemap location
+Sitemap: https://krakhack.info/sitemap.xml

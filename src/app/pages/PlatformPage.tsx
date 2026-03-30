@@ -8,6 +8,30 @@ import {
 } from 'lucide-react';
 import platformContent from '@/data/platform-content.json';
 
+/* ─── FAQ data (mirrors JSON-LD in server.js) ───────────────── */
+const FAQ = [
+  {
+    q: 'Co to jest platforma KrakHack?',
+    a: 'KrakHack to otwarta platforma eventowa zbudowana na potrzeby hackathonu AI KrakHack organizowanego przez AI Possibilities Lab przy WSEI w Krakowie. Obsługuje rejestrację uczestników, ocenianie projektów przez jury, generowanie certyfikatów z podpisem kryptograficznym, galerię mediów i komunikację mailową.',
+  },
+  {
+    q: 'Dla jakich wydarzeń nadaje się platforma?',
+    a: 'Platforma nadaje się do organizacji hackathonów, konkursów studenckich, olimpiad, konferencji studenckich oraz demo days i przeglądów projektów. Każdy moduł może działać niezależnie — można wdrożyć tylko rejestrację, tylko certyfikaty, lub pełen zestaw.',
+  },
+  {
+    q: 'Jak działa system certyfikatów?',
+    a: 'Certyfikaty są generowane z unikalnym hashem kryptograficznym i kodem QR. Każdy certyfikat można zweryfikować online pod adresem krakhack.info/verify/{hash}. System jest blockchain-ready i nie wymaga centralnej bazy do weryfikacji.',
+  },
+  {
+    q: 'Czy platforma jest open source?',
+    a: 'Platforma powstała jako projekt wewnętrzny AI Possibilities Lab. Jeśli jesteś zainteresowany adaptacją do własnych potrzeb — hackathon, konkurs, konferencja — skontaktuj się bezpośrednio z autorem przez michalmadejski2@gmail.com lub LinkedIn.',
+  },
+  {
+    q: 'Na czym jest zbudowana platforma?',
+    a: 'Stack technologiczny: React + TypeScript (frontend), Node.js/Express (backend), PostgreSQL (baza danych), Cloudinary (media), Railway (hosting). Architektura modułowa pozwala na wdrażanie poszczególnych funkcji niezależnie.',
+  },
+] as const;
+
 /* ─── Feature / module tiles ────────────────────────────────── */
 const MODULES = [
   {
@@ -175,6 +199,27 @@ const IDEAS = [
 ] as const;
 
 /* ─── Page ───────────────────────────────────────────────────── */
+function FaqItem({ q, a, index }: { q: string; a: string; index: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+      transition={{ duration: 0.4, delay: index * 0.07 }}
+      className="border border-white/8 rounded-2xl overflow-hidden bg-white/3 hover:border-cyan-500/30 transition-colors">
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-6 py-4 text-left gap-4"
+        aria-expanded={open}>
+        <span className="text-white font-semibold text-sm leading-snug">{q}</span>
+        <ChevronRight className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-6 pb-5">
+          <p className="text-gray-400 text-sm leading-relaxed">{a}</p>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export function PlatformPage() {
   const [lightbox, setLightbox] = useState<null | { file: string; title: string; description: string }>(null);
   const [form, setForm] = useState({ name: '', email: '', message: '' });
@@ -622,6 +667,65 @@ export function PlatformPage() {
           </div>
         </div>
       </section>
+
+      {/* ── FAQ ───────────────────────────────────────────────── */}
+      <section className="py-24 bg-gradient-to-b from-black via-gray-950 to-black overflow-hidden" aria-label="Najczęściej zadawane pytania o platformę hackatonową">
+        <div className="container mx-auto px-4">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
+            <p className="text-cyan-400 text-sm font-bold uppercase tracking-widest mb-3">FAQ</p>
+            <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tight mb-4">
+              Najczęstsze pytania
+            </h2>
+            <div className="w-20 h-1.5 bg-gradient-to-r from-cyan-400 to-blue-400 mx-auto rounded-full" />
+          </motion.div>
+
+          <div className="max-w-3xl mx-auto space-y-4">
+            {FAQ.map((item, i) => (
+              <FaqItem key={i} q={item.q} a={item.a} index={i} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── SHADOW SEO — crawlable keyword-rich content ────────── */}
+      {/* Visible to crawlers, visually de-emphasised footer text */}
+      <aside aria-label="O platformie — informacje dla wyszukiwarek" className="bg-black border-t border-white/5 py-12">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <p className="text-gray-700 text-xs leading-relaxed mb-4">
+            <strong className="text-gray-600">Platforma hackatonowa KrakHack</strong> to kompleksowe narzędzie do organizacji wydarzeń studenckich —
+            hackathonów, konkursów, olimpiad programistycznych i konferencji akademickich.
+            System został zaprojektowany z myślą o pełnej transparentności procesu:
+            od <em>rejestracji uczestników</em> przez <em>ocenianie projektów przez jury</em>,
+            aż po <em>publikację wyników</em> i <em>wydawanie certyfikatów z weryfikacją kryptograficzną</em>.
+          </p>
+          <p className="text-gray-700 text-xs leading-relaxed mb-4">
+            Każdy z modułów platformy może działać niezależnie: <strong className="text-gray-600">moduł rejestracji</strong> obsługuje
+            formularze zgłoszeń i automatyczne potwierdzenia emailem;
+            <strong className="text-gray-600"> panel jury</strong> umożliwia ocenianie projektów przez komisję za pomocą jednorazowego tokenu dostępu bez zakładania konta;
+            <strong className="text-gray-600"> system certyfikatów</strong> generuje personalizowane dokumenty z podpisem cyfrowym, kodem QR i unikalnym hashem możliwym do weryfikacji online;
+            <strong className="text-gray-600"> galeria mediów</strong> integruje się z Cloudinary i umożliwia zarządzanie zdjęciami z wydarzenia.
+          </p>
+          <p className="text-gray-700 text-xs leading-relaxed mb-4">
+            <strong className="text-gray-600">Hackathon management system</strong> zbudowany na stack technologicznym:
+            React, TypeScript, Node.js, Express, PostgreSQL, Cloudinary, Railway.
+            Architektura SPA z serwerem Express obsługującym API REST.
+            Platforma działa w modelu multi-edition — każde wydarzenie ma własną konfigurację kategorii oceniania,
+            harmonogram, listę jurorów i wyniki dostępne publicznie po zakończeniu.
+          </p>
+          <p className="text-gray-700 text-xs leading-relaxed mb-4">
+            Platforma sprawdzona w praktyce podczas <strong className="text-gray-600">AI KrakHack 2025</strong> i
+            <strong className="text-gray-600"> AI KrakHack 2026</strong> — hackathon sztucznej inteligencji
+            organizowany przez <strong className="text-gray-600">AI Possibilities Lab przy WSEI Kraków</strong>.
+            Ponad 200 uczestników, 30+ zespołów, 60+ wydanych certyfikatów, pełna dokumentacja projektów dostępna online.
+          </p>
+          <p className="text-gray-700 text-xs leading-relaxed">
+            Kontakt w sprawie <em>adaptacji platformy</em> na potrzeby własnego wydarzenia:
+            <a href="mailto:michalmadejski2@gmail.com" className="text-gray-600 hover:text-gray-400 transition-colors ml-1">michalmadejski2@gmail.com</a> ·
+            <a href="https://www.linkedin.com/in/micha%C5%82-madejski-671b60134/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-400 transition-colors ml-1">LinkedIn</a> ·
+            <a href="https://krakhack.info" className="text-gray-600 hover:text-gray-400 transition-colors ml-1">krakhack.info</a>
+          </p>
+        </div>
+      </aside>
 
       {/* ── LIGHTBOX ──────────────────────────────────────────── */}
       {lightbox && (

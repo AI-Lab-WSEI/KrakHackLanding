@@ -3821,13 +3821,148 @@ app.get('*', async (req, res) => {
 
     let injections = `<script>window.__SITE_CONFIG__=${siteConfig}</script>`;
 
-    // /platforma route — platform marketing page meta tags
+    // /platforma route — full SEO: meta tags + JSON-LD structured data
     if (req.path === '/platforma') {
       const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
-      html = html.replace(/<title>[^<]*<\/title>/, '<title>Platforma Hackatonowa KrakHack — System Eventowy AI | WSEI Kraków</title>');
-      html = html.replace(/content="AI KrakHack 2026 - Hackathon AI \| WSEI Kraków"/g, 'content="Platforma Hackatonowa KrakHack — System Eventowy AI | WSEI Kraków"');
-      html = html.replace(/content="Dołącz do AI KrakHack 2026![^"]*"/g, 'content="Otwarta platforma eventowa i hackatonowa. Zarządzaj zgłoszeniami, oceniaj projekty, wydawaj certyfikaty. System konkursowy i hackathon management."');
-      html = html.replace(/content="https:\/\/krakhack\.info\/"/g, `content="${baseUrl}/platforma"`);
+      const pageUrl = `${baseUrl}/platforma`;
+      const pageTitle = 'Platforma Hackatonowa i Eventowa — System dla Organizatorów | KrakHack';
+      const pageDesc = 'Otwarta platforma do organizacji hackathonów, konkursów i konferencji studenckich. Rejestracja uczestników, ocenianie przez jury, certyfikaty z kryptograficznym podpisem, galeria i komunikacja — wszystko w jednym miejscu. Zbudowane przez AI Possibilities Lab WSEI Kraków.';
+      const pageKeywords = 'platforma hackatonowa, platforma eventowa, organizacja hackathonu, system certyfikatów, platforma konkursowa, hackathon management system, rejestracja uczestników wydarzeń, ocenianie projektów online, system zarządzania wydarzeniami studenckimi, platforma dla organizatorów, certyfikaty uczestnictwa online, hackathon software Poland, event management platform, platforma konferencji studenckiej, system jury online, organizacja konkursu studenckiego, narzędzie do hackathonu, platforma open source hackathon, AI KrakHack platforma, WSEI Kraków hackathon';
+
+      // Replace title and meta tags
+      html = html
+        .replace(/<title>[^<]*<\/title>/, `<title>${pageTitle}</title>`)
+        .replace(/(<meta name="title" content=")[^"]*(")/g, `$1${pageTitle}$2`)
+        .replace(/(<meta name="description" content=")[^"]*(")/g, `$1${pageDesc}$2`)
+        .replace(/(<meta property="og:title" content=")[^"]*(")/g, `$1${pageTitle}$2`)
+        .replace(/(<meta property="og:description" content=")[^"]*(")/g, `$1${pageDesc}$2`)
+        .replace(/(<meta property="og:url" content=")[^"]*(")/g, `$1${pageUrl}$2`)
+        .replace(/(<meta property="twitter:title" content=")[^"]*(")/g, `$1${pageTitle}$2`)
+        .replace(/(<meta property="twitter:description" content=")[^"]*(")/g, `$1${pageDesc}$2`)
+        .replace(/(<meta property="twitter:url" content=")[^"]*(")/g, `$1${pageUrl}$2`);
+
+      // JSON-LD structured data
+      const jsonLd = {
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'WebPage',
+            '@id': pageUrl,
+            'url': pageUrl,
+            'name': pageTitle,
+            'description': pageDesc,
+            'inLanguage': 'pl',
+            'isPartOf': { '@id': baseUrl },
+            'breadcrumb': {
+              '@type': 'BreadcrumbList',
+              'itemListElement': [
+                { '@type': 'ListItem', 'position': 1, 'name': 'Strona główna', 'item': baseUrl },
+                { '@type': 'ListItem', 'position': 2, 'name': 'Platforma', 'item': pageUrl },
+              ],
+            },
+          },
+          {
+            '@type': 'SoftwareApplication',
+            'name': 'KrakHack Platform',
+            'url': pageUrl,
+            'applicationCategory': 'BusinessApplication',
+            'operatingSystem': 'Web',
+            'description': 'Platforma eventowa do organizacji hackathonów, konkursów studenckich i konferencji. Moduły: rejestracja uczestników, panel jury, certyfikaty kryptograficzne, galeria mediów, komunikacja mailowa, publiczne wyniki.',
+            'featureList': [
+              'Rejestracja uczestników i zespołów',
+              'Panel oceniającego z tokenem dostępu',
+              'Certyfikaty z weryfikacją kryptograficzną i QR kodem',
+              'Galeria mediów z integracją Cloudinary',
+              'System mailingu i harmonogramowania komunikacji',
+              'Publiczny ranking z breakdownem punktowym',
+              'Archiwum edycji i statystyki wydarzeń',
+            ],
+            'author': {
+              '@type': 'Person',
+              'name': 'Michał Madejski',
+              'url': 'https://www.linkedin.com/in/micha%C5%82-madejski-671b60134/',
+              'email': 'michalmadejski2@gmail.com',
+              'affiliation': {
+                '@type': 'Organization',
+                'name': 'AI Possibilities Lab',
+                'url': baseUrl,
+              },
+            },
+            'offers': {
+              '@type': 'Offer',
+              'price': '0',
+              'priceCurrency': 'PLN',
+              'description': 'Kontakt w sprawie adaptacji platformy na własne potrzeby.',
+            },
+          },
+          {
+            '@type': 'Organization',
+            'name': 'AI Possibilities Lab — KrakHack',
+            'url': baseUrl,
+            'logo': `${baseUrl}/assets/ai-lab-text-logo.png`,
+            'sameAs': [
+              'https://www.linkedin.com/in/micha%C5%82-madejski-671b60134/',
+            ],
+            'contactPoint': {
+              '@type': 'ContactPoint',
+              'email': 'michalmadejski2@gmail.com',
+              'contactType': 'technical support',
+              'availableLanguage': ['Polish', 'English'],
+            },
+          },
+          {
+            '@type': 'FAQPage',
+            'mainEntity': [
+              {
+                '@type': 'Question',
+                'name': 'Co to jest platforma KrakHack?',
+                'acceptedAnswer': {
+                  '@type': 'Answer',
+                  'text': 'KrakHack to otwarta platforma eventowa zbudowana na potrzeby hackathonu AI KrakHack organizowanego przez AI Possibilities Lab przy WSEI w Krakowie. Obsługuje rejestrację uczestników, ocenianie projektów przez jury, generowanie certyfikatów z podpisem kryptograficznym, galerię mediów i komunikację mailową.',
+                },
+              },
+              {
+                '@type': 'Question',
+                'name': 'Dla jakich wydarzeń nadaje się platforma?',
+                'acceptedAnswer': {
+                  '@type': 'Answer',
+                  'text': 'Platforma nadaje się do organizacji hackathonów, konkursów studenckich, olimpiad, konferencji studenckich oraz demo days i przeglądów projektów. Każdy moduł może działać niezależnie.',
+                },
+              },
+              {
+                '@type': 'Question',
+                'name': 'Jak działa system certyfikatów?',
+                'acceptedAnswer': {
+                  '@type': 'Answer',
+                  'text': 'Certyfikaty są generowane z unikalnym hashem kryptograficznym i kodem QR. Każdy certyfikat można zweryfikować online pod adresem krakhack.info/verify/{hash}. System jest blockchain-ready.',
+                },
+              },
+              {
+                '@type': 'Question',
+                'name': 'Czy platforma jest open source?',
+                'acceptedAnswer': {
+                  '@type': 'Answer',
+                  'text': 'Platforma powstała jako projekt wewnętrzny AI Possibilities Lab. Jeśli jesteś zainteresowany adaptacją do własnych potrzeb, skontaktuj się bezpośrednio z autorem przez michalmadejski2@gmail.com lub LinkedIn.',
+                },
+              },
+              {
+                '@type': 'Question',
+                'name': 'Jak skontaktować się w sprawie platformy?',
+                'acceptedAnswer': {
+                  '@type': 'Answer',
+                  'text': 'Skontaktuj się bezpośrednio z deweloperem Michałem Madejskim: michalmadejski2@gmail.com lub przez LinkedIn: linkedin.com/in/michał-madejski-671b60134/',
+                },
+              },
+            ],
+          },
+        ],
+      };
+
+      injections += `\n  <meta name="keywords" content="${pageKeywords}" />`;
+      injections += `\n  <link rel="canonical" href="${pageUrl}" />`;
+      injections += `\n  <meta name="author" content="Michał Madejski — AI Possibilities Lab" />`;
+      injections += `\n  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />`;
+      injections += `\n  <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`;
     }
 
     // In lab mode, replace hackathon meta tags with lab-specific ones
