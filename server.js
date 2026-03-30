@@ -3089,49 +3089,97 @@ function parseCloudinaryCollectionUrl(url) {
 }
 
 // Fetch photos from a specific Cloudinary folder
+// Search API — works with new "asset folders" mode (public_id has no folder prefix)
+async function searchCloudinaryByAssetFolder(cloudName, folder, auth) {
+  const folderName = folder.replace(/\/$/, ''); // strip trailing slash
+  const allResources = [];
+  let nextCursor = null;
+
+  do {
+    const body = {
+      expression: `asset_folder="${folderName}"`,
+      max_results: 500,
+      sort_by: [{ created_at: 'desc' }],
+      ...(nextCursor ? { next_cursor: nextCursor } : {}),
+    };
+    try {
+      const resp = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/resources/search`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(15000),
+        }
+      );
+      if (!resp.ok) {
+        console.warn(`[Gallery] Search API failed (${resp.status}):`, await resp.text());
+        return null;
+      }
+      const data = await resp.json();
+      allResources.push(...(data.resources || []));
+      nextCursor = data.next_cursor || null;
+    } catch (e) {
+      console.warn('[Gallery] Search API error:', e.message);
+      return null;
+    }
+  } while (nextCursor);
+
+  return allResources;
+}
+
 async function fetchCloudinaryPhotosByFolder(cloudName, folder) {
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
   if (!apiKey || !apiSecret) return null;
 
   const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-  const headers = { Authorization: `Basic ${auth}` };
+  const prefix = folder.trim().replace(/\/$/, ''); // normalized, no trailing slash
+
+  // Strategy 1: Search API with asset_folder (new Cloudinary "fixed folder" mode)
+  console.log(`[Gallery] Trying Search API for asset_folder="${prefix}"`);
+  const searchResults = await searchCloudinaryByAssetFolder(cloudName, prefix, auth);
+  if (searchResults && searchResults.length > 0) {
+    console.log(`[Gallery] Search API found ${searchResults.length} images in asset_folder "${prefix}"`);
+    return searchResults.map(r => mapCloudinaryResource(r, cloudName));
+  }
+
+  // Strategy 2: prefix-based (old Cloudinary path mode, public_id starts with folder/)
+  console.log(`[Gallery] Search API returned 0 — trying prefix-based fetch for "${prefix}/"`);
   const allResources = [];
   let nextCursor = null;
-
-  // Use prefix as-is — user may pass a folder (e.g. "myfolder/") or a root prefix (e.g. "AIKrakHack2026_")
-  const prefix = folder.trim();
-
   do {
     const url = new URL(`https://api.cloudinary.com/v1_1/${cloudName}/resources/image`);
     url.searchParams.set('type', 'upload');
-    url.searchParams.set('prefix', prefix);
+    url.searchParams.set('prefix', prefix + '/');
     url.searchParams.set('max_results', '500');
     if (nextCursor) url.searchParams.set('next_cursor', nextCursor);
-
     try {
-      const resp = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(15000) });
+      const resp = await fetch(url.toString(), {
+        headers: { Authorization: `Basic ${auth}` },
+        signal: AbortSignal.timeout(15000),
+      });
       if (!resp.ok) {
-        console.warn(`[Gallery] Folder fetch failed (${resp.status}):`, await resp.text());
+        console.warn(`[Gallery] Prefix fetch failed (${resp.status}):`, await resp.text());
         break;
       }
       const data = await resp.json();
       allResources.push(...(data.resources || []));
       nextCursor = data.next_cursor || null;
     } catch (e) {
-      console.warn('[Gallery] Folder fetch error:', e.message);
+      console.warn('[Gallery] Prefix fetch error:', e.message);
       break;
     }
   } while (nextCursor);
 
-  if (allResources.length === 0) {
-    console.warn(`[Gallery] Folder "${prefix}" returned 0 images in cloud "${cloudName}"`);
-    return null;
+  if (allResources.length > 0) {
+    console.log(`[Gallery] Prefix fetch found ${allResources.length} images for "${prefix}/"`);
+    allResources.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return allResources.map(r => mapCloudinaryResource(r, cloudName));
   }
 
-  console.log(`[Gallery] Found ${allResources.length} images in folder "${prefix}"`);
-  allResources.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  return allResources.map(r => mapCloudinaryResource(r, cloudName));
+  console.warn(`[Gallery] Both strategies returned 0 images for folder "${prefix}" in cloud "${cloudName}"`);
+  return null;
 }
 
 // List all top-level (and one level deep) Cloudinary folders
@@ -3402,24 +3450,44 @@ app.get('/api/admin/gallery-debug/:edition', requireAdmin, async (req, res) => {
     const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
     const headers = { Authorization: `Basic ${auth}` };
 
-    // Test 1: folder-based resource fetch (primary approach)
+    // Test 1a: Search API with asset_folder (new Cloudinary fixed-folder mode)
     if (folder) {
+      const folderNorm = folder.trim().replace(/\/$/, '');
       try {
-        const prefix = folder.trim();
-        const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&prefix=${encodeURIComponent(prefix)}&max_results=5`;
+        const resp = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/resources/search`,
+          {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ expression: `asset_folder="${folderNorm}"`, max_results: 5 }),
+            signal: AbortSignal.timeout(10000),
+          }
+        );
+        const body = await resp.json();
+        debug.searchApiStatus = resp.status;
+        debug.searchApiResult = resp.ok
+          ? `OK — ${body.resources?.length ?? 0} images found (total_count: ${body.total_count ?? '?'})`
+          : `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
+        debug.searchApiSample = (body.resources || []).slice(0, 3).map(r => ({ public_id: r.public_id, asset_folder: r.asset_folder }));
+      } catch (e) {
+        debug.searchApiResult = `EXCEPTION: ${e.message}`;
+      }
+
+      // Test 1b: prefix-based (old path mode)
+      try {
+        const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&prefix=${encodeURIComponent(folderNorm + '/')}&max_results=5`;
         const resp = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
         const body = await resp.json();
-        debug.folderApiStatus = resp.status;
-        debug.folderApiResult = resp.ok
-          ? `OK — ${body.resources?.length ?? 0} images found (total: ${body.total_count ?? '?'}), next_cursor: ${body.next_cursor ? 'yes' : 'no'}`
+        debug.prefixApiStatus = resp.status;
+        debug.prefixApiResult = resp.ok
+          ? `OK — ${body.resources?.length ?? 0} images found`
           : `Error ${resp.status}: ${body.error?.message || JSON.stringify(body)}`;
-        debug.folderApiSample = (body.resources || []).slice(0, 3).map(r => r.public_id);
-        debug.folderApiRaw = resp.ok ? { total_count: body.total_count, rate_limit_remaining: body.rate_limit_remaining } : body;
+        debug.prefixApiSample = (body.resources || []).slice(0, 3).map(r => r.public_id);
       } catch (e) {
-        debug.folderApiResult = `EXCEPTION: ${e.message}`;
+        debug.prefixApiResult = `EXCEPTION: ${e.message}`;
       }
     } else {
-      debug.folderApiResult = 'No folder configured';
+      debug.searchApiResult = 'No folder configured';
     }
 
     // Test 2: list top-level folders
