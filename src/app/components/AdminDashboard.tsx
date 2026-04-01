@@ -690,11 +690,11 @@ export function AdminDashboard() {
       </div>
 
       {/* Domain switcher */}
-      <div className="px-3 py-3 border-b border-white/5">
+      <div className="px-2 py-3 border-b border-white/5">
         <div className="flex rounded-xl bg-white/5 p-0.5">
           <button
             onClick={() => switchDomain('hackathon')}
-            className={`flex-1 px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+            className={`flex-1 px-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all text-center ${
               domain === 'hackathon'
                 ? 'bg-cyan-500/20 text-cyan-300 shadow-sm'
                 : 'text-gray-500 hover:text-gray-300'
@@ -704,7 +704,7 @@ export function AdminDashboard() {
           </button>
           <button
             onClick={() => switchDomain('labhub')}
-            className={`flex-1 px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+            className={`flex-1 px-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all text-center ${
               domain === 'labhub'
                 ? 'bg-purple-500/20 text-purple-300 shadow-sm'
                 : 'text-gray-500 hover:text-gray-300'

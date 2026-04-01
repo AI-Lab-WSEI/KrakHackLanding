@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { BridgeLink } from '@/app/components/BridgeLink';
 import { Footer } from '@/app/components/Footer';
+import { getCollaborationBySlug, COLLABORATIONS } from '@/data/collaborations';
 
 interface Collaboration {
   id: number;
@@ -18,12 +19,26 @@ interface Collaboration {
   color: string;
 }
 
+function toApiShape(c: ReturnType<typeof getCollaborationBySlug>, idx: number): Collaboration | null {
+  if (!c) return null;
+  return {
+    id: idx, slug: c.id, partner: c.partner, partner_full: c.partnerFull,
+    partner_logo: c.partnerLogo, tagline: c.tagline, description: c.description,
+    full_content: c.fullContent, outcomes: c.outcomes, color: c.color,
+  };
+}
+
 export function CollaborationDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const [collab, setCollab] = useState<Collaboration | null>(null);
-  const [allCollabs, setAllCollabs] = useState<Collaboration[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Hardcoded fallback
+  const fallbackCollab = slug ? toApiShape(getCollaborationBySlug(slug), 0) : null;
+  const fallbackAll: Collaboration[] = COLLABORATIONS.map((c, i) => toApiShape(c, i)!);
+
+  const [collab, setCollab] = useState<Collaboration | null>(fallbackCollab);
+  const [allCollabs, setAllCollabs] = useState<Collaboration[]>(fallbackAll);
+  const [loading, setLoading] = useState(!fallbackCollab);
 
   const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
 
@@ -33,15 +48,14 @@ export function CollaborationDetailPage() {
       fetch(`${apiBase}/api/collaborations/${slug}`).then(r => r.ok ? r.json() : null),
       fetch(`${apiBase}/api/collaborations`).then(r => r.ok ? r.json() : []),
     ]).then(([detail, all]) => {
-      if (!detail) { navigate('/o-nas'); return; }
-      setCollab(detail);
-      setAllCollabs(all);
-    }).catch(() => navigate('/o-nas'))
+      if (detail && detail.slug) setCollab(detail);
+      if (all && Array.isArray(all) && all.length > 0) setAllCollabs(all);
+    }).catch(() => {})
       .finally(() => setLoading(false));
   }, [slug]);
 
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-gray-500">Ładowanie...</div>;
-  if (!collab) return null;
+  if (loading && !collab) return <div className="min-h-screen bg-black flex items-center justify-center text-gray-500">Ładowanie...</div>;
+  if (!collab) { navigate('/o-nas'); return null; }
 
   const currentIdx = allCollabs.findIndex((c) => c.slug === collab.slug);
   const prevCollab = currentIdx > 0 ? allCollabs[currentIdx - 1] : undefined;

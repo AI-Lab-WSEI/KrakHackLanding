@@ -47,6 +47,10 @@ async function collabFetch(path: string, options?: RequestInit) {
     ...options,
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...options?.headers },
   });
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error('Serwer nie zwrócił JSON — endpoint może nie istnieć (restart serwera?)');
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(data.error || 'API error');

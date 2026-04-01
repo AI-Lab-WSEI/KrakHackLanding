@@ -51,7 +51,7 @@ export function Header() {
     { href: '/feedback', label: 'Ankieta', isLink: true },
   ];
 
-  const linkClass = "text-gray-300 hover:text-cyan-400 transition-colors font-medium px-3 py-2.5 rounded-lg hover:bg-white/5 block";
+  const linkClass = "text-gray-300 hover:text-cyan-400 transition-colors font-medium px-2.5 py-2 rounded-lg hover:bg-white/5 block whitespace-nowrap";
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-md border-b border-cyan-500/30" style={{ zIndex: 9999 }}>
@@ -79,7 +79,7 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-1 text-sm">
+        <nav className="hidden lg:flex items-center gap-0.5 text-[13px]">
           {isLab ? (
             /* LAB MODE: section scroll links + Hackathon external + Dołącz */
             <div className="flex items-center gap-1">
@@ -91,7 +91,7 @@ export function Header() {
               <div className="w-px h-4 bg-white/20 mx-1" />
               <a
                 href={hackathonUrl}
-                className="flex items-center gap-1.5 text-gray-300 hover:text-cyan-400 transition-colors font-medium px-3 py-2.5 rounded-lg hover:bg-white/5"
+                className="flex items-center gap-1.5 text-gray-300 hover:text-cyan-400 transition-colors font-medium px-2.5 py-2 rounded-lg hover:bg-white/5 whitespace-nowrap"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -100,7 +100,7 @@ export function Header() {
               </a>
               <Link
                 to="/dolacz"
-                className="px-5 py-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-full text-xs font-bold transition-all shadow-lg shadow-pink-500/20 mx-1"
+                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-full text-xs font-bold transition-all shadow-lg shadow-pink-500/20 mx-1 whitespace-nowrap"
               >
                 Dołącz do koła
               </Link>
@@ -138,7 +138,7 @@ export function Header() {
               </button>
               <Link
                 to="/dolacz"
-                className="px-5 py-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-full text-xs font-bold transition-all shadow-lg shadow-pink-500/20 mx-1"
+                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-full text-xs font-bold transition-all shadow-lg shadow-pink-500/20 mx-1 whitespace-nowrap"
               >
                 Dołącz do koła
               </Link>
@@ -187,7 +187,7 @@ export function Header() {
 
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-white hover:text-cyan-400 transition-colors"
+            className="lg:hidden p-2 text-white hover:text-cyan-400 transition-colors"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -196,7 +196,7 @@ export function Header() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-gray-900 border-t border-gray-800">
+        <div className="lg:hidden bg-gray-900 border-t border-gray-800">
           <nav className="container mx-auto px-4 py-4 flex flex-col gap-1">
             {!isLab && (
               <Link to="/o-nas" onClick={() => setMobileMenuOpen(false)}

@@ -8,6 +8,7 @@ import { BridgeLink } from '@/app/components/BridgeLink';
 import { CollaborationBridge } from '@/app/components/CollaborationBridge';
 import { getGalleryImages } from '@/utils/galleryLoader';
 import { VALUES } from '@/data/values';
+import { COLLABORATIONS as FALLBACK_COLLABS } from '@/data/collaborations';
 
 interface CollabData {
   id: number;
@@ -20,16 +21,21 @@ interface CollabData {
   color: string;
 }
 
+const FALLBACK: CollabData[] = FALLBACK_COLLABS.map((c, i) => ({
+  id: i + 1, slug: c.id, partner: c.partner, partner_full: c.partnerFull,
+  partner_logo: c.partnerLogo, tagline: c.tagline, description: c.description, color: c.color,
+}));
+
 const galleryImages = getGalleryImages('2025');
 
 export function AboutPage() {
-  const [collaborations, setCollaborations] = useState<CollabData[]>([]);
+  const [collaborations, setCollaborations] = useState<CollabData[]>(FALLBACK);
 
   useEffect(() => {
     const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
     fetch(`${apiBase}/api/collaborations`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setCollaborations(data))
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data && Array.isArray(data) && data.length > 0) setCollaborations(data); })
       .catch(() => {});
   }, []);
 
