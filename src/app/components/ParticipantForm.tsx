@@ -16,6 +16,8 @@ interface ParticipantFormData {
   otherSkill: string;
   teamName: string;
   teamPreference: string;
+  discordUsername: string;
+  discordInviteLink: string;
   dietaryRestrictions: string;
   additionalNotes: string;
   howDidYouHear: string;
@@ -44,6 +46,8 @@ export function ParticipantForm() {
       otherSkill: '',
       teamName: '',
       teamPreference: '',
+      discordUsername: '',
+      discordInviteLink: '',
       dietaryRestrictions: '',
       additionalNotes: '',
       howDidYouHear: '',
@@ -177,7 +181,8 @@ export function ParticipantForm() {
                 setFormData({
                   firstName: '', lastName: '', email: '', phone: '', university: '',
                   studyField: '', yearOfStudy: '', experience: '', motivation: '',
-                  skills: [], otherSkill: '', teamName: '', teamPreference: '', 
+                  skills: [], otherSkill: '', teamName: '', teamPreference: '',
+                  discordUsername: '', discordInviteLink: '',
                   dietaryRestrictions: '', additionalNotes: '', howDidYouHear: '', acceptRules: false,
                   consentMarketingEmail: false, consentMarketingPhone: false,
                   consentMarketingSms: false, consentMarketingChat: false,
@@ -451,6 +456,35 @@ export function ParticipantForm() {
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors resize-none"
                 placeholder="Czy masz już zespół? Jakie umiejętności chciałbyś mieć w zespole?"
               />
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="discordUsername" className="flex items-center gap-2 text-white mb-2">
+                  <span>Nick na Discordzie <span className="text-gray-400 font-normal text-sm">(opcjonalne)</span></span>
+                </label>
+                <input
+                  type="text"
+                  id="discordUsername"
+                  value={formData.discordUsername}
+                  onChange={(e) => setFormData({ ...formData, discordUsername: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="np. janek#1234 lub janek"
+                />
+              </div>
+              <div>
+                <label htmlFor="discordInviteLink" className="flex items-center gap-2 text-white mb-2">
+                  <span>Link do Discorda <span className="text-gray-400 font-normal text-sm">(opcjonalne)</span></span>
+                </label>
+                <input
+                  type="text"
+                  id="discordInviteLink"
+                  value={formData.discordInviteLink}
+                  onChange={(e) => setFormData({ ...formData, discordInviteLink: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="https://discord.gg/..."
+                />
+              </div>
             </div>
 
             <div className="mt-6">

@@ -28,6 +28,8 @@ export function AdminEditParticipant({ participant, existingTeams, onClose, onSa
     studyField: d.studyField || '',
     yearOfStudy: d.yearOfStudy || '',
     teamName: d.teamName || '',
+    discordUsername: d.discordUsername || '',
+    discordInviteLink: d.discordInviteLink || '',
     experience: d.experience || '',
     motivation: d.motivation || '',
     dietaryRestrictions: d.dietaryRestrictions || '',
@@ -151,6 +153,19 @@ export function AdminEditParticipant({ participant, existingTeams, onClose, onSa
             {!formData.teamName && (
               <p className="text-[10px] text-yellow-400/70 mt-1">⚠ Brak zespołu</p>
             )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Discord nick</label>
+              <input type="text" value={formData.discordUsername} onChange={(e) => setFormData({ ...formData, discordUsername: e.target.value })}
+                className={inputClass} placeholder="nick#1234" />
+            </div>
+            <div>
+              <label className={labelClass}>Discord link</label>
+              <input type="text" value={formData.discordInviteLink} onChange={(e) => setFormData({ ...formData, discordInviteLink: e.target.value })}
+                className={inputClass} placeholder="https://discord.gg/..." />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

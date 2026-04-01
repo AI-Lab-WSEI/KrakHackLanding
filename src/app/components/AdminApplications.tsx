@@ -236,7 +236,7 @@ export function AdminApplications() {
                           {app.is_wsei ? 'WSEI' : 'Zewnętrzny'}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-500 mt-1">
+                      <div className="text-sm text-gray-500 mt-1 truncate">
                         {app.email} | {app.university || 'brak uczelni'} | {new Date(app.created_at).toLocaleDateString('pl-PL')}
                       </div>
                     </div>
@@ -254,7 +254,7 @@ export function AdminApplications() {
                   {/* Expanded Detail */}
                   {isExpanded && (
                     <div className="border-t border-white/8 p-6 space-y-6">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                         {/* Left: Info */}
                         <div className="space-y-4">
                           <div>
@@ -272,19 +272,19 @@ export function AdminApplications() {
                           {app.what_you_bring && (
                             <div>
                               <h4 className="text-xs font-bold uppercase text-gray-500 mb-1">Co wnosi</h4>
-                              <p className="text-gray-300 text-sm">{app.what_you_bring}</p>
+                              <p className="text-gray-300 text-sm break-words">{app.what_you_bring}</p>
                             </div>
                           )}
                           {app.expectations && (
                             <div>
                               <h4 className="text-xs font-bold uppercase text-gray-500 mb-1">Oczekiwania</h4>
-                              <p className="text-gray-300 text-sm">{app.expectations}</p>
+                              <p className="text-gray-300 text-sm break-words">{app.expectations}</p>
                             </div>
                           )}
                           {app.values_resonance && (
                             <div>
                               <h4 className="text-xs font-bold uppercase text-gray-500 mb-1">Wartości</h4>
-                              <p className="text-gray-300 text-sm">{app.values_resonance}</p>
+                              <p className="text-gray-300 text-sm break-words">{app.values_resonance}</p>
                             </div>
                           )}
 
@@ -330,7 +330,7 @@ export function AdminApplications() {
                           <h4 className="text-xs font-bold uppercase text-gray-500 mb-2">Profil kompetencji</h4>
                           <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
                             <CompetencyRadarChart competencies={app.competencies} size={250} />
-                            <div className="grid grid-cols-2 gap-1 mt-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-2">
                               {(Object.keys(COMPETENCY_LABELS) as (keyof CompetencyProfile)[]).map((key) => (
                                 <div key={key} className="flex justify-between text-xs px-2">
                                   <span className="text-gray-500">{COMPETENCY_LABELS[key]}</span>

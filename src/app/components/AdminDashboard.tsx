@@ -29,6 +29,9 @@ import {
   Menu,
   LogOut,
   Images,
+  Handshake,
+  Settings,
+  MessageCircle,
 } from 'lucide-react';
 import { AdminApplications } from './AdminApplications';
 import { AdminAddParticipant } from './AdminAddParticipant';
@@ -83,9 +86,14 @@ async function apiFetch(path: string) {
 }
 
 // Sidebar nav definition
-type TabId = 'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates' | 'applications' | 'projekty' | 'wyniki' | 'galeria';
+type AdminDomain = 'hackathon' | 'labhub';
+type HackathonTabId = 'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates' | 'projekty' | 'wyniki' | 'galeria';
+type LabHubTabId = 'applications' | 'collaborations' | 'contact_submissions' | 'org_settings';
+type TabId = HackathonTabId | LabHubTabId;
 
-const NAV_GROUPS: { label: string; items: { id: TabId; label: string; icon: any }[] }[] = [
+interface NavGroup { label: string; items: { id: TabId; label: string; icon: any }[] }
+
+const HACKATHON_NAV_GROUPS: NavGroup[] = [
   {
     label: 'Przegląd',
     items: [
@@ -117,16 +125,34 @@ const NAV_GROUPS: { label: string; items: { id: TabId; label: string; icon: any 
       { id: 'surveys', label: 'Ankiety', icon: MessageSquare },
     ],
   },
+];
+
+const LABHUB_NAV_GROUPS: NavGroup[] = [
   {
-    label: 'Koło naukowe',
+    label: 'Członkowie',
     items: [
       { id: 'applications', label: 'Aplikacje', icon: UserPlus },
     ],
   },
+  {
+    label: 'Współpraca',
+    items: [
+      { id: 'collaborations', label: 'Współprace', icon: Handshake },
+      { id: 'contact_submissions', label: 'Zapytania', icon: MessageCircle },
+    ],
+  },
+  {
+    label: 'Ustawienia',
+    items: [
+      { id: 'org_settings', label: 'Organizacja', icon: Settings },
+    ],
+  },
 ];
 
+const ALL_NAV_GROUPS = [...HACKATHON_NAV_GROUPS, ...LABHUB_NAV_GROUPS];
+
 function getBreadcrumb(activeTab: TabId): { group: string; page: string } {
-  for (const group of NAV_GROUPS) {
+  for (const group of ALL_NAV_GROUPS) {
     for (const item of group.items) {
       if (item.id === activeTab) {
         return { group: group.label, page: item.label };
@@ -150,6 +176,7 @@ export function AdminDashboard() {
       task: ''
     }
   });
+  const [domain, setDomain] = useState<AdminDomain>('hackathon');
   const [activeTab, setActiveTab] = useState<TabId>('regs');
   const [selectedEdition, setSelectedEdition] = useState(CURRENT_EDITION_NUMBER);
   const [roleFilter, setRoleFilter] = useState('all');
@@ -644,6 +671,11 @@ export function AdminDashboard() {
 
   const breadcrumb = getBreadcrumb(activeTab);
 
+  const switchDomain = (d: AdminDomain) => {
+    setDomain(d);
+    setActiveTab(d === 'hackathon' ? 'regs' : 'applications');
+  };
+
   const SidebarContent = () => (
     <div className="flex flex-col h-full overflow-y-auto">
       {/* Logo */}
@@ -654,29 +686,57 @@ export function AdminDashboard() {
         </div>
       </div>
 
-      {/* Edition picker */}
-      <div className="px-3 py-4 border-b border-white/5 space-y-1.5">
-        {EDITIONS_META.filter(e => e.status !== 'placeholder').map(e => (
+      {/* Domain switcher */}
+      <div className="px-3 py-3 border-b border-white/5">
+        <div className="flex rounded-xl bg-white/5 p-0.5">
           <button
-            key={e.number}
-            onClick={() => setSelectedEdition(e.number)}
-            className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
-              selectedEdition === e.number
-                ? 'bg-cyan-500/20 text-cyan-300'
-                : 'text-gray-500 hover:text-white hover:bg-white/5'
+            onClick={() => switchDomain('hackathon')}
+            className={`flex-1 px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+              domain === 'hackathon'
+                ? 'bg-cyan-500/20 text-cyan-300 shadow-sm'
+                : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            #{e.number} · {e.year}
-            {e.status === 'active' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block ml-auto" />
-            )}
+            Hackathon
           </button>
-        ))}
+          <button
+            onClick={() => switchDomain('labhub')}
+            className={`flex-1 px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+              domain === 'labhub'
+                ? 'bg-purple-500/20 text-purple-300 shadow-sm'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            LabHub
+          </button>
+        </div>
       </div>
+
+      {/* Edition picker — only for Hackathon */}
+      {domain === 'hackathon' && (
+        <div className="px-3 py-4 border-b border-white/5 space-y-1.5">
+          {EDITIONS_META.filter(e => e.status !== 'placeholder').map(e => (
+            <button
+              key={e.number}
+              onClick={() => setSelectedEdition(e.number)}
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                selectedEdition === e.number
+                  ? 'bg-cyan-500/20 text-cyan-300'
+                  : 'text-gray-500 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              #{e.number} · {e.year}
+              {e.status === 'active' && (
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block ml-auto" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Nav groups */}
       <nav className="flex-1 px-2 py-3">
-        {NAV_GROUPS.map(group => (
+        {(domain === 'hackathon' ? HACKATHON_NAV_GROUPS : LABHUB_NAV_GROUPS).map(group => (
           <div key={group.label}>
             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-600 px-3 py-1 mt-4 mb-1">
               {group.label}
@@ -925,6 +985,9 @@ export function AdminDashboard() {
                                        ? <div className="text-[9px] text-cyan-400 mt-0.5">TEAM: {reg.fullData.teamName}</div>
                                        : <div className="text-[9px] text-yellow-400/70 mt-0.5">⚠ Brak zespołu</div>
                                      }
+                                     {reg.fullData?.discordUsername && (
+                                       <div className="text-[9px] text-purple-400 mt-0.5">DISCORD: {reg.fullData.discordUsername}</div>
+                                     )}
                                    </td>
                                    <td className="px-6 py-4">
                                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${
@@ -1225,6 +1288,36 @@ export function AdminDashboard() {
 
               {activeTab === 'applications' && (
                 <AdminApplications />
+              )}
+
+              {activeTab === 'collaborations' && (
+                <motion.div key="collaborations" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                  <div className="p-12 bg-white/5 border border-white/10 rounded-[2rem] text-center">
+                    <Handshake className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+                    <h2 className="text-xl font-black uppercase tracking-widest text-white mb-2">Współprace</h2>
+                    <p className="text-gray-500 text-sm">CMS do zarządzania współpracami — wkrótce dostępny</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'contact_submissions' && (
+                <motion.div key="contact_submissions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                  <div className="p-12 bg-white/5 border border-white/10 rounded-[2rem] text-center">
+                    <MessageCircle className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+                    <h2 className="text-xl font-black uppercase tracking-widest text-white mb-2">Zapytania o współpracę</h2>
+                    <p className="text-gray-500 text-sm">Formularz kontaktowy dla organizacji — wkrótce dostępny</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'org_settings' && (
+                <motion.div key="org_settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                  <div className="p-12 bg-white/5 border border-white/10 rounded-[2rem] text-center">
+                    <Settings className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+                    <h2 className="text-xl font-black uppercase tracking-widest text-white mb-2">Ustawienia organizacji</h2>
+                    <p className="text-gray-500 text-sm">Konfiguracja social media, dane kontaktowe — wkrótce dostępne</p>
+                  </div>
+                </motion.div>
               )}
 
               {activeTab === 'projekty' && (
