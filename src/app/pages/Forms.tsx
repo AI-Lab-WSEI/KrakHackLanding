@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { Users, GraduationCap, Building, ArrowLeft } from 'lucide-react';
 import { ParticipantForm } from '@/app/components/ParticipantForm';
 import { MentorForm } from '@/app/components/MentorForm';
-import { CompanyForm } from '@/app/components/CompanyForm';
+import { OrgContactForm } from '@/app/components/OrgContactForm';
 
 type FormType = 'participant' | 'mentor' | 'company';
 
@@ -55,7 +55,7 @@ export function Forms() {
       case 'mentor':
         return <MentorForm />;
       case 'company':
-        return <CompanyForm />;
+        return <OrgContactForm />;
       default:
         return <ParticipantForm />;
     }

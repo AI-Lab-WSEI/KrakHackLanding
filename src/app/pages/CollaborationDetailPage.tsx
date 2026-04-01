@@ -1,42 +1,65 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, Check, Handshake } from 'lucide-react';
-import { getCollaborationBySlug, COLLABORATIONS } from '@/data/collaborations';
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { BridgeLink } from '@/app/components/BridgeLink';
 import { Footer } from '@/app/components/Footer';
+
+interface Collaboration {
+  id: number;
+  slug: string;
+  partner: string;
+  partner_full: string;
+  partner_logo: string;
+  tagline: string;
+  description: string;
+  full_content: string[];
+  outcomes: string[];
+  color: string;
+}
 
 export function CollaborationDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const collab = slug ? getCollaborationBySlug(slug) : undefined;
+  const [collab, setCollab] = useState<Collaboration | null>(null);
+  const [allCollabs, setAllCollabs] = useState<Collaboration[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!collab) {
-    navigate('/o-nas');
-    return null;
-  }
+  const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
 
-  const currentIdx = COLLABORATIONS.findIndex((c) => c.id === collab.id);
-  const prevCollab = currentIdx > 0 ? COLLABORATIONS[currentIdx - 1] : undefined;
-  const nextCollab = currentIdx < COLLABORATIONS.length - 1 ? COLLABORATIONS[currentIdx + 1] : undefined;
+  useEffect(() => {
+    if (!slug) { navigate('/o-nas'); return; }
+    Promise.all([
+      fetch(`${apiBase}/api/collaborations/${slug}`).then(r => r.ok ? r.json() : null),
+      fetch(`${apiBase}/api/collaborations`).then(r => r.ok ? r.json() : []),
+    ]).then(([detail, all]) => {
+      if (!detail) { navigate('/o-nas'); return; }
+      setCollab(detail);
+      setAllCollabs(all);
+    }).catch(() => navigate('/o-nas'))
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-gray-500">Ładowanie...</div>;
+  if (!collab) return null;
+
+  const currentIdx = allCollabs.findIndex((c) => c.slug === collab.slug);
+  const prevCollab = currentIdx > 0 ? allCollabs[currentIdx - 1] : undefined;
+  const nextCollab = currentIdx < allCollabs.length - 1 ? allCollabs[currentIdx + 1] : undefined;
 
   return (
     <div className="min-h-screen bg-black relative">
-      {/* Fixed prev/next buttons */}
       {prevCollab && (
-        <Link
-          to={`/wspolpraca/${prevCollab.id}`}
+        <Link to={`/wspolpraca/${prevCollab.slug}`}
           className="fixed left-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-full bg-white/5 border border-white/10 backdrop-blur-md flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-white/10 hover:border-cyan-500/30 transition-all group"
-          title={prevCollab.partner}
-        >
+          title={prevCollab.partner}>
           <ChevronLeft className="w-6 h-6 group-hover:-translate-x-0.5 transition-transform" />
         </Link>
       )}
       {nextCollab && (
-        <Link
-          to={`/wspolpraca/${nextCollab.id}`}
+        <Link to={`/wspolpraca/${nextCollab.slug}`}
           className="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-full bg-white/5 border border-white/10 backdrop-blur-md flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-white/10 hover:border-cyan-500/30 transition-all group"
-          title={nextCollab.partner}
-        >
+          title={nextCollab.partner}>
           <ChevronRight className="w-6 h-6 group-hover:translate-x-0.5 transition-transform" />
         </Link>
       )}
@@ -47,16 +70,10 @@ export function CollaborationDetailPage() {
           <img src="/assets/marble-texture.png" alt="" className="w-full h-full object-cover" />
         </div>
         <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-br ${collab.color} opacity-10 rounded-full blur-[120px]`} />
-
         <div className="container mx-auto px-4 relative z-10">
-          <Link
-            to="/o-nas"
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors mb-8 text-sm"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Wróć do "O nas"
+          <Link to="/o-nas" className="inline-flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors mb-8 text-sm">
+            <ChevronLeft className="w-4 h-4" /> Wróć do "O nas"
           </Link>
-
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <div className="flex items-center gap-3 mb-4">
               <span className="text-sm text-gray-400 uppercase tracking-widest">Współpraca</span>
@@ -78,7 +95,7 @@ export function CollaborationDetailPage() {
           <div className="max-w-3xl mx-auto">
             <BridgeLink
               leftLabel="AI Possibilities Lab"
-              rightLabel={collab.partnerFull}
+              rightLabel={collab.partner_full}
               leftDescription="Wiedza, społeczność i innowacyjne podejście"
               rightDescription="Realne wyzwania, dane i potrzeby biznesowe"
               color={collab.color}
@@ -92,7 +109,7 @@ export function CollaborationDetailPage() {
       <section className="py-16 bg-gradient-to-b from-black to-gray-950">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
-            {collab.fullContent.map((paragraph, idx) => (
+            {collab.full_content.map((paragraph, idx) => (
               <motion.p key={idx} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
                 className="text-gray-300 text-lg leading-relaxed mb-6">
@@ -131,7 +148,7 @@ export function CollaborationDetailPage() {
             <p className="text-gray-400 mb-8 max-w-lg mx-auto">
               Szukamy partnerów do wspólnych projektów. Skontaktuj się z nami lub wypełnij formularz.
             </p>
-            <Link to="/dolacz"
+            <Link to="/kontakt"
               className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-pink-500/20">
               Nawiąż współpracę
               <ChevronRight className="w-5 h-5" />

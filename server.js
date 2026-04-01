@@ -199,6 +199,25 @@ async function initDB() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS collaborations (
+      id SERIAL PRIMARY KEY,
+      slug VARCHAR(100) UNIQUE NOT NULL,
+      partner VARCHAR(255) NOT NULL,
+      partner_full VARCHAR(500) NOT NULL,
+      partner_logo VARCHAR(500) DEFAULT '',
+      tagline TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      full_content JSONB DEFAULT '[]',
+      outcomes JSONB DEFAULT '[]',
+      color VARCHAR(100) DEFAULT 'from-blue-500 to-cyan-600',
+      sort_order INTEGER DEFAULT 0,
+      is_published BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   // Add email_last_sent_at column if it doesn't exist (migration)
   await pool.query(`
     ALTER TABLE team_projects ADD COLUMN IF NOT EXISTS email_last_sent_at TIMESTAMP WITH TIME ZONE;
@@ -375,6 +394,57 @@ async function initDB() {
     console.error('[DB] Attendance sync failed:', err);
   }
   
+  // Auto-seed collaborations from hardcoded data
+  try {
+    const collabCheck = await pool.query('SELECT COUNT(*) FROM collaborations');
+    if (parseInt(collabCheck.rows[0].count) === 0) {
+      const seedCollabs = [
+        {
+          slug: 'ztp-krakow', partner: 'ZTP Kraków', partner_full: 'Zarząd Transportu Publicznego w Krakowie',
+          partner_logo: '/assets/ztp-logo.webp', tagline: 'Optymalizacja sieci tramwajowej i rowerowej',
+          description: 'Stworzyliśmy projekty z propozycjami wdrożeń optymalizacji sieci tramwajowej oraz rowerowej dla miasta Krakowa.',
+          color: 'from-blue-500 to-cyan-600', sort_order: 1,
+          full_content: JSON.stringify([
+            'Współpraca AI Possibilities Lab z Zarządem Transportu Publicznego w Krakowie to jeden z naszych flagowych projektów łączących dane miejskie z nowoczesnymi metodami analizy i optymalizacji.',
+            'W ramach AI Krak Hack nasi uczestnicy pracowali nad realnymi danymi z infrastruktury transportowej Krakowa, sieciami tramwajowymi, ścieżkami rowerowymi i danymi o ruchu.',
+            'Zespoły stworzyły propozycje wdrożeń, które obejmowały optymalizację tras tramwajowych pod kątem przepustowości, analizę pokrycia miasta ścieżkami rowerowymi oraz modele predykcyjne dla natężenia ruchu.',
+          ]),
+          outcomes: JSON.stringify([
+            'Propozycje optymalizacji sieci tramwajowej Krakowa',
+            'Analiza i rekomendacje dla infrastruktury rowerowej',
+            'Modele predykcyjne oparte na danych GIS',
+            'Prezentacja wyników przed przedstawicielami ZTP Kraków',
+          ]),
+        },
+        {
+          slug: 'kyp', partner: 'KYP', partner_full: 'KYP',
+          partner_logo: '/assets/kyp-logo.png', tagline: 'Przetwarzanie danych i automatyzacja procesów',
+          description: 'W ramach hackathonu użytkownicy stworzyli wartość w obszarze przetwarzania danych, dostarczając innowacyjne rozwiązania.',
+          color: 'from-purple-500 to-pink-600', sort_order: 2,
+          full_content: JSON.stringify([
+            'Współpraca z KYP w ramach AI Krak Hack skupiła się na wyzwaniach związanych z przetwarzaniem danych i automatyzacją procesów biznesowych.',
+            'Uczestnicy hackathonu mieli dostęp do realnych danych i problemów firmy, tworząc rozwiązania, które mogą być bezpośrednio wdrożone w środowisku produkcyjnym.',
+          ]),
+          outcomes: JSON.stringify([
+            'Innowacyjne rozwiązania do przetwarzania danych',
+            'Proof-of-concept gotowy do dalszego rozwoju',
+            'Wartość biznesowa dostarczona w 24h hackathonu',
+          ]),
+        },
+      ];
+      for (const c of seedCollabs) {
+        await pool.query(
+          `INSERT INTO collaborations (slug, partner, partner_full, partner_logo, tagline, description, full_content, outcomes, color, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (slug) DO NOTHING`,
+          [c.slug, c.partner, c.partner_full, c.partner_logo, c.tagline, c.description, c.full_content, c.outcomes, c.color, c.sort_order]
+        );
+      }
+      console.log('[DB] Auto-seeded 2 collaborations');
+    }
+  } catch (err) {
+    console.error('[DB] Auto-seed collaborations failed:', err);
+  }
+
   console.log('[DB] Tables initialized');
 }
 
@@ -636,7 +706,7 @@ app.post('/api/submissions', async (req, res) => {
 
     // ── Async notifications (don't block the response) ──
 
-    const typeLabel = { participant: 'Uczestnik', mentor: 'Mentor', company: 'Partner/Sponsor' }[type] || type;
+    const typeLabel = { participant: 'Uczestnik', mentor: 'Mentor', company: 'Partner/Sponsor', org_contact: 'Zapytanie o współpracę' }[type] || type;
 
     // Teams notification
     const csvKeys = Object.keys(data);
@@ -814,7 +884,12 @@ app.get('/api/teams', async (req, res) => {
 // Get submissions (admin only)
 app.get('/api/submissions', requireAdmin, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM submissions ORDER BY created_at DESC');
+    const { type } = req.query;
+    let query = 'SELECT * FROM submissions';
+    const params = [];
+    if (type) { query += ' WHERE type = $1'; params.push(type); }
+    query += ' ORDER BY created_at DESC';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('[API] Fetch submissions error:', err);
@@ -919,8 +994,9 @@ app.get('/api/config/site', (req, res) => {
 // Get config (public for some keys, admin for others)
 app.get('/api/config/:key', async (req, res) => {
   const { key } = req.params;
+  const PUBLIC_CONFIG_KEYS = ['challenge_resources', 'org_settings'];
   if (!process.env.DATABASE_URL) {
-    if (key === 'challenge_resources') {
+    if (PUBLIC_CONFIG_KEYS.includes(key)) {
       res.json({});
     } else {
       res.status(404).json({ error: 'DB not connected' });
@@ -930,7 +1006,7 @@ app.get('/api/config/:key', async (req, res) => {
   try {
     const result = await pool.query('SELECT value FROM config WHERE key = $1', [key]);
     if (result.rows.length === 0) {
-      if (key === 'challenge_resources') {
+      if (PUBLIC_CONFIG_KEYS.includes(key)) {
         res.json({});
       } else {
         res.status(404).json({ error: 'Nie znaleziono konfiguracji' });
@@ -4032,6 +4108,94 @@ app.post('/api/platform-contact', async (req, res) => {
   } catch (err) {
     console.error('[Platform contact] Error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// ─── Collaborations (public + admin) ───────────────────────
+
+app.get('/api/collaborations', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM collaborations WHERE is_published = true ORDER BY sort_order ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[Collabs] List error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.get('/api/collaborations/:slug', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM collaborations WHERE slug = $1 AND is_published = true', [req.params.slug]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Collabs] Get error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.get('/api/admin/collaborations', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM collaborations ORDER BY sort_order ASC, created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[Collabs] Admin list error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.post('/api/admin/collaborations', requireAdmin, async (req, res) => {
+  try {
+    const { slug, partner, partner_full, partner_logo, tagline, description, full_content, outcomes, color, sort_order, is_published } = req.body;
+    if (!slug || !partner) return res.status(400).json({ error: 'slug i partner są wymagane' });
+    const result = await pool.query(
+      `INSERT INTO collaborations (slug, partner, partner_full, partner_logo, tagline, description, full_content, outcomes, color, sort_order, is_published)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [slug, partner, partner_full || partner, partner_logo || '', tagline || '', description || '',
+       JSON.stringify(full_content || []), JSON.stringify(outcomes || []), color || 'from-blue-500 to-cyan-600',
+       sort_order || 0, is_published !== false]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Collabs] Create error:', err);
+    res.status(500).json({ error: 'Błąd tworzenia współpracy' });
+  }
+});
+
+app.patch('/api/admin/collaborations/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const fields = ['slug', 'partner', 'partner_full', 'partner_logo', 'tagline', 'description', 'full_content', 'outcomes', 'color', 'sort_order', 'is_published'];
+    const updates = [];
+    const params = [];
+    let idx = 1;
+    for (const f of fields) {
+      if (req.body[f] !== undefined) {
+        const val = (f === 'full_content' || f === 'outcomes') ? JSON.stringify(req.body[f]) : req.body[f];
+        updates.push(`${f} = $${idx++}`);
+        params.push(val);
+      }
+    }
+    if (updates.length === 0) return res.status(400).json({ error: 'Brak pól do aktualizacji' });
+    updates.push(`updated_at = NOW()`);
+    params.push(id);
+    const result = await pool.query(`UPDATE collaborations SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`, params);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[Collabs] Update error:', err);
+    res.status(500).json({ error: 'Błąd aktualizacji' });
+  }
+});
+
+app.delete('/api/admin/collaborations/:id', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM collaborations WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Collabs] Delete error:', err);
+    res.status(500).json({ error: 'Błąd usuwania' });
   }
 });
 

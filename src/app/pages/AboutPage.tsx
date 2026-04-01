@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
 import { Footer } from '@/app/components/Footer';
@@ -7,13 +8,31 @@ import { BridgeLink } from '@/app/components/BridgeLink';
 import { CollaborationBridge } from '@/app/components/CollaborationBridge';
 import { getGalleryImages } from '@/utils/galleryLoader';
 import { VALUES } from '@/data/values';
-import { COLLABORATIONS } from '@/data/collaborations';
+
+interface CollabData {
+  id: number;
+  slug: string;
+  partner: string;
+  partner_full: string;
+  partner_logo: string;
+  tagline: string;
+  description: string;
+  color: string;
+}
 
 const galleryImages = getGalleryImages('2025');
 
-// Values are now imported from src/data/values.ts
-
 export function AboutPage() {
+  const [collaborations, setCollaborations] = useState<CollabData[]>([]);
+
+  useEffect(() => {
+    const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
+    fetch(`${apiBase}/api/collaborations`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setCollaborations(data))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-black">
 
@@ -240,7 +259,7 @@ export function AboutPage() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {COLLABORATIONS.map((collab, idx) => (
+            {collaborations.map((collab, idx) => (
               <motion.div
                 key={collab.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -249,7 +268,7 @@ export function AboutPage() {
                 transition={{ delay: idx * 0.15 }}
               >
                 <Link
-                  to={`/wspolpraca/${collab.id}`}
+                  to={`/wspolpraca/${collab.slug}`}
                   className="group flex flex-col relative overflow-hidden rounded-3xl h-full"
                 >
                   <div className="absolute inset-0 opacity-15">
@@ -257,11 +276,10 @@ export function AboutPage() {
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/90" />
                   <div className="relative z-10 p-8 flex flex-col flex-1">
-                    {/* Logo bridge */}
                     <div className="mb-6">
                       <CollaborationBridge
                         partnerName={collab.partner}
-                        partnerLogo={collab.partnerLogo}
+                        partnerLogo={collab.partner_logo}
                         color={collab.color}
                         size="sm"
                       />

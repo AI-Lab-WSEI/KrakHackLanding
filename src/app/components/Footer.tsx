@@ -1,7 +1,43 @@
+import { useState, useEffect } from 'react';
 import { Mail, MapPin, Phone, Linkedin } from 'lucide-react';
 import { Link } from 'react-router';
 
+interface OrgSettings {
+  linkedinUrl?: string;
+  contactEmail?: string;
+  contactPhones?: string[];
+  location?: string;
+}
+
+const DEFAULTS: OrgSettings = {
+  linkedinUrl: 'https://www.linkedin.com/company/ai-possibilities-lab/?viewAsMember=true',
+  contactEmail: 'knai@wsei.edu.pl',
+  contactPhones: ['+48 662 974 402', '+48 690 459 531'],
+  location: 'Kraków, Polska',
+};
+
+let cachedSettings: OrgSettings | null = null;
+
 export function Footer() {
+  const [settings, setSettings] = useState<OrgSettings>(cachedSettings || DEFAULTS);
+
+  useEffect(() => {
+    if (cachedSettings) return;
+    const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
+    fetch(`${apiBase}/api/config/org_settings`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && typeof data === 'object' && !data.error) {
+          const merged = { ...DEFAULTS, ...data };
+          cachedSettings = merged;
+          setSettings(merged);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const phoneDisplay = (settings.contactPhones || DEFAULTS.contactPhones || []).join(' / ');
+
   return (
     <footer id="kontakt" className="bg-black border-t border-gray-800">
       <div className="container mx-auto px-4 py-12">
@@ -9,8 +45,7 @@ export function Footer() {
           {/* Logo & Description */}
           <div>
             <div className="flex items-center gap-4 mb-4">
-              {/* AI Possibilities Lab Logo */}
-              <img 
+              <img
                 src="https://res.cloudinary.com/dyux0lw71/image/upload/v1770831902/ai-possibilities-lab-logo_v0flns.svg"
                 alt="AI Possibilities Lab"
                 className="h-10 w-auto"
@@ -33,6 +68,7 @@ export function Footer() {
               <li><a href="#mentorzy" className="hover:text-cyan-400 transition-colors">Dla mentorów</a></li>
               <li><a href="#zgloszenie" className="hover:text-cyan-400 transition-colors">Zgłoś się</a></li>
               <li><Link to="/o-nas" className="hover:text-cyan-400 transition-colors">O nas</Link></li>
+              <li><Link to="/kontakt" className="hover:text-purple-400 transition-colors font-medium">Kontakt / Współpraca</Link></li>
               <li><Link to="/dolacz" className="hover:text-pink-400 transition-colors font-medium">Dołącz do koła</Link></li>
             </ul>
           </div>
@@ -43,29 +79,25 @@ export function Footer() {
             <div className="space-y-3 text-gray-400">
               <div className="flex items-start gap-2">
                 <Mail className="w-5 h-5 mt-0.5 flex-shrink-0 text-cyan-400" />
-                <a href="mailto:knai@wsei.edu.pl" className="hover:text-cyan-400 transition-colors">
-                  knai@wsei.edu.pl
+                <a href={`mailto:${settings.contactEmail}`} className="hover:text-cyan-400 transition-colors">
+                  {settings.contactEmail}
                 </a>
               </div>
               <div className="flex items-start gap-2">
                 <Phone className="w-5 h-5 mt-0.5 flex-shrink-0 text-cyan-400" />
-                <a href="tel:+48662297402" className="hover:text-cyan-400 transition-colors">
-                  +48 662 974 402 / +48 690 459 531
-                </a>
+                <span>{phoneDisplay}</span>
               </div>
               <div className="flex items-start gap-2">
                 <MapPin className="w-5 h-5 mt-0.5 flex-shrink-0 text-cyan-400" />
-                <span>Kraków, Polska</span>
+                <span>{settings.location}</span>
               </div>
             </div>
-          </div>
 
-          {/* Social Media */}
-          <div>
-            <h3 className="text-white font-bold mb-4">Social Media</h3>
+            {/* Social Media */}
+            <h3 className="text-white font-bold mt-6 mb-3">Social Media</h3>
             <div className="space-y-3">
               <a
-                href="https://www.linkedin.com/company/ai-possibilities-lab/?viewAsMember=true"
+                href={settings.linkedinUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors"

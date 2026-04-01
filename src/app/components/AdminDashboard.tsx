@@ -39,6 +39,9 @@ import { AdminEditParticipant } from './AdminEditParticipant';
 import { AdminTeamProjects } from './AdminTeamProjects';
 import { AdminResults } from './AdminResults';
 import { AdminGallery } from './AdminGallery';
+import { AdminCollaborations } from './AdminCollaborations';
+import { AdminContactSubmissions } from './AdminContactSubmissions';
+import { AdminOrgSettings } from './AdminOrgSettings';
 
 interface Registration {
   id: string;
@@ -1290,35 +1293,11 @@ export function AdminDashboard() {
                 <AdminApplications />
               )}
 
-              {activeTab === 'collaborations' && (
-                <motion.div key="collaborations" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  <div className="p-12 bg-white/5 border border-white/10 rounded-[2rem] text-center">
-                    <Handshake className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-                    <h2 className="text-xl font-black uppercase tracking-widest text-white mb-2">Współprace</h2>
-                    <p className="text-gray-500 text-sm">CMS do zarządzania współpracami — wkrótce dostępny</p>
-                  </div>
-                </motion.div>
-              )}
+              {activeTab === 'collaborations' && <AdminCollaborations />}
 
-              {activeTab === 'contact_submissions' && (
-                <motion.div key="contact_submissions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  <div className="p-12 bg-white/5 border border-white/10 rounded-[2rem] text-center">
-                    <MessageCircle className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-                    <h2 className="text-xl font-black uppercase tracking-widest text-white mb-2">Zapytania o współpracę</h2>
-                    <p className="text-gray-500 text-sm">Formularz kontaktowy dla organizacji — wkrótce dostępny</p>
-                  </div>
-                </motion.div>
-              )}
+              {activeTab === 'contact_submissions' && <AdminContactSubmissions />}
 
-              {activeTab === 'org_settings' && (
-                <motion.div key="org_settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  <div className="p-12 bg-white/5 border border-white/10 rounded-[2rem] text-center">
-                    <Settings className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-                    <h2 className="text-xl font-black uppercase tracking-widest text-white mb-2">Ustawienia organizacji</h2>
-                    <p className="text-gray-500 text-sm">Konfiguracja social media, dane kontaktowe — wkrótce dostępne</p>
-                  </div>
-                </motion.div>
-              )}
+              {activeTab === 'org_settings' && <AdminOrgSettings />}
 
               {activeTab === 'projekty' && (
                 <AdminTeamProjects key={selectedEdition} edition={selectedEdition} />

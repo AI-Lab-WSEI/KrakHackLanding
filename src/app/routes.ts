@@ -19,6 +19,7 @@ import { TeamDetailPage } from '@/app/pages/TeamDetailPage';
 import { TeamEditPage } from '@/app/pages/TeamEditPage';
 import { GalleryPage } from '@/app/pages/GalleryPage';
 import { MembershipForm } from '@/app/pages/MembershipForm';
+import { ContactPage } from '@/app/pages/ContactPage';
 import { PlatformPage } from '@/app/pages/PlatformPage';
 import { Layout } from '@/app/Layout';
 import { EditionLayout } from '@/app/pages/EditionLayout';
@@ -149,6 +150,10 @@ export const router = createBrowserRouter([
       {
         path: 'dolacz',
         Component: MembershipForm,
+      },
+      {
+        path: 'kontakt',
+        Component: ContactPage,
       },
     ],
   },
