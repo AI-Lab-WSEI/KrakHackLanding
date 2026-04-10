@@ -32,8 +32,10 @@ import {
   Handshake,
   Settings,
   MessageCircle,
+  Compass,
 } from 'lucide-react';
 import { AdminApplications } from './AdminApplications';
+import { CompetencyCompass } from './membership/CompetencyCompass';
 import { AdminAddParticipant } from './AdminAddParticipant';
 import { AdminEditParticipant } from './AdminEditParticipant';
 import { AdminTeamProjects } from './AdminTeamProjects';
@@ -91,7 +93,7 @@ async function apiFetch(path: string) {
 // Sidebar nav definition
 type AdminDomain = 'hackathon' | 'labhub';
 type HackathonTabId = 'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates' | 'projekty' | 'wyniki' | 'galeria';
-type LabHubTabId = 'applications' | 'collaborations' | 'contact_submissions' | 'org_settings';
+type LabHubTabId = 'applications' | 'collaborations' | 'contact_submissions' | 'org_settings' | 'kompas';
 type TabId = HackathonTabId | LabHubTabId;
 
 interface NavGroup { label: string; items: { id: TabId; label: string; icon: any }[] }
@@ -135,6 +137,7 @@ const LABHUB_NAV_GROUPS: NavGroup[] = [
     label: 'Członkowie',
     items: [
       { id: 'applications', label: 'Aplikacje', icon: UserPlus },
+      { id: 'kompas', label: 'Kompas', icon: Compass },
     ],
   },
   {
@@ -1291,6 +1294,10 @@ export function AdminDashboard() {
 
               {activeTab === 'applications' && (
                 <AdminApplications />
+              )}
+
+              {activeTab === 'kompas' && (
+                <CompetencyCompass />
               )}
 
               {activeTab === 'collaborations' && <AdminCollaborations />}

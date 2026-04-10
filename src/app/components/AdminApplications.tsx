@@ -8,7 +8,6 @@ import {
   COMPETENCY_LABELS,
 } from '@/types/membership';
 import type {
-  MembershipApplication,
   ApplicationStatus,
   EngagementType,
   CompetencyProfile,
@@ -20,6 +19,7 @@ import {
   ChevronUp,
   Send,
   MessageSquare,
+  Download,
 } from 'lucide-react';
 
 interface ApplicationRow {
@@ -141,6 +141,48 @@ export function AdminApplications() {
     }
   };
 
+  const exportCircleCSV = () => {
+    const rows = filtered.length > 0 ? filtered : applications;
+    const headers = [
+      'id', 'imię', 'nazwisko', 'email', 'uczelnia', 'kierunek', 'rok',
+      'wsei', 'godziny_miesiecznie', 'typy_zaangazowania', 'status', 'data_zgloszenia',
+      'programowanie', 'analityka', 'soft_skills', 'organizacja', 'kreatywnosc', 'marketing',
+    ];
+    const csvRows = [headers.join(';')];
+    for (const app of rows) {
+      const c = app.competencies || {};
+      const row = [
+        app.id,
+        `"${(app.first_name || '').replace(/"/g, '""')}"`,
+        `"${(app.last_name || '').replace(/"/g, '""')}"`,
+        `"${(app.email || '').replace(/"/g, '""')}"`,
+        `"${(app.university || '').replace(/"/g, '""')}"`,
+        `"${(app.field_of_study || '').replace(/"/g, '""')}"`,
+        `"${(app.year_or_status || '').replace(/"/g, '""')}"`,
+        app.is_wsei ? 'TAK' : 'NIE',
+        app.monthly_hours ?? '',
+        `"${(app.engagement_types || []).join(', ')}"`,
+        app.status || '',
+        new Date(app.created_at).toLocaleDateString('pl-PL'),
+        c.programming ?? '',
+        c.analytics ?? '',
+        c.softSkills ?? '',
+        c.organization ?? '',
+        c.creativity ?? '',
+        c.marketing ?? '',
+      ];
+      csvRows.push(row.join(';'));
+    }
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aplikacje_kolo_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const filtered = applications.filter((app) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -199,6 +241,15 @@ export function AdminApplications() {
             className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={exportCircleCSV}
+            title="Eksportuj do CSV"
+            className="px-4 py-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-cyan-400 hover:bg-cyan-500/20 transition-colors flex items-center gap-2 text-sm font-medium"
+          >
+            <Download className="w-4 h-4" />
+            CSV
           </button>
         </div>
 

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import QRCode from 'qrcode';
 import multer from 'multer';
+import OpenAI from 'openai';
 import {
   createCertificateHash,
   signCertificate,
@@ -2427,6 +2428,78 @@ app.post('/api/membership-applications/survey-invite', requireAdmin, async (req,
   }
 });
 
+// ─── AI Compass endpoint ──────────────────────────────────────────────────────
+
+// In-memory rate limiter: max 10 requests per session token per 60s
+const compassRateMap = new Map();
+function compassRateLimit(token) {
+  const now = Date.now();
+  const entry = compassRateMap.get(token) || { count: 0, reset: now + 60_000 };
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + 60_000; }
+  entry.count += 1;
+  compassRateMap.set(token, entry);
+  return entry.count <= 10;
+}
+
+app.post('/api/ai/compass', requireAdmin, async (req, res) => {
+  try {
+    const apiKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: 'Brak klucza AI. Ustaw GROQ_API_KEY w zmiennych środowiskowych.' });
+    }
+
+    const token = req.headers['authorization'] || 'anon';
+    if (!compassRateLimit(token)) {
+      return res.status(429).json({ error: 'Zbyt wiele zapytań. Odczekaj chwilę.' });
+    }
+
+    const { question, context, history } = req.body;
+    if (!question || typeof question !== 'string') {
+      return res.status(400).json({ error: 'Brak pytania' });
+    }
+    if (question.length > 2000) {
+      return res.status(400).json({ error: 'Pytanie za długie (max 2000 znaków)' });
+    }
+
+    const isGroq = !!process.env.GROQ_API_KEY;
+    const client = new OpenAI({
+      apiKey,
+      baseURL: isGroq ? 'https://api.groq.com/openai/v1' : undefined,
+    });
+    const model = isGroq ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini';
+
+    const systemPrompt = `Jesteś asystentem HR analizującym aplikacje do koła naukowego AI DataBees (Kraków).
+Masz dostęp do zanonimizowanych danych kandydatów (bez imion i maili — tylko numery, kompetencje, zaangażowanie, status).
+Odpowiadaj po polsku, konkretnie i praktycznie. Używaj danych z kontekstu w swoich odpowiedziach.
+Skale kompetencji: 0-10 (gdzie 10 = ekspert). Statusy: nowe, w_kontakcie, rozmowa_umówiona, przyjęty, odrzucony.
+Nie ujawniaj ani nie zgaduj danych osobowych.`;
+
+    const userContent = `Dane kandydatów (zanonimizowane):\n${context}\n\nPytanie: ${question}`;
+
+    const conversationHistory = Array.isArray(history)
+      ? history.slice(-6).map(m => ({ role: m.role, content: m.content }))
+      : [];
+
+    const completion = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...conversationHistory,
+        { role: 'user', content: userContent },
+      ],
+      max_tokens: 1200,
+      temperature: 0.7,
+    });
+
+    const answer = completion.choices?.[0]?.message?.content || 'Brak odpowiedzi';
+    res.json({ answer });
+  } catch (err) {
+    console.error('[AI Compass] Error:', err?.message || err);
+    const msg = err?.message?.includes('API key') ? 'Nieprawidłowy klucz API' : 'Błąd AI';
+    res.status(500).json({ error: msg });
+  }
+});
+
 // Club invite mailing — sends WSEI vs non-WSEI variants (admin)
 app.post('/api/admin/mail/club-invite', requireAdmin, async (req, res) => {
   try {
@@ -3846,6 +3919,132 @@ app.post('/api/admin/team-projects/:id/upload-presentation', requireAdmin, async
   }
 });
 
+// ── Dynamic robots.txt — uses correct domain based on BASE_URL ──
+app.get('/robots.txt', (req, res) => {
+  const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+  const robots = `User-agent: *
+Allow: /
+
+# Explicitly allow key marketing pages
+Allow: /platforma
+Allow: /o-nas
+Allow: /edycja/
+Allow: /verify/
+Allow: /dolacz
+Allow: /kontakt
+
+# Disallow admin and private areas
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /timer
+
+# Sitemap location
+Sitemap: ${baseUrl}/sitemap.xml
+`;
+  res.type('text/plain').send(robots);
+});
+
+// ── Dynamic sitemap.xml — uses correct domain based on BASE_URL ──
+app.get('/sitemap.xml', (req, res) => {
+  const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+  const today = new Date().toISOString().split('T')[0];
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+  <!-- Homepage -->
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- About page -->
+  <url>
+    <loc>${baseUrl}/o-nas</loc>
+    <lastmod>2026-03-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Platform marketing page -->
+  <url>
+    <loc>${baseUrl}/platforma</loc>
+    <lastmod>2026-03-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Current edition (stable URL) -->
+  <url>
+    <loc>${baseUrl}/edycja/3</loc>
+    <lastmod>2026-03-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Edition 2025 archive -->
+  <url>
+    <loc>${baseUrl}/edycja/2</loc>
+    <lastmod>2025-12-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Gallery pages -->
+  <url>
+    <loc>${baseUrl}/edycja/3/galeria</loc>
+    <lastmod>2026-03-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/edycja/2/galeria</loc>
+    <lastmod>2025-12-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <!-- Membership / Join -->
+  <url>
+    <loc>${baseUrl}/dolacz</loc>
+    <lastmod>2026-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Contact -->
+  <url>
+    <loc>${baseUrl}/kontakt</loc>
+    <lastmod>2026-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Forms -->
+  <url>
+    <loc>${baseUrl}/forms</loc>
+    <lastmod>2026-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Certificate verification -->
+  <url>
+    <loc>${baseUrl}/verify</loc>
+    <lastmod>2026-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+</urlset>`;
+  res.type('application/xml').send(sitemap);
+});
+
 // SPA fallback with OG meta tag injection for certificate pages
 app.get('*', async (req, res) => {
   const indexPath = path.join(__dirname, 'dist', 'index.html');
@@ -3905,6 +4104,151 @@ app.get('*', async (req, res) => {
     });
 
     let injections = `<script>window.__SITE_CONFIG__=${siteConfig}</script>`;
+
+    // ── Per-route SEO: canonical URL, meta descriptions, JSON-LD ──
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const cleanPath = req.path.replace(/\/+$/, '') || '/';
+    const canonicalUrl = cleanPath === '/' ? baseUrl : `${baseUrl}${cleanPath}`;
+
+    // Always inject canonical (the static one was removed from index.html)
+    injections += `\n  <link rel="canonical" href="${canonicalUrl}" />`;
+
+    // Per-route meta overrides (title, description, keywords)
+    const routeSeo = {
+      '/': {
+        title: mode === 'lab'
+          ? 'AI Possibilities Lab — Koło Naukowe AI | WSEI Kraków'
+          : 'AI KrakHack 2026 — Hackathon AI | WSEI Kraków',
+        description: mode === 'lab'
+          ? 'Koło Naukowe AI przy WSEI w Krakowie. Projekty AI, hackathony, community pasjonatów sztucznej inteligencji i współpraca z biznesem. Dołącz do nas!'
+          : 'Dołącz do AI KrakHack 2026! Platforma hackatonowa i eventowa — zarządzanie zgłoszeniami, ocenianie projektów, system certyfikatów, organizacja hackathonu. WSEI Kraków.',
+        keywords: mode === 'lab'
+          ? 'koło naukowe AI, AI Kraków, sztuczna inteligencja studenci, WSEI Kraków, AI Possibilities Lab, uczenie maszynowe, machine learning Kraków, projekty AI studenckie, hackathon AI, community AI Polska'
+          : 'AI KrakHack, hackathon Kraków, hackathon AI, WSEI Kraków, platforma hackatonowa, konkurs AI, sztuczna inteligencja hackathon, AI Possibilities Lab, hackathon studencki Kraków 2026',
+      },
+      '/o-nas': {
+        title: 'O nas — AI Possibilities Lab | Koło Naukowe AI WSEI Kraków',
+        description: 'Poznaj AI Possibilities Lab — koło naukowe AI przy WSEI w Krakowie. Nasze wartości, misja, projekty i wizja. Łączymy studentów, profesjonalistów i biznes wokół sztucznej inteligencji.',
+        keywords: 'AI Possibilities Lab, koło naukowe AI, WSEI Kraków, misja AI lab, projekty AI studenckie, społeczność AI Kraków, o nas AI lab',
+      },
+      '/dolacz': {
+        title: 'Dołącz do nas — AI Possibilities Lab | WSEI Kraków',
+        description: 'Dołącz do AI Possibilities Lab — koła naukowego AI przy WSEI. Formularz członkowski dla studentów, pasjonatów AI i firm szukających współpracy. Zacznij swoją przygodę z AI!',
+        keywords: 'dołącz do koła naukowego, rekrutacja AI lab, formularz członkowski, AI Possibilities Lab zapisy, koło naukowe AI WSEI',
+      },
+      '/kontakt': {
+        title: 'Kontakt — AI Possibilities Lab | WSEI Kraków',
+        description: 'Skontaktuj się z AI Possibilities Lab — kołem naukowym AI przy WSEI w Krakowie. Formularz kontaktowy dla studentów, partnerów i organizacji.',
+        keywords: 'kontakt AI Possibilities Lab, koło naukowe AI kontakt, WSEI Kraków AI, współpraca AI Kraków',
+      },
+      '/forms': {
+        title: 'Formularz zgłoszeniowy — AI KrakHack 2026 | WSEI Kraków',
+        description: 'Zarejestruj się na AI KrakHack 2026 — hackathon AI organizowany przez AI Possibilities Lab przy WSEI w Krakowie. Formularz dla uczestników, mentorów i partnerów.',
+        keywords: 'rejestracja hackathon, AI KrakHack zapisy, formularz uczestnika, hackathon Kraków rejestracja, WSEI hackathon',
+      },
+    };
+
+    // Match edition routes: /edycja/3, /edycja/2 etc.
+    const editionMatch = cleanPath.match(/^\/edycja\/(\d+)(\/galeria)?$/);
+    if (editionMatch) {
+      const edNum = editionMatch[1];
+      const isGallery = !!editionMatch[2];
+      if (isGallery) {
+        routeSeo[cleanPath] = {
+          title: `Galeria — Edycja ${edNum} | AI KrakHack`,
+          description: `Galeria zdjęć z edycji ${edNum} hackathonu AI KrakHack organizowanego przez AI Possibilities Lab przy WSEI w Krakowie.`,
+          keywords: `galeria hackathon, AI KrakHack edycja ${edNum}, zdjęcia hackathon Kraków, AI Possibilities Lab galeria`,
+        };
+      } else {
+        routeSeo[cleanPath] = {
+          title: `Edycja ${edNum} — AI KrakHack | WSEI Kraków`,
+          description: `Szczegóły edycji ${edNum} hackathonu AI KrakHack — zespoły, projekty, wyniki i relacja z wydarzenia organizowanego przez AI Possibilities Lab.`,
+          keywords: `AI KrakHack edycja ${edNum}, hackathon AI Kraków, wyniki hackathonu, projekty hackathon WSEI`,
+        };
+      }
+    }
+
+    const seo = routeSeo[cleanPath];
+    if (seo) {
+      if (seo.title) {
+        html = html
+          .replace(/<title>[^<]*<\/title>/, `<title>${seo.title}</title>`)
+          .replace(/(<meta name="title" content=")[^"]*(")/g, `$1${seo.title}$2`)
+          .replace(/(<meta property="og:title" content=")[^"]*(")/g, `$1${seo.title}$2`)
+          .replace(/(<meta property="twitter:title" content=")[^"]*(")/g, `$1${seo.title}$2`);
+      }
+      if (seo.description) {
+        html = html
+          .replace(/(<meta name="description" content=")[^"]*(")/g, `$1${seo.description}$2`)
+          .replace(/(<meta property="og:description" content=")[^"]*(")/g, `$1${seo.description}$2`)
+          .replace(/(<meta property="twitter:description" content=")[^"]*(")/g, `$1${seo.description}$2`);
+      }
+      if (seo.keywords) {
+        html = html.replace(/(<meta name="keywords" content=")[^"]*(")/g, `$1${seo.keywords}$2`);
+      }
+      // Update OG/Twitter URL to match canonical
+      html = html
+        .replace(/(<meta property="og:url" content=")[^"]*(")/g, `$1${canonicalUrl}$2`)
+        .replace(/(<meta property="twitter:url" content=")[^"]*(")/g, `$1${canonicalUrl}$2`);
+    }
+
+    // JSON-LD Organization schema on homepage
+    if (cleanPath === '/') {
+      const orgJsonLd = {
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'Organization',
+            '@id': `${baseUrl}/#organization`,
+            'name': 'AI Possibilities Lab',
+            'alternateName': 'Koło Naukowe AI — WSEI Kraków',
+            'url': baseUrl,
+            'logo': `${baseUrl}/assets/ai-lab-text-logo.png`,
+            'description': 'Koło Naukowe AI przy WSEI w Krakowie. Projekty, hackathony, community i współpraca z biznesem.',
+            'foundingDate': '2024',
+            'address': {
+              '@type': 'PostalAddress',
+              'addressLocality': 'Kraków',
+              'addressCountry': 'PL',
+            },
+            'parentOrganization': {
+              '@type': 'CollegeOrUniversity',
+              'name': 'WSEI Kraków',
+              'alternateName': 'Wyższa Szkoła Ekonomii i Informatyki w Krakowie',
+            },
+            'sameAs': [
+              'https://www.linkedin.com/company/ai-possibilities-lab/',
+            ],
+            'contactPoint': {
+              '@type': 'ContactPoint',
+              'email': 'michalmadejski2@gmail.com',
+              'contactType': 'general',
+              'availableLanguage': ['Polish', 'English'],
+            },
+          },
+          {
+            '@type': 'WebSite',
+            '@id': `${baseUrl}/#website`,
+            'url': baseUrl,
+            'name': mode === 'lab' ? 'AI Possibilities Lab' : 'AI KrakHack',
+            'publisher': { '@id': `${baseUrl}/#organization` },
+            'inLanguage': 'pl',
+          },
+          {
+            '@type': 'WebPage',
+            '@id': `${baseUrl}/#webpage`,
+            'url': baseUrl,
+            'name': mode === 'lab'
+              ? 'AI Possibilities Lab — Koło Naukowe AI | WSEI Kraków'
+              : 'AI KrakHack 2026 — Hackathon AI | WSEI Kraków',
+            'isPartOf': { '@id': `${baseUrl}/#website` },
+            'about': { '@id': `${baseUrl}/#organization` },
+            'inLanguage': 'pl',
+          },
+        ],
+      };
+      injections += `\n  <script type="application/ld+json">${JSON.stringify(orgJsonLd)}</script>`;
+    }
 
     // /platforma route — full SEO: meta tags + JSON-LD structured data
     if (req.path === '/platforma') {
@@ -4052,12 +4396,18 @@ app.get('*', async (req, res) => {
 
     // In lab mode, replace hackathon meta tags with lab-specific ones
     if (mode === 'lab') {
-      const labUrl = process.env.LAB_URL || 'https://possibilitieslab.org';
-      html = html.replace(/<title>[^<]*<\/title>/, '<title>AI Possibilities Lab — Koło Naukowe AI | WSEI Kraków</title>');
-      html = html.replace(/content="AI KrakHack 2026 - Hackathon AI \| WSEI Kraków"/g, 'content="AI Possibilities Lab — Koło Naukowe AI | WSEI Kraków"');
-      html = html.replace(/content="Dołącz do AI KrakHack 2026![^"]*"/g, 'content="Koło Naukowe AI przy WSEI w Krakowie. Projekty, hackathony, community i współpraca z biznesem. Dołącz do nas!"');
+      const labUrl = process.env.LAB_URL || 'https://ai.possibilitieslab.org';
+      // Title and descriptions already handled by routeSeo above for known routes;
+      // this covers any remaining routes that don't have specific SEO config
+      if (!seo) {
+        html = html.replace(/<title>[^<]*<\/title>/, '<title>AI Possibilities Lab — Koło Naukowe AI | WSEI Kraków</title>');
+        html = html.replace(/content="AI KrakHack 2026 - Hackathon AI \| WSEI Kraków"/g, 'content="AI Possibilities Lab — Koło Naukowe AI | WSEI Kraków"');
+        html = html.replace(/content="Dołącz do AI KrakHack 2026![^"]*"/g, 'content="Koło Naukowe AI przy WSEI w Krakowie. Projekty, hackathony, community i współpraca z biznesem. Dołącz do nas!"');
+      }
+      // Fix OG URLs and image — use lab domain and proper OG image (not favicon)
       html = html.replace(/content="https:\/\/krakhack\.info\/"/g, `content="${labUrl}/"`);
-      html = html.replace(/content="https:\/\/krakhack\.info\/image\.png"/g, `content="${labUrl}/favicon-lab.png"`);
+      html = html.replace(/content="https:\/\/krakhack\.info\/image\.png"/g, `content="${labUrl}/image.png"`);
+      injections += `\n  <meta property="og:site_name" content="AI Possibilities Lab" />`;
       injections += `\n  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-lab-32.png" />`;
       injections += `\n  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-lab.png" />`;
       injections += `\n  <link rel="apple-touch-icon" href="/apple-touch-icon-lab.png" />`;
