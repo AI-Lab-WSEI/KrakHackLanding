@@ -5,6 +5,7 @@ import {
   Handshake, Plus, Edit3, Trash2, Save, X, Eye, EyeOff,
   ChevronDown, ChevronUp, GripVertical, ExternalLink,
 } from 'lucide-react';
+import { COLLABORATIONS as FALLBACK_COLLABS } from '@/data/collaborations';
 
 interface Collaboration {
   id: number;
@@ -58,9 +59,18 @@ async function collabFetch(path: string, options?: RequestInit) {
   return res.json();
 }
 
+const FALLBACK_DATA: Collaboration[] = FALLBACK_COLLABS.map((c, i) => ({
+  id: i + 1, slug: c.id, partner: c.partner, partner_full: c.partnerFull,
+  partner_logo: c.partnerLogo, tagline: c.tagline, description: c.description,
+  full_content: c.fullContent, outcomes: c.outcomes, color: c.color,
+  sort_order: i + 1, is_published: true,
+  created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+}));
+
 export function AdminCollaborations() {
-  const [collabs, setCollabs] = useState<Collaboration[]>([]);
+  const [collabs, setCollabs] = useState<Collaboration[]>(FALLBACK_DATA);
   const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
   const [editingId, setEditingId] = useState<number | 'new' | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -68,9 +78,13 @@ export function AdminCollaborations() {
   const load = async () => {
     try {
       const data = await collabFetch('/api/admin/collaborations');
-      setCollabs(data);
-    } catch (err) {
-      setStatus({ type: 'error', msg: err instanceof Error ? err.message : 'Błąd ładowania' });
+      if (Array.isArray(data) && data.length >= 0) {
+        setCollabs(data.length > 0 ? data : FALLBACK_DATA);
+        setUsingFallback(data.length === 0);
+      }
+    } catch {
+      setUsingFallback(true);
+      // Keep fallback data, don't show error since data is still visible
     } finally {
       setLoading(false);
     }
@@ -157,6 +171,13 @@ export function AdminCollaborations() {
           <Plus className="w-4 h-4" /> Dodaj współpracę
         </button>
       </div>
+
+      {/* Fallback warning */}
+      {usingFallback && (
+        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-xs text-center">
+          Dane z pliku lokalnego (serwer nie odpowiada na /api/admin/collaborations). Edycja niedostępna do restartu serwera.
+        </div>
+      )}
 
       {/* Status */}
       <AnimatePresence>
