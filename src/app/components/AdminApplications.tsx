@@ -279,6 +279,7 @@ export function AdminApplications() {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-gray-500 text-[10px] font-mono">#{app.id}</span>
                         <span className="text-white font-medium">{app.first_name} {app.last_name}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusInfo.color} ${statusInfo.textColor}`}>
                           {statusInfo.label}
