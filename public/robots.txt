@@ -6,6 +6,8 @@ Allow: /platforma
 Allow: /o-nas
 Allow: /edycja/
 Allow: /verify/
+Allow: /dolacz
+Allow: /kontakt
 
 # Disallow admin and private areas
 Disallow: /admin
@@ -13,5 +15,5 @@ Disallow: /admin/
 Disallow: /api/
 Disallow: /timer
 
-# Sitemap location
+# Sitemap location (dynamic version served by server.js uses BASE_URL)
 Sitemap: https://krakhack.info/sitemap.xml

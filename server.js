@@ -2781,6 +2781,29 @@ app.post('/api/admin/team-projects/:id/send-edit-link', requireAdmin, async (req
   }
 });
 
+// GET /api/admin/team-projects/edit-links — List all edit links + passwords (admin)
+app.get('/api/admin/team-projects/edit-links', requireAdmin, async (req, res) => {
+  try {
+    const edition = parseInt(req.query.edition) || 3;
+    const result = await pool.query(
+      'SELECT id, name, slug, edit_token, edit_password FROM team_projects WHERE edition_number = $1 ORDER BY placement NULLS LAST, name',
+      [edition]
+    );
+    const baseUrl = process.env.BASE_URL || 'https://krakhack.info';
+    const links = result.rows.map(t => ({
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      edit_url: t.edit_token ? `${baseUrl}/zespoly/${t.slug}/edytuj/${t.edit_token}` : null,
+      edit_password: t.edit_password || null,
+    }));
+    res.json(links);
+  } catch (err) {
+    console.error('[TeamProjects] Edit links list error:', err);
+    res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
 // POST /api/admin/team-projects/bulk-send-edit-links — Send edit links to all teams (admin)
 app.post('/api/admin/team-projects/bulk-send-edit-links', requireAdmin, async (req, res) => {
   try {

@@ -33,6 +33,7 @@ interface TeamProject {
   technologies: string[];
   edit_token: string | null;
   edit_token_created_at: string | null;
+  edit_password: string | null;
   email_last_sent_at: string | null;
   updated_at: string;
   created_at: string;
@@ -534,6 +535,26 @@ export function AdminTeamProjects({ edition = 3 }: { edition?: number }) {
                               </div>
                             )
                             : <span className="text-gray-600">Brak tokenu</span>
+                          }
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Hasło edycji</p>
+                          {team.edit_password
+                            ? (
+                              <div className="flex items-center gap-2">
+                                <code className="text-sm font-mono text-amber-400 bg-amber-500/10 px-3 py-1 rounded font-black tracking-widest">
+                                  {team.edit_password}
+                                </code>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(team.edit_password!); showStatus('success', 'Hasło skopiowane'); }}
+                                  className="p-1.5 bg-white/5 hover:bg-white/10 rounded transition-all"
+                                  title="Kopiuj hasło"
+                                >
+                                  <Copy className="w-3 h-3 text-gray-400" />
+                                </button>
+                              </div>
+                            )
+                            : <span className="text-gray-600">Brak hasła</span>
                           }
                         </div>
                         <div>
