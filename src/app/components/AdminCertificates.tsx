@@ -24,6 +24,8 @@ import {
   ExternalLink,
   CheckCircle,
   AlertCircle,
+  RotateCcw,
+  FolderSync,
 } from 'lucide-react';
 
 interface Certificate {
@@ -303,6 +305,56 @@ export function AdminCertificates() {
     }
   };
 
+  const reissueCert = async (id: string) => {
+    try {
+      await certFetch(`/api/certificates/${id}/reissue`, { method: 'POST' });
+      showStatus('success', 'Certyfikat podpisany ponownie — nowy hash wygenerowany');
+      loadCertificates();
+    } catch (err: unknown) {
+      showStatus('error', err instanceof Error ? err.message : 'Blad ponownego wydawania');
+    }
+  };
+
+  const syncProjectCert = async (id: string) => {
+    try {
+      const result = await certFetch(`/api/certificates/${id}/sync-project`, { method: 'POST' });
+      showStatus('success', `Zsynchronizowano projekt: "${result.project_name}" — certyfikat podpisany ponownie`);
+      loadCertificates();
+    } catch (err: unknown) {
+      showStatus('error', err instanceof Error ? err.message : 'Blad synchronizacji projektu');
+    }
+  };
+
+  const reissueTeam = async (teamName: string) => {
+    try {
+      const result = await certFetch(`/api/certificates/team/${encodeURIComponent(teamName)}/reissue`, { method: 'POST' });
+      showStatus('success', `Ponownie wydano ${result.reissued} certyfikatow zespolu "${teamName}"`);
+      loadCertificates();
+    } catch (err: unknown) {
+      showStatus('error', err instanceof Error ? err.message : 'Blad ponownego wydawania zespolu');
+    }
+  };
+
+  const syncProjectTeam = async (teamName: string) => {
+    try {
+      const result = await certFetch(`/api/certificates/team/${encodeURIComponent(teamName)}/sync-project`, { method: 'POST' });
+      showStatus('success', `Zsynchronizowano "${result.project_name}" dla ${result.updated} certyfikatow zespolu "${teamName}"`);
+      loadCertificates();
+    } catch (err: unknown) {
+      showStatus('error', err instanceof Error ? err.message : 'Blad synchronizacji projektu dla zespolu');
+    }
+  };
+
+  const bulkReissue = async () => {
+    try {
+      const result = await certFetch('/api/certificates/bulk-reissue', { method: 'POST' });
+      showStatus('success', `Ponownie podpisano ${result.reissued} certyfikatow`);
+      loadCertificates();
+    } catch (err: unknown) {
+      showStatus('error', err instanceof Error ? err.message : 'Blad');
+    }
+  };
+
   const copyVerifyUrl = (hash: string) => {
     const baseUrl = window.location.origin;
     navigator.clipboard.writeText(`${baseUrl}/verify/${hash}`);
@@ -422,26 +474,71 @@ export function AdminCertificates() {
         >
           <FileText className="w-3.5 h-3.5" /> Lista do wręczenia
         </a>
+        <button
+          onClick={() => { if (confirm('Ponownie podpisać kryptograficznie WSZYSTKIE wydane certyfikaty? Hashe się zmienią — stare linki przestaną działać.')) bulkReissue(); }}
+          className="px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+        >
+          <RotateCcw className="w-3.5 h-3.5" /> Podpisz wszystkie ponownie
+        </button>
       </div>
 
-      {/* Delete by Team */}
+      {/* Team Operations */}
       {certificates.length > 0 && (() => {
         const teams = [...new Set(certificates.map(c => c.team_name))].sort();
         return (
-          <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-3 flex items-center gap-2">
-              <Trash2 className="w-3 h-3" /> Usun zespol (nie zjawil sie)
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {teams.map(t => (
-                <button
-                  key={t}
-                  onClick={() => { if (confirm(`Usunac wszystkie certyfikaty zespolu "${t}"?`)) deleteTeam(t); }}
-                  className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all"
-                >
-                  <X className="w-3 h-3" /> {t}
-                </button>
-              ))}
+          <div className="space-y-3">
+            {/* Sync project from team_projects */}
+            <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3 flex items-center gap-2">
+                <FolderSync className="w-3 h-3" /> Sync nazwy projektu z karty zespołu (i podpisz ponownie)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {teams.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { if (confirm(`Zaktualizować nazwę projektu z karty zespołu "${t}" we wszystkich jego certyfikatach i podpisać ponownie?`)) syncProjectTeam(t); }}
+                    className="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all"
+                  >
+                    <FolderSync className="w-3 h-3" /> {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Re-issue team */}
+            <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-3 flex items-center gap-2">
+                <RotateCcw className="w-3 h-3" /> Wydaj ponownie certyfikaty zespołu (podpisz aktualną treścią)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {teams.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { if (confirm(`Ponownie podpisać wszystkie wydane certyfikaty zespołu "${t}"? Hashe się zmienią.`)) reissueTeam(t); }}
+                    className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all"
+                  >
+                    <RotateCcw className="w-3 h-3" /> {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Delete team */}
+            <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-3 flex items-center gap-2">
+                <Trash2 className="w-3 h-3" /> Usun zespol (nie zjawil sie)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {teams.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { if (confirm(`Usunac wszystkie certyfikaty zespolu "${t}"?`)) deleteTeam(t); }}
+                    className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all"
+                  >
+                    <X className="w-3 h-3" /> {t}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         );
@@ -577,9 +674,10 @@ export function AdminCertificates() {
                         </div>
                       </div>
                     )}
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex gap-2 pt-2 flex-wrap">
                       <button onClick={saveEdit} className="px-5 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-xs font-bold flex items-center gap-2">
-                        <Check className="w-3.5 h-3.5" /> Zapisz
+                        <Check className="w-3.5 h-3.5" />
+                        {(() => { const cert = certificates.find(c => c.id === editingId); return cert?.status === 'issued' ? 'Zapisz i podpisz ponownie' : 'Zapisz'; })()}
                       </button>
                       <button onClick={() => setEditingId(null)} className="px-5 py-2 bg-white/5 hover:bg-white/10 text-gray-400 rounded-xl text-xs font-bold flex items-center gap-2">
                         <X className="w-3.5 h-3.5" /> Anuluj
@@ -639,6 +737,23 @@ export function AdminCertificates() {
                       )}
                       {cert.status === 'issued' && cert.hash && (
                         <>
+                          <button onClick={() => startEdit(cert)} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-all" title="Edytuj i podpisz ponownie">
+                            <Edit3 className="w-3.5 h-3.5 text-gray-400" />
+                          </button>
+                          <button
+                            onClick={() => { if (confirm(`Podpisać ponownie certyfikat ${cert.participant_name}? Hash się zmieni — stary link przestanie działać.`)) reissueCert(cert.id); }}
+                            className="p-2 bg-orange-500/10 hover:bg-orange-500/20 rounded-lg transition-all"
+                            title="Podpisz ponownie (re-issue)"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 text-orange-400" />
+                          </button>
+                          <button
+                            onClick={() => syncProjectCert(cert.id)}
+                            className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg transition-all"
+                            title="Sync nazwy projektu z karty zespołu"
+                          >
+                            <FolderSync className="w-3.5 h-3.5 text-indigo-400" />
+                          </button>
                           <button
                             onClick={async () => {
                               const newType = cert.certificate_type === 'winner' ? 'participation' : 'winner';
@@ -650,7 +765,7 @@ export function AdminCertificates() {
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ certificate_type: newType, placement, challenge_name }),
                                 });
-                                fetchCertificates();
+                                loadCertificates();
                               } catch { alert('Błąd zmiany typu'); }
                             }}
                             className={`p-2 rounded-lg transition-all ${cert.certificate_type === 'winner' ? 'bg-amber-500/20 hover:bg-amber-500/30' : 'bg-white/5 hover:bg-amber-500/10'}`}

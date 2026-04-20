@@ -1472,7 +1472,23 @@ app.patch('/api/certificates/:id', requireAdmin, async (req, res) => {
       [participant_name, team_name, project_name, university, certificate_type, metadata ? JSON.stringify(metadata) : null, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono certyfikatu' });
-    res.json(result.rows[0]);
+
+    const cert = result.rows[0];
+
+    // Re-sign if already issued — content changed so hash/signature must be regenerated
+    if (cert.status === 'issued') {
+      const signableData = extractSignableFields(cert);
+      const hash = createCertificateHash(signableData, CERT_SECRET);
+      const signature = signCertificate(signableData, hash, CERT_SECRET);
+      await pool.query(
+        `UPDATE certificates SET hash = $1, signature = $2, updated_at = NOW() WHERE id = $3`,
+        [hash, signature, id]
+      );
+      cert.hash = hash;
+      cert.signature = signature;
+    }
+
+    res.json(cert);
   } catch (err) {
     console.error('[Certs] Update error:', err);
     res.status(500).json({ error: 'Blad serwera' });
@@ -1715,6 +1731,165 @@ app.post('/api/certificates/bulk-issue', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[Certs] Bulk issue error:', err);
     res.status(500).json({ error: 'Blad serwera' });
+  }
+});
+
+// Re-issue (re-sign) a single certificate with its current data (admin)
+app.post('/api/certificates/:id/reissue', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const certResult = await pool.query('SELECT * FROM certificates WHERE id = $1', [id]);
+    if (certResult.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono certyfikatu' });
+
+    const cert = certResult.rows[0];
+    if (cert.status !== 'issued') return res.status(400).json({ error: 'Certyfikat musi byc w statusie issued' });
+
+    const signableData = extractSignableFields(cert);
+    const hash = createCertificateHash(signableData, CERT_SECRET);
+    const signature = signCertificate(signableData, hash, CERT_SECRET);
+
+    const result = await pool.query(
+      `UPDATE certificates SET hash = $1, signature = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+      [hash, signature, id]
+    );
+    res.json({ success: true, certificate: result.rows[0] });
+  } catch (err) {
+    console.error('[Certs] Reissue error:', err);
+    res.status(500).json({ error: 'Blad ponownego wydawania' });
+  }
+});
+
+// Sync project_name from team_projects for a single certificate and re-sign (admin)
+app.post('/api/certificates/:id/sync-project', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const certResult = await pool.query('SELECT * FROM certificates WHERE id = $1', [id]);
+    if (certResult.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono certyfikatu' });
+
+    const cert = certResult.rows[0];
+    const tpResult = await pool.query(
+      `SELECT project_name FROM team_projects WHERE name = $1 OR name ILIKE $2 ORDER BY edition_number DESC LIMIT 1`,
+      [cert.team_name, `%${cert.team_name}%`]
+    );
+    if (tpResult.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono projektu dla tego zespolu w bazie team_projects' });
+
+    const newProjectName = tpResult.rows[0].project_name || cert.project_name;
+    const updateResult = await pool.query(
+      `UPDATE certificates SET project_name = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [newProjectName, id]
+    );
+    const updated = updateResult.rows[0];
+
+    if (updated.status === 'issued') {
+      const signableData = extractSignableFields(updated);
+      const hash = createCertificateHash(signableData, CERT_SECRET);
+      const signature = signCertificate(signableData, hash, CERT_SECRET);
+      await pool.query(
+        `UPDATE certificates SET hash = $1, signature = $2, updated_at = NOW() WHERE id = $3`,
+        [hash, signature, id]
+      );
+      updated.hash = hash;
+      updated.signature = signature;
+    }
+
+    res.json({ success: true, certificate: updated, project_name: newProjectName });
+  } catch (err) {
+    console.error('[Certs] Sync project error:', err);
+    res.status(500).json({ error: 'Blad synchronizacji projektu' });
+  }
+});
+
+// Re-issue all issued certificates for a team (re-sign with current data) (admin)
+app.post('/api/certificates/team/:teamName/reissue', requireAdmin, async (req, res) => {
+  try {
+    const { teamName } = req.params;
+    const certs = await pool.query(
+      "SELECT * FROM certificates WHERE team_name = $1 AND status = 'issued'",
+      [teamName]
+    );
+
+    let reissued = 0;
+    for (const cert of certs.rows) {
+      const signableData = extractSignableFields(cert);
+      const hash = createCertificateHash(signableData, CERT_SECRET);
+      const signature = signCertificate(signableData, hash, CERT_SECRET);
+      await pool.query(
+        `UPDATE certificates SET hash = $1, signature = $2, updated_at = NOW() WHERE id = $3`,
+        [hash, signature, cert.id]
+      );
+      reissued++;
+    }
+
+    res.json({ success: true, reissued, team: teamName });
+  } catch (err) {
+    console.error('[Certs] Team reissue error:', err);
+    res.status(500).json({ error: 'Blad ponownego wydawania dla zespolu' });
+  }
+});
+
+// Sync project data from team_projects for all certs of a team and re-sign (admin)
+app.post('/api/certificates/team/:teamName/sync-project', requireAdmin, async (req, res) => {
+  try {
+    const { teamName } = req.params;
+    const tpResult = await pool.query(
+      `SELECT project_name FROM team_projects WHERE name = $1 OR name ILIKE $2 ORDER BY edition_number DESC LIMIT 1`,
+      [teamName, `%${teamName}%`]
+    );
+    if (tpResult.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono projektu dla tego zespolu' });
+
+    const newProjectName = tpResult.rows[0].project_name;
+    if (!newProjectName) return res.status(400).json({ error: 'Projekt nie ma ustawionej nazwy' });
+
+    const certs = await pool.query('SELECT * FROM certificates WHERE team_name = $1', [teamName]);
+
+    let updated = 0;
+    for (const cert of certs.rows) {
+      await pool.query(
+        `UPDATE certificates SET project_name = $1, updated_at = NOW() WHERE id = $2`,
+        [newProjectName, cert.id]
+      );
+
+      if (cert.status === 'issued') {
+        const updatedCert = { ...cert, project_name: newProjectName };
+        const signableData = extractSignableFields(updatedCert);
+        const hash = createCertificateHash(signableData, CERT_SECRET);
+        const signature = signCertificate(signableData, hash, CERT_SECRET);
+        await pool.query(
+          `UPDATE certificates SET hash = $1, signature = $2, updated_at = NOW() WHERE id = $3`,
+          [hash, signature, cert.id]
+        );
+      }
+      updated++;
+    }
+
+    res.json({ success: true, updated, project_name: newProjectName, team: teamName });
+  } catch (err) {
+    console.error('[Certs] Team sync project error:', err);
+    res.status(500).json({ error: 'Blad synchronizacji projektu dla zespolu' });
+  }
+});
+
+// Bulk re-issue all issued certificates (re-sign with current data) (admin)
+app.post('/api/certificates/bulk-reissue', requireAdmin, async (req, res) => {
+  try {
+    const certs = await pool.query("SELECT * FROM certificates WHERE status = 'issued'");
+    let reissued = 0;
+
+    for (const cert of certs.rows) {
+      const signableData = extractSignableFields(cert);
+      const hash = createCertificateHash(signableData, CERT_SECRET);
+      const signature = signCertificate(signableData, hash, CERT_SECRET);
+      await pool.query(
+        `UPDATE certificates SET hash = $1, signature = $2, updated_at = NOW() WHERE id = $3`,
+        [hash, signature, cert.id]
+      );
+      reissued++;
+    }
+
+    res.json({ success: true, reissued });
+  } catch (err) {
+    console.error('[Certs] Bulk reissue error:', err);
+    res.status(500).json({ error: 'Blad ponownego wydawania' });
   }
 });
 
