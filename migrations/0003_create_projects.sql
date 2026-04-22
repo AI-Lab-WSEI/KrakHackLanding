@@ -13,8 +13,8 @@ CREATE TABLE projects (
   project_type     project_type NOT NULL DEFAULT 'personal',
 
   -- Hackathon link (NULL for non-hackathon projects)
-  edition_number   INT,
-  team_project_id  UUID,  -- FK to legacy team_projects.id, populated during Faza 4 migration
+  edition_number        INT,
+  team_project_id       INT,   -- FK to legacy team_projects.id (SERIAL), populated during Faza 4 migration
 
   -- Ownership
   owner_user_id    UUID REFERENCES users(id) ON DELETE SET NULL,

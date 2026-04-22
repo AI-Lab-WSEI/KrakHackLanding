@@ -3384,6 +3384,116 @@ app.post('/api/admin/mail/club-invite', requireAdmin, async (req, res) => {
   }
 });
 
+// ─── Faza 4: Hackathon data migration (admin) ─────────────────────────────────
+
+/**
+ * POST /api/admin/migrate-hackathon-data
+ * Migrates legacy team_projects to the new teams+projects schema.
+ * Body: { dryRun?: boolean }  (default: true — safe preview)
+ * Requires: admin role (both old token AND Keycloak)
+ */
+app.post('/api/admin/migrate-hackathon-data', requireRole('admin'), async (req, res) => {
+  const dryRun = req.body?.dryRun !== false; // default to dry-run for safety
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: teamProjects } = await client.query(
+      'SELECT * FROM team_projects WHERE project_id IS NULL ORDER BY edition_number, placement NULLS LAST'
+    );
+
+    const results = [];
+    for (const tp of teamProjects) {
+      const teamSlug    = tp.slug;
+      const projectSlug = `${tp.slug}-${tp.edition_number}`;
+      const title       = tp.project_name?.trim() || tp.name;
+
+      let teamId;
+      if (!dryRun) {
+        const existingTeam = await client.query('SELECT id FROM teams WHERE slug = $1', [teamSlug]);
+        if (existingTeam.rows.length > 0) {
+          teamId = existingTeam.rows[0].id;
+        } else {
+          const r = await client.query(
+            `INSERT INTO teams (name, slug, description, edition_number, created_at)
+             VALUES ($1,$2,$3,$4,NOW()) RETURNING id`,
+            [tp.name, teamSlug, tp.short_description || null, tp.edition_number]
+          );
+          teamId = r.rows[0].id;
+        }
+      }
+
+      let projectId = null;
+      if (!dryRun) {
+        const existingProject = await client.query('SELECT id FROM projects WHERE slug = $1', [projectSlug]);
+        if (existingProject.rows.length === 0) {
+          const description = [tp.short_description, ...(tp.full_description || [])].filter(Boolean).join('\n\n') || null;
+          const r = await client.query(
+            `INSERT INTO projects (
+               slug, title, description, status, visibility, project_type,
+               team_id, edition_number, team_project_id,
+               challenge_slug, placement, placement_label, special_mention,
+               tech_stack, tags, images, created_at, updated_at
+             ) VALUES ($1,$2,$3,$4,'public','hackathon',$5,$6,$7,$8,$9,$10,$11,$12,'{}', $13,NOW(),NOW())
+             RETURNING id`,
+            [
+              projectSlug, title, description,
+              tp.placement ? 'published' : 'active',
+              teamId, tp.edition_number, tp.id,
+              tp.challenge || null, tp.placement || null, tp.placement_label || null, tp.special_mention || null,
+              tp.technologies || [],
+              JSON.stringify(tp.images || []),
+            ]
+          );
+          projectId = r.rows[0].id;
+          await client.query('UPDATE team_projects SET project_id = $1 WHERE id = $2', [projectId, tp.id]);
+        }
+      }
+
+      results.push({ teamProjectId: tp.id, teamSlug, projectSlug, title, projectId: projectId ?? 'skipped' });
+    }
+
+    if (!dryRun) {
+      await client.query('COMMIT');
+    } else {
+      await client.query('ROLLBACK');
+    }
+
+    res.json({
+      dryRun,
+      total: teamProjects.length,
+      results,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[migrate-hackathon-data] Error:', err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * GET /api/admin/migrate-hackathon-data/status
+ * Shows how many team_projects have been migrated.
+ */
+app.get('/api/admin/migrate-hackathon-data/status', requireRole('admin'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE project_id IS NULL)     AS pending,
+        COUNT(*) FILTER (WHERE project_id IS NOT NULL) AS migrated,
+        COUNT(*)                                        AS total
+      FROM team_projects
+    `);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('[migrate-hackathon-data/status] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Team Projects API ──────────────────────────────────────
 
 // POST /api/admin/team-projects/seed — Seed from JSON data (admin)
