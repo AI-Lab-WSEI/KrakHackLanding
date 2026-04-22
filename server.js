@@ -850,6 +850,270 @@ app.post('/api/auth/sync-user', verifyKeycloakToken, async (req, res) => {
   }
 });
 
+// ─── Invite flow (Faza 2) ─────────────────────────────────────────────────────
+
+/**
+ * POST /api/invite/send
+ * Tworzy (lub aktualizuje) rekord usera z invite_token i wysyła email z linkiem.
+ * Wymagana rola: admin lub moderator.
+ * Body: { email, displayName? }
+ */
+app.post('/api/invite/send', requireRole('admin', 'moderator'), async (req, res) => {
+  const { email, displayName } = req.body;
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ error: 'Pole email jest wymagane' });
+  }
+
+  try {
+    const token   = crypto.randomUUID();
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 dni
+
+    // Upsert: jeśli user z tym emailem już istnieje — aktualizuj token
+    // Jeśli nie — utwórz nowy rekord (bez keycloak_id — uzupełni się przy pierwszym logowaniu)
+    const result = await pool.query(
+      `INSERT INTO users (email, display_name, role, is_active, onboarding_completed,
+                          invite_token, invite_token_expires_at, created_at, updated_at)
+       VALUES ($1, $2, 'hackathon-participant', true, false, $3, $4, NOW(), NOW())
+       ON CONFLICT (email) DO UPDATE
+         SET invite_token            = EXCLUDED.invite_token,
+             invite_token_expires_at = EXCLUDED.invite_token_expires_at,
+             display_name            = COALESCE(EXCLUDED.display_name, users.display_name),
+             updated_at              = NOW()
+       RETURNING id, email`,
+      [email.toLowerCase().trim(), displayName?.trim() ?? null, token, expires]
+    );
+
+    // Opcjonalnie: pobierz dane z membership_applications (pre-fill email)
+    const appResult = await pool.query(
+      'SELECT first_name, last_name FROM membership_applications WHERE email = $1 LIMIT 1',
+      [email.toLowerCase().trim()]
+    );
+    const appData = appResult.rows[0];
+    const firstName = appData?.first_name ?? displayName?.split(' ')[0] ?? '';
+
+    const inviteUrl = `${process.env.FRONTEND_URL || 'https://krakhack.info'}/onboarding?invite_token=${token}`;
+
+    // Wyślij email zaproszający
+    await sendResendEmail(
+      email,
+      'Zaproszenie do AI Krak Hack — uzupełnij profil',
+      buildInviteEmail(firstName, inviteUrl)
+    );
+
+    res.json({
+      ok: true,
+      userId: result.rows[0].id,
+      inviteUrl, // zwracamy też URL (przydatny przy testach)
+    });
+  } catch (err) {
+    console.error('[/api/invite/send] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera', detail: err.message });
+  }
+});
+
+/**
+ * GET /api/invite/verify?token=XXX
+ * Publiczny endpoint. Weryfikuje token zaproszenia i zwraca dane do pre-fill.
+ */
+app.get('/api/invite/verify', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: 'Brak tokenu' });
+
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.email, u.display_name,
+              ma.first_name, ma.last_name, ma.university
+       FROM users u
+       LEFT JOIN membership_applications ma ON ma.email = u.email
+       WHERE u.invite_token = $1
+         AND u.invite_token_expires_at > NOW()
+       LIMIT 1`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Nieprawidłowy lub wygasły token zaproszenia' });
+    }
+
+    const row = result.rows[0];
+    res.json({
+      email:       row.email,
+      displayName: row.display_name
+        ?? (row.first_name ? `${row.first_name} ${row.last_name ?? ''}`.trim() : undefined),
+      university:  row.university ?? undefined,
+    });
+  } catch (err) {
+    console.error('[/api/invite/verify] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * PATCH /api/invite/complete
+ * Zalogowany user uzupełnia swój profil i oznacza onboarding jako ukończony.
+ * Body: { displayName?, bio?, githubUrl?, linkedinUrl?, university?, graduationYear?, skills? }
+ */
+app.patch('/api/invite/complete', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const { displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills } = req.body;
+
+  try {
+    await pool.query(
+      `UPDATE users SET
+         display_name         = COALESCE($2, display_name),
+         bio                  = COALESCE($3, bio),
+         github_url           = COALESCE($4, github_url),
+         linkedin_url         = COALESCE($5, linkedin_url),
+         university           = COALESCE($6, university),
+         graduation_year      = COALESCE($7, graduation_year),
+         skills               = COALESCE($8, skills),
+         onboarding_completed = true,
+         invite_token         = NULL,
+         invite_token_expires_at = NULL,
+         updated_at           = NOW()
+       WHERE keycloak_id = $1`,
+      [
+        keycloakId,
+        displayName   ?? null,
+        bio           ?? null,
+        githubUrl     ?? null,
+        linkedinUrl   ?? null,
+        university    ?? null,
+        graduationYear ? Number(graduationYear) : null,
+        skills        ? JSON.stringify(skills) : null,
+      ]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/invite/complete] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera', detail: err.message });
+  }
+});
+
+// ─── Panel: user management (Faza 2) ──────────────────────────────────────────
+
+/**
+ * GET /api/panel/users
+ * Zwraca listę użytkowników. Wymagana rola: admin lub moderator.
+ */
+app.get('/api/panel/users', requireRole('admin', 'moderator'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, email, display_name, role, onboarding_completed, is_active, created_at
+       FROM users
+       ORDER BY created_at DESC
+       LIMIT 500`
+    );
+    res.json({
+      users: result.rows.map(u => ({
+        id:                  u.id,
+        email:               u.email,
+        displayName:         u.display_name,
+        role:                u.role,
+        onboardingCompleted: u.onboarding_completed,
+        isActive:            u.is_active,
+        createdAt:           u.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/panel/users] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * PATCH /api/panel/users/:id/role
+ * Zmiana roli użytkownika. Wymagana rola: admin.
+ * Body: { role }
+ */
+app.patch('/api/panel/users/:id/role', requireRole('admin'), async (req, res) => {
+  const { role } = req.body;
+  const allowedRoles = ['admin', 'moderator', 'hackathon-participant', 'scienceclub-participant', 'jury'];
+  if (!role || !allowedRoles.includes(role)) {
+    return res.status(400).json({ error: 'Nieprawidłowa rola', allowed: allowedRoles });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 RETURNING id',
+      [role, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/panel/users/:id/role] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * PATCH /api/panel/me
+ * Aktualizacja własnego profilu przez zalogowanego usera.
+ * Body: { displayName?, bio?, githubUrl?, linkedinUrl?, university?, graduationYear?, skills? }
+ */
+app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const { displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE users SET
+         display_name    = COALESCE($2, display_name),
+         bio             = COALESCE($3, bio),
+         github_url      = COALESCE($4, github_url),
+         linkedin_url    = COALESCE($5, linkedin_url),
+         university      = COALESCE($6, university),
+         graduation_year = COALESCE($7, graduation_year),
+         skills          = COALESCE($8, skills),
+         updated_at      = NOW()
+       WHERE keycloak_id = $1
+       RETURNING id`,
+      [
+        keycloakId,
+        displayName   ?? null,
+        bio           ?? null,
+        githubUrl     ?? null,
+        linkedinUrl   ?? null,
+        university    ?? null,
+        graduationYear ? Number(graduationYear) : null,
+        skills        ? JSON.stringify(skills) : null,
+      ]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/panel/me] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// ─── Email builder: invite ────────────────────────────────────────────────────
+
+function buildInviteEmail(firstName, inviteUrl) {
+  return `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
+      <h2 style="color:#4f46e5">Zaproszenie do AI Krak Hack 🚀</h2>
+      <p>Cześć${firstName ? ` ${firstName}` : ''}!</p>
+      <p>
+        Zostałeś/aś zaproszony/a do platformy AI Krak Hack.
+        Kliknij poniższy przycisk, aby uzupełnić profil i stworzyć konto.
+      </p>
+      <p style="margin:24px 0">
+        <a href="${inviteUrl}"
+           style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+          Uzupełnij profil →
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:13px">
+        Link jest ważny przez 7 dni.
+        Jeśli nie spodziewałeś/aś się tego zaproszenia, możesz zignorować tę wiadomość.
+      </p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:32px">
+        — Zespół AI Possibilities Lab
+      </p>
+    </div>
+  `;
+}
+
 // Submit form (public)
 app.post('/api/submissions', async (req, res) => {
   try {

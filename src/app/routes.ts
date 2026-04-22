@@ -1,7 +1,11 @@
 import { createBrowserRouter, redirect } from 'react-router';
 import { Logowanie } from '@/app/pages/Logowanie';
 import { AuthCallback } from '@/app/pages/AuthCallback';
-import { Panel } from '@/app/pages/Panel';
+import { Onboarding } from '@/app/pages/Onboarding';
+import { PanelLayout } from '@/app/pages/panel/PanelLayout';
+import { PanelHome } from '@/app/pages/panel/PanelHome';
+import { AdminDashboard } from '@/app/pages/panel/AdminDashboard';
+import { ModeratorDashboard } from '@/app/pages/panel/ModeratorDashboard';
 import { HomePage } from '@/app/pages/HomePage';
 import { Edition2026 } from '@/app/pages/Edition2026';
 import { Edition2025 } from '@/app/pages/Edition2025';
@@ -159,14 +163,25 @@ export const router = createBrowserRouter([
         Component: ContactPage,
       },
 
-      // ══ Auth & Panel (Faza 1) ══
+      // ══ Auth & Panel (Faza 1-2) ══
       {
         path: 'logowanie',
         Component: Logowanie,
       },
       {
+        path: 'onboarding',
+        Component: Onboarding,
+      },
+
+      // Panel — nested layout with sidebar
+      {
         path: 'panel',
-        Component: Panel,
+        Component: PanelLayout,
+        children: [
+          { index: true,         Component: PanelHome },
+          { path: 'admin',       Component: AdminDashboard },
+          { path: 'moderator',   Component: ModeratorDashboard },
+        ],
       },
     ],
   },

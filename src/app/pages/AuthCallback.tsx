@@ -5,6 +5,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { loadPendingOnboarding } from '@/app/pages/Onboarding';
 
 export function AuthCallback() {
   const { exchangeCode } = useAuth();
@@ -32,7 +33,11 @@ export function AuthCallback() {
 
     const redirectUri = `${window.location.origin}/auth/callback`;
     exchangeCode(code, redirectUri)
-      .then(() => navigate('/panel', { replace: true }))
+      .then(() => {
+        // If the user came via invite onboarding, return to that flow
+        const hasPending = !!loadPendingOnboarding();
+        navigate(hasPending ? '/onboarding' : '/panel', { replace: true });
+      })
       .catch(err => {
         console.error('[AuthCallback] Token exchange failed:', err);
         navigate('/logowanie?error=exchange', { replace: true });
