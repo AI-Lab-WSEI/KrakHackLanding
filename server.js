@@ -13,6 +13,7 @@ import {
   verifyCertificate,
   extractSignableFields,
 } from './lib/certificates.js';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 // Load environment variables from .env
 try {
@@ -664,6 +665,73 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// ─── Keycloak JWT Auth (Faza 1) ────────────────────────────
+
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL;
+const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'krakhack';
+
+// Lazy-init JWKS — only when KC vars are set (avoids crash in local dev without KC)
+let _jwks = null;
+function getJWKS() {
+  if (!_jwks && KEYCLOAK_URL) {
+    _jwks = createRemoteJWKSet(
+      new URL(`${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`)
+    );
+  }
+  return _jwks;
+}
+
+/**
+ * Middleware: verifies Keycloak JWT and populates req.kcUser.
+ * Returns 401 if token is missing, expired, or invalid.
+ */
+async function verifyKeycloakToken(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing Bearer token' });
+  }
+  const jwks = getJWKS();
+  if (!jwks) {
+    return res.status(503).json({ error: 'Auth service not configured' });
+  }
+  try {
+    const { payload } = await jwtVerify(auth.slice(7), jwks, {
+      issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
+    });
+    const roles = payload.realm_access?.roles ?? [];
+    req.kcUser = {
+      keycloakId: payload.sub,
+      email: payload.email,
+      roles,
+      isAdmin: roles.includes('admin'),
+      isModerator: roles.includes('moderator'),
+      isHackathonParticipant: roles.includes('hackathon-participant'),
+      isScienceclubParticipant: roles.includes('scienceclub-participant'),
+      isJury: roles.includes('jury'),
+    };
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token', detail: err.message });
+  }
+}
+
+/**
+ * Middleware factory: requires at least one of the given Keycloak roles.
+ * Usage: requireRole('admin') or requireRole('admin', 'moderator')
+ */
+function requireRole(...roles) {
+  return async (req, res, next) => {
+    await verifyKeycloakToken(req, res, () => {
+      const userRoles = req.kcUser?.roles ?? [];
+      const hasRole = roles.some(r => userRoles.includes(r));
+      if (!hasRole) {
+        return res.status(403).json({ error: 'Forbidden', required: roles });
+      }
+      next();
+    });
+  };
+}
+
 // ─── API Routes ────────────────────────────────────────────
 
 // Admin login
@@ -683,6 +751,103 @@ app.post('/api/admin/login', (req, res) => {
 // Verify admin token
 app.get('/api/admin/verify', requireAdmin, (req, res) => {
   res.json({ valid: true });
+});
+
+// ─── Auth / User endpoints (Faza 1) ───────────────────────
+
+/**
+ * GET /api/me
+ * Returns the authenticated user's profile.
+ * On first login (keycloak_id not yet in users table), auto-creates a record
+ * with data from the JWT. If an existing unlinked row matches by email, links it.
+ */
+app.get('/api/me', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId, email, roles } = req.kcUser;
+  try {
+    // 1. Try to find by keycloak_id
+    let result = await pool.query(
+      'SELECT * FROM users WHERE keycloak_id = $1',
+      [keycloakId]
+    );
+
+    if (result.rows.length === 0) {
+      // 2. Try to link an existing invite-created row by email
+      const byEmail = await pool.query(
+        'SELECT * FROM users WHERE email = $1 AND keycloak_id IS NULL',
+        [email]
+      );
+
+      if (byEmail.rows.length > 0) {
+        // Link keycloak_id to existing row
+        result = await pool.query(
+          `UPDATE users SET keycloak_id = $1, updated_at = NOW()
+           WHERE email = $2 RETURNING *`,
+          [keycloakId, email]
+        );
+      } else {
+        // 3. First-ever login — create new user row
+        const primaryRole = roles.includes('admin') ? 'admin'
+          : roles.includes('moderator') ? 'moderator'
+          : roles.includes('jury') ? 'jury'
+          : roles.includes('hackathon-participant') ? 'hackathon-participant'
+          : roles.includes('scienceclub-participant') ? 'scienceclub-participant'
+          : 'hackathon-participant';
+
+        result = await pool.query(
+          `INSERT INTO users (keycloak_id, email, role, is_active, onboarding_completed, created_at, updated_at)
+           VALUES ($1, $2, $3, true, false, NOW(), NOW())
+           RETURNING *`,
+          [keycloakId, email, primaryRole]
+        );
+      }
+    }
+
+    const user = result.rows[0];
+    res.json({
+      id: user.id,
+      email: user.email,
+      displayName: user.display_name,
+      avatarUrl: user.avatar_url,
+      role: user.role,
+      bio: user.bio,
+      githubUrl: user.github_url,
+      linkedinUrl: user.linkedin_url,
+      university: user.university,
+      graduationYear: user.graduation_year,
+      skills: user.skills ?? [],
+      onboardingCompleted: user.onboarding_completed,
+      keycloakRoles: roles,
+    });
+  } catch (err) {
+    console.error('[/api/me] Error:', err);
+    res.status(500).json({ error: 'Database error', detail: err.message });
+  }
+});
+
+/**
+ * POST /api/auth/sync-user
+ * Called after login to keep DB in sync with Keycloak data.
+ * Body: { displayName?, avatarUrl? }  (optional — Keycloak profile fields)
+ */
+app.post('/api/auth/sync-user', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId, email } = req.kcUser;
+  const { displayName, avatarUrl } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO users (keycloak_id, email, display_name, avatar_url, role, is_active, onboarding_completed, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'hackathon-participant', true, false, NOW(), NOW())
+       ON CONFLICT (keycloak_id) DO UPDATE
+         SET email = EXCLUDED.email,
+             display_name = COALESCE(EXCLUDED.display_name, users.display_name),
+             avatar_url   = COALESCE(EXCLUDED.avatar_url,   users.avatar_url),
+             updated_at   = NOW()`,
+      [keycloakId, email, displayName ?? null, avatarUrl ?? null]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/auth/sync-user] Error:', err);
+    res.status(500).json({ error: 'Database error', detail: err.message });
+  }
 });
 
 // Submit form (public)

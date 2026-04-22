@@ -1,4 +1,7 @@
 import { createBrowserRouter, redirect } from 'react-router';
+import { Logowanie } from '@/app/pages/Logowanie';
+import { AuthCallback } from '@/app/pages/AuthCallback';
+import { Panel } from '@/app/pages/Panel';
 import { HomePage } from '@/app/pages/HomePage';
 import { Edition2026 } from '@/app/pages/Edition2026';
 import { Edition2025 } from '@/app/pages/Edition2025';
@@ -155,6 +158,22 @@ export const router = createBrowserRouter([
         path: 'kontakt',
         Component: ContactPage,
       },
+
+      // ══ Auth & Panel (Faza 1) ══
+      {
+        path: 'logowanie',
+        Component: Logowanie,
+      },
+      {
+        path: 'panel',
+        Component: Panel,
+      },
     ],
+  },
+
+  // Auth callback lives OUTSIDE Layout (full-screen, no navbar)
+  {
+    path: '/auth/callback',
+    Component: AuthCallback,
   },
 ]);
