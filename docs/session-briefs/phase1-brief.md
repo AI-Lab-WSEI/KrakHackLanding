@@ -41,6 +41,8 @@ async function verifyKeycloakToken(req, res, next) {
       keycloakId: payload.sub,
       email: payload.email,
       roles: payload.realm_access?.roles ?? [],
+      isHackathonParticipant: (payload.realm_access?.roles ?? []).includes('hackathon-participant'),
+      isScienceclubParticipant: (payload.realm_access?.roles ?? []).includes('scienceclub-participant'),
     };
     next();
   } catch {
