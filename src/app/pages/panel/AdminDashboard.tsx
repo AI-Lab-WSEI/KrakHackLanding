@@ -35,6 +35,13 @@ const TILES = [
     desc: 'Zarządzanie odliczaniem i harmonogramem',
     external: false,
   },
+  {
+    label: 'Wydarzenia',
+    emoji: '📅',
+    href: '/panel/admin/wydarzenia',
+    desc: 'Zarządzaj wydarzeniami w kalendarzu (dodaj, ukryj, usuń)',
+    external: false,
+  },
 ] as const;
 
 export function AdminDashboard() {

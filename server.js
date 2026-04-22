@@ -48,6 +48,22 @@ const pool = new pg.Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+/**
+ * slugify — convert a display name to a URL-safe slug.
+ * Polish diacritics are transliterated.
+ */
+function slugify(text) {
+  const DIACRITICS = { ą:'a',ć:'c',ę:'e',ł:'l',ń:'n',ó:'o',ś:'s',ź:'z',ż:'z' };
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[ąćęłńóśźż]/g, c => DIACRITICS[c] ?? c)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 // Admin session tokens (in-memory, cleared on restart — admin just re-logs in)
 const adminTokens = new Set();
 
@@ -957,30 +973,37 @@ app.patch('/api/invite/complete', verifyKeycloakToken, async (req, res) => {
   const { keycloakId } = req.kcUser;
   const { displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills } = req.body;
 
+  // Auto-generate profile_slug the first time displayName is set (preserve URL once assigned)
+  const candidateSlug = displayName
+    ? slugify(displayName) + '-' + crypto.randomBytes(3).toString('hex')
+    : null;
+
   try {
     await pool.query(
       `UPDATE users SET
-         display_name         = COALESCE($2, display_name),
-         bio                  = COALESCE($3, bio),
-         github_url           = COALESCE($4, github_url),
-         linkedin_url         = COALESCE($5, linkedin_url),
-         university           = COALESCE($6, university),
-         graduation_year      = COALESCE($7, graduation_year),
-         skills               = COALESCE($8, skills),
-         onboarding_completed = true,
-         invite_token         = NULL,
+         display_name            = COALESCE($2, display_name),
+         bio                     = COALESCE($3, bio),
+         github_url              = COALESCE($4, github_url),
+         linkedin_url            = COALESCE($5, linkedin_url),
+         university              = COALESCE($6, university),
+         graduation_year         = COALESCE($7, graduation_year),
+         skills                  = COALESCE($8, skills),
+         profile_slug            = CASE WHEN profile_slug IS NULL AND $9 IS NOT NULL THEN $9 ELSE profile_slug END,
+         onboarding_completed    = true,
+         invite_token            = NULL,
          invite_token_expires_at = NULL,
-         updated_at           = NOW()
+         updated_at              = NOW()
        WHERE keycloak_id = $1`,
       [
         keycloakId,
-        displayName   ?? null,
-        bio           ?? null,
-        githubUrl     ?? null,
-        linkedinUrl   ?? null,
-        university    ?? null,
+        displayName    ?? null,
+        bio            ?? null,
+        githubUrl      ?? null,
+        linkedinUrl    ?? null,
+        university     ?? null,
         graduationYear ? Number(graduationYear) : null,
-        skills        ? JSON.stringify(skills) : null,
+        skills         ? JSON.stringify(skills) : null,
+        candidateSlug,
       ]
     );
     res.json({ ok: true });
@@ -1054,6 +1077,11 @@ app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
   const { keycloakId } = req.kcUser;
   const { displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills } = req.body;
 
+  // Auto-generate profile_slug the first time displayName is set (preserve URL once assigned)
+  const candidateSlug = displayName
+    ? slugify(displayName) + '-' + crypto.randomBytes(3).toString('hex')
+    : null;
+
   try {
     const result = await pool.query(
       `UPDATE users SET
@@ -1064,18 +1092,20 @@ app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
          university      = COALESCE($6, university),
          graduation_year = COALESCE($7, graduation_year),
          skills          = COALESCE($8, skills),
+         profile_slug    = CASE WHEN profile_slug IS NULL AND $9 IS NOT NULL THEN $9 ELSE profile_slug END,
          updated_at      = NOW()
        WHERE keycloak_id = $1
        RETURNING id`,
       [
         keycloakId,
-        displayName   ?? null,
-        bio           ?? null,
-        githubUrl     ?? null,
-        linkedinUrl   ?? null,
-        university    ?? null,
+        displayName    ?? null,
+        bio            ?? null,
+        githubUrl      ?? null,
+        linkedinUrl    ?? null,
+        university     ?? null,
         graduationYear ? Number(graduationYear) : null,
-        skills        ? JSON.stringify(skills) : null,
+        skills         ? JSON.stringify(skills) : null,
+        candidateSlug,
       ]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
@@ -6108,6 +6138,215 @@ app.delete('/api/admin/collaborations/:id', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[Collabs] Delete error:', err);
     res.status(500).json({ error: 'Błąd usuwania' });
+  }
+});
+
+// ─── Faza 8: Public participant profiles ──────────────────────────────────────
+
+/**
+ * GET /api/public/participants
+ * Public. Returns participants with completed onboarding and a profile_slug.
+ * Only users with role != 'admin' (or moderator) are surfaced by default.
+ */
+app.get('/api/public/participants', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT profile_slug, display_name, avatar_url, bio,
+              university, graduation_year, skills, github_url, linkedin_url, role
+       FROM users
+       WHERE onboarding_completed = true
+         AND profile_slug IS NOT NULL
+         AND is_active = true
+       ORDER BY display_name ASC
+       LIMIT 500`
+    );
+    res.json({
+      participants: rows.map(u => ({
+        profileSlug:    u.profile_slug,
+        displayName:    u.display_name,
+        avatarUrl:      u.avatar_url,
+        bio:            u.bio,
+        university:     u.university,
+        graduationYear: u.graduation_year,
+        skills:         Array.isArray(u.skills) ? u.skills : (u.skills ? JSON.parse(u.skills) : []),
+        githubUrl:      u.github_url,
+        linkedinUrl:    u.linkedin_url,
+        role:           u.role,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/public/participants] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/public/participants/:slug
+ * Public. Returns a single participant profile by profile_slug.
+ * Includes their public projects.
+ */
+app.get('/api/public/participants/:slug', async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const userResult = await pool.query(
+      `SELECT id, profile_slug, display_name, avatar_url, bio,
+              university, graduation_year, skills, github_url, linkedin_url, role
+       FROM users
+       WHERE profile_slug = $1 AND onboarding_completed = true AND is_active = true`,
+      [slug]
+    );
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+
+    const u = userResult.rows[0];
+
+    // Fetch user's public projects
+    const projectsResult = await pool.query(
+      `SELECT id, title, slug, short_description, thumbnail_url, technologies
+       FROM projects
+       WHERE owner_id = $1 AND visibility = 'public'
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [u.id]
+    );
+
+    res.json({
+      profileSlug:    u.profile_slug,
+      displayName:    u.display_name,
+      avatarUrl:      u.avatar_url,
+      bio:            u.bio,
+      university:     u.university,
+      graduationYear: u.graduation_year,
+      skills:         Array.isArray(u.skills) ? u.skills : (u.skills ? JSON.parse(u.skills) : []),
+      githubUrl:      u.github_url,
+      linkedinUrl:    u.linkedin_url,
+      role:           u.role,
+      projects: projectsResult.rows.map(p => ({
+        id:               p.id,
+        title:            p.title,
+        slug:             p.slug,
+        shortDescription: p.short_description,
+        thumbnailUrl:     p.thumbnail_url,
+        technologies:     Array.isArray(p.technologies) ? p.technologies : (p.technologies ? JSON.parse(p.technologies) : []),
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/public/participants/:slug] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// ─── Faza 8: Team claims management (admin/mod) ───────────────────────────────
+
+/**
+ * GET /api/panel/claims
+ * Admin/moderator. List team claims. Query params: status, edition.
+ */
+app.get('/api/panel/claims', requireRole('admin', 'moderator'), async (req, res) => {
+  const { status, edition } = req.query;
+  try {
+    const params = [];
+    let sql = `SELECT tc.id, tc.user_id, tc.edition_number, tc.team_slug, tc.status,
+                      tc.claimed_at, tc.reviewed_at,
+                      u.display_name AS user_display_name, u.email AS user_email
+               FROM team_claims tc
+               JOIN users u ON u.id = tc.user_id
+               WHERE 1=1`;
+    if (status) { params.push(status); sql += ` AND tc.status = $${params.length}`; }
+    if (edition) { params.push(parseInt(edition)); sql += ` AND tc.edition_number = $${params.length}`; }
+    sql += ' ORDER BY tc.claimed_at DESC LIMIT 300';
+    const { rows } = await pool.query(sql, params);
+    res.json({ claims: rows });
+  } catch (err) {
+    console.error('[/api/panel/claims GET] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * PATCH /api/panel/claims/:id
+ * Admin/moderator. Confirm or reject a claim.
+ * Body: { action: 'confirm' | 'reject' }
+ * On confirm: inserts into team_members if teams row exists for that slug.
+ */
+app.patch('/api/panel/claims/:id', requireRole('admin', 'moderator'), async (req, res) => {
+  const { id } = req.params;
+  const { action } = req.body;
+  if (!['confirm', 'reject'].includes(action)) {
+    return res.status(400).json({ error: 'action musi być "confirm" lub "reject"' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Fetch the claim
+    const claimResult = await client.query(
+      'SELECT * FROM team_claims WHERE id = $1 FOR UPDATE',
+      [id]
+    );
+    if (claimResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Claim nie znaleziony' });
+    }
+
+    const claim = claimResult.rows[0];
+    const newStatus = action === 'confirm' ? 'confirmed' : 'rejected';
+
+    await client.query(
+      `UPDATE team_claims SET status = $1, reviewed_at = NOW() WHERE id = $2`,
+      [newStatus, id]
+    );
+
+    // If confirming: try to add to team_members
+    if (action === 'confirm') {
+      const teamResult = await client.query(
+        `SELECT id FROM teams WHERE slug = $1 AND edition_number = $2`,
+        [claim.team_slug, claim.edition_number]
+      );
+      if (teamResult.rows.length > 0) {
+        const teamId = teamResult.rows[0].id;
+        await client.query(
+          `INSERT INTO team_members (team_id, user_id, role, joined_at)
+           VALUES ($1, $2, 'member', NOW())
+           ON CONFLICT (team_id, user_id) DO NOTHING`,
+          [teamId, claim.user_id]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({ ok: true, status: newStatus });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[/api/panel/claims PATCH] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * GET /api/hackathon/my-vote
+ * Returns the current user's vote for an edition.
+ * Query: ?edition=3 (default: 3)
+ */
+app.get('/api/hackathon/my-vote', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const edition = parseInt(req.query.edition ?? '3');
+  try {
+    const userResult = await pool.query(
+      'SELECT id FROM users WHERE keycloak_id = $1',
+      [keycloakId]
+    );
+    if (userResult.rows.length === 0) return res.json({ vote: null });
+    const { rows } = await pool.query(
+      'SELECT team_slug FROM participant_votes WHERE user_id = $1 AND edition_number = $2',
+      [userResult.rows[0].id, edition]
+    );
+    res.json({ vote: rows[0]?.team_slug ?? null });
+  } catch (err) {
+    console.error('[/api/hackathon/my-vote] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
   }
 });
 

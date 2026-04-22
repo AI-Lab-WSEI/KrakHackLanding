@@ -6,8 +6,9 @@
  *  - Lista użytkowników z paginacją
  *  - Zmiana roli (tylko admin)
  *  - Wysyłanie zaproszeń do onboardingu
+ *  - Tab: Pending team claims (confirm / reject)
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -215,12 +216,194 @@ function RoleSelect({ user, isAdmin, token, onUpdated }: {
   );
 }
 
+// ─── Claims tab ───────────────────────────────────────────────────────────────
+
+interface Claim {
+  id:              string;
+  userId:          string;
+  editionNumber:   number;
+  teamSlug:        string;
+  status:          string;
+  claimedAt:       string;
+  userDisplayName: string | null;
+  userEmail:       string;
+}
+
+function useClaims(token: string | null, status?: string) {
+  const [claims, setClaims]   = useState<Claim[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const qs  = status ? `?status=${status}` : '';
+      const res = await fetch(`/api/panel/claims${qs}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setClaims(
+        (data.claims ?? []).map((c: Record<string, unknown>) => ({
+          id:              c.id,
+          userId:          c.user_id          ?? c.userId,
+          editionNumber:   c.edition_number   ?? c.editionNumber,
+          teamSlug:        c.team_slug        ?? c.teamSlug,
+          status:          c.status,
+          claimedAt:       c.claimed_at       ?? c.claimedAt,
+          userDisplayName: c.user_display_name ?? c.userDisplayName ?? null,
+          userEmail:       c.user_email       ?? c.userEmail,
+        }))
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, status]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { claims, loading, error, reload: load };
+}
+
+function ClaimsTab({ token }: { token: string | null }) {
+  const [filter, setFilter] = useState<'pending' | 'all'>('pending');
+  const { claims, loading, error, reload } = useClaims(
+    token,
+    filter === 'pending' ? 'pending' : undefined
+  );
+  const [acting, setActing] = useState<string | null>(null);
+
+  async function act(id: string, action: 'confirm' | 'reject') {
+    if (!token || acting) return;
+    setActing(id);
+    try {
+      await fetch(`/api/panel/claims/${id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      reload();
+    } finally {
+      setActing(null);
+    }
+  }
+
+  const statusBadge = (s: string) => {
+    const map: Record<string, string> = {
+      pending:   'bg-amber-900/30 text-amber-400',
+      confirmed: 'bg-green-900/30 text-green-400',
+      rejected:  'bg-red-900/30 text-red-400',
+    };
+    return map[s] ?? 'bg-gray-800 text-gray-400';
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Filter toggle */}
+      <div className="flex gap-2">
+        {(['pending', 'all'] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
+              filter === f
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-800 text-gray-400 hover:text-white'
+            }`}
+          >
+            {f === 'pending' ? 'Oczekujące' : 'Wszystkie'}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <p className="text-gray-500 text-sm py-8 text-center">Ładowanie…</p>
+      ) : error ? (
+        <p className="text-red-400 text-sm py-8 text-center">{error}</p>
+      ) : claims.length === 0 ? (
+        <p className="text-gray-500 text-sm py-8 text-center">
+          {filter === 'pending' ? 'Brak oczekujących claimów.' : 'Brak claimów.'}
+        </p>
+      ) : (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-800 text-xs text-gray-500">
+                <th className="text-left px-4 py-3 font-medium">Uczestnik</th>
+                <th className="text-left px-4 py-3 font-medium">Zespół</th>
+                <th className="text-left px-4 py-3 font-medium">Status</th>
+                <th className="text-left px-4 py-3 font-medium">Data</th>
+                <th className="text-right px-4 py-3 font-medium">Akcje</th>
+              </tr>
+            </thead>
+            <tbody>
+              {claims.map((c, i) => (
+                <tr
+                  key={c.id}
+                  className={`border-b border-gray-800/50 hover:bg-gray-800/20 transition-colors
+                    ${i === claims.length - 1 ? 'border-b-0' : ''}`}
+                >
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-white">{c.userDisplayName ?? '—'}</p>
+                    <p className="text-xs text-gray-500">{c.userEmail}</p>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-400">
+                    <span className="font-mono bg-gray-800 px-1.5 py-0.5 rounded">
+                      {c.teamSlug}
+                    </span>
+                    <span className="ml-1 text-gray-600">ed.{c.editionNumber}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadge(c.status)}`}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500">
+                    {new Date(c.claimedAt).toLocaleDateString('pl-PL')}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {c.status === 'pending' && (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => act(c.id, 'confirm')}
+                          disabled={acting === c.id}
+                          className="text-xs bg-green-900/30 hover:bg-green-900/50 text-green-400 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          Potwierdź
+                        </button>
+                        <button
+                          onClick={() => act(c.id, 'reject')}
+                          disabled={acting === c.id}
+                          className="text-xs bg-red-900/20 hover:bg-red-900/40 text-red-400 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          Odrzuć
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
+type ActiveTab = 'users' | 'claims';
 
 export function ModeratorDashboard() {
   const { user, token } = useAuth();
   const [showInvite, setShowInvite] = useState(false);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('users');
   const { users, loading, error, reload } = useUsers(token);
 
   if (!user) return null;
@@ -240,85 +423,109 @@ export function ModeratorDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Użytkownicy</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
-            {users.length} {users.length === 1 ? 'użytkownik' : 'użytkowników'}
-          </p>
+          <h1 className="text-xl font-bold">Użytkownicy & Claimy</h1>
+          <p className="text-gray-400 text-sm mt-0.5">Zarządzaj społecznością platformy</p>
         </div>
-        <button
-          onClick={() => setShowInvite(true)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          + Zaproś
-        </button>
+        {activeTab === 'users' && (
+          <button
+            onClick={() => setShowInvite(true)}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            + Zaproś
+          </button>
+        )}
       </div>
 
-      {/* Search */}
-      <input
-        type="text"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="Szukaj po emailu lub imieniu…"
-        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500"
-      />
+      {/* Tab nav */}
+      <div className="flex gap-2 border-b border-gray-800 pb-0">
+        {([['users', 'Użytkownicy'], ['claims', 'Team Claims']] as [ActiveTab, string][]).map(([tab, label]) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-medium transition-colors -mb-px border-b-2
+              ${activeTab === tab
+                ? 'text-white border-indigo-500'
+                : 'text-gray-500 border-transparent hover:text-gray-300'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-      {/* Table */}
-      {loading ? (
-        <p className="text-gray-500 text-sm py-8 text-center">Ładowanie…</p>
-      ) : error ? (
-        <p className="text-red-400 text-sm py-8 text-center">{error}</p>
-      ) : filtered.length === 0 ? (
-        <p className="text-gray-500 text-sm py-8 text-center">Brak użytkowników</p>
-      ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-800 text-xs text-gray-500">
-                <th className="text-left px-4 py-3 font-medium">Użytkownik</th>
-                <th className="text-left px-4 py-3 font-medium">Rola</th>
-                <th className="text-left px-4 py-3 font-medium">Status</th>
-                <th className="text-left px-4 py-3 font-medium">Dołączył</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((u, i) => (
-                <tr
-                  key={u.id}
-                  className={`border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors
-                    ${i === filtered.length - 1 ? 'border-b-0' : ''}`}
-                >
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-white">{u.displayName ?? '—'}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{u.email}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <RoleSelect
-                      user={u}
-                      isAdmin={isAdmin}
-                      token={token}
-                      onUpdated={reload}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        u.onboardingCompleted
-                          ? 'bg-green-900/40 text-green-400'
-                          : 'bg-amber-900/30 text-amber-400'
-                      }`}
+      {/* ── Users tab ── */}
+      {activeTab === 'users' && (
+        <>
+          {/* Search */}
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Szukaj po emailu lub imieniu…"
+            className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+          />
+
+          {/* Table */}
+          {loading ? (
+            <p className="text-gray-500 text-sm py-8 text-center">Ładowanie…</p>
+          ) : error ? (
+            <p className="text-red-400 text-sm py-8 text-center">{error}</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-gray-500 text-sm py-8 text-center">Brak użytkowników</p>
+          ) : (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800 text-xs text-gray-500">
+                    <th className="text-left px-4 py-3 font-medium">Użytkownik</th>
+                    <th className="text-left px-4 py-3 font-medium">Rola</th>
+                    <th className="text-left px-4 py-3 font-medium">Status</th>
+                    <th className="text-left px-4 py-3 font-medium">Dołączył</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((u, i) => (
+                    <tr
+                      key={u.id}
+                      className={`border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors
+                        ${i === filtered.length - 1 ? 'border-b-0' : ''}`}
                     >
-                      {u.onboardingCompleted ? 'Kompletny' : 'Niekompletny'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">
-                    {new Date(u.createdAt).toLocaleDateString('pl-PL')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-white">{u.displayName ?? '—'}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{u.email}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <RoleSelect
+                          user={u}
+                          isAdmin={isAdmin}
+                          token={token}
+                          onUpdated={reload}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            u.onboardingCompleted
+                              ? 'bg-green-900/40 text-green-400'
+                              : 'bg-amber-900/30 text-amber-400'
+                          }`}
+                        >
+                          {u.onboardingCompleted ? 'Kompletny' : 'Niekompletny'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500">
+                        {new Date(u.createdAt).toLocaleDateString('pl-PL')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
+
+      {/* ── Claims tab ── */}
+      {activeTab === 'claims' && <ClaimsTab token={token} />}
 
       {/* Invite modal */}
       {showInvite && (

@@ -12,6 +12,8 @@ import { MentorSection } from '@/app/components/MentorSection';
 import { PartnersSection } from '@/app/components/PartnersSection';
 import { TeamsSection } from '@/app/components/TeamsSection';
 import { ResultsTable } from '@/app/components/ResultsTable';
+import { VotingWidget } from '@/app/components/VotingWidget';
+import { TEAMS } from '@/data/editions/edition-2026/teams';
 import { CollapsibleSection } from '@/app/components/CollapsibleSection';
 import { editions } from '@/data/editions';
 import { Link } from 'react-router';
@@ -42,6 +44,12 @@ export function Edition2026() {
 
             {/* 3. Team projects */}
             <TeamsSection />
+
+            {/* 3b. People's Choice voting */}
+            <VotingWidget
+              editionNumber={3}
+              teams={TEAMS.map(t => ({ slug: t.id, name: t.name }))}
+            />
 
             {/* 4. CTA */}
             <section className="py-16 bg-gradient-to-br from-black via-purple-950/40 to-black relative overflow-hidden">
