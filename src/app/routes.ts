@@ -124,6 +124,8 @@ export const router = createBrowserRouter([
       },
       {
         path: 'admin',
+        // Legacy password-gated admin panel stays accessible (backdoor for ops)
+        // but new users should be sent to /login + Keycloak role-based flow.
         Component: AdminPanel,
       },
       {
@@ -178,6 +180,11 @@ export const router = createBrowserRouter([
       // ══ Auth & Panel (Faza 1-2) ══
       {
         path: 'logowanie',
+        Component: Logowanie,
+      },
+      {
+        // English alias — same component, same Keycloak PKCE flow.
+        path: 'login',
         Component: Logowanie,
       },
       {
