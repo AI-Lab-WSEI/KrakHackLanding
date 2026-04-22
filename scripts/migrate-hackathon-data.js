@@ -176,8 +176,21 @@ async function run() {
     }
 
     if (!DRY_RUN) {
+      // Backfill team_members from confirmed claims whose teams row now exists.
+      const backfill = await client.query(
+        `INSERT INTO team_members (team_id, user_id, role, joined_at)
+         SELECT t.id, tc.user_id, 'member', COALESCE(tc.reviewed_at, NOW())
+         FROM team_claims tc
+         JOIN teams t
+           ON t.slug = tc.team_slug
+          AND t.edition_number = tc.edition_number
+         WHERE tc.status = 'confirmed'
+         ON CONFLICT (team_id, user_id) DO NOTHING
+         RETURNING team_id, user_id`
+      );
+
       await client.query('COMMIT');
-      console.log(`\n✅ Done. Created: ${created}, Reused: ${skipped}`);
+      console.log(`\n✅ Done. Created: ${created}, Reused: ${skipped}, Linked members: ${backfill.rowCount}`);
     } else {
       await client.query('ROLLBACK');
       console.log(`\n[DRY RUN] Would create: ${created} projects/teams. Run with --apply to apply.`);

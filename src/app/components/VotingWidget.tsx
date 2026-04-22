@@ -24,6 +24,8 @@ interface Props {
   teams: Team[];
 }
 
+const LIVE_REFRESH_MS = 30_000;
+
 function useVotes(edition: number) {
   const [votes, setVotes]   = useState<TeamVote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,24 @@ function useVotes(edition: number) {
     }
   }, [edition]);
 
-  useEffect(() => { load(); }, [load]);
+  // Initial load + periodic refresh (every 30s) — only when tab is visible.
+  useEffect(() => {
+    load();
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, LIVE_REFRESH_MS);
+
+    // Refresh immediately on tab focus (in case results changed while hidden)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [load]);
 
   return { votes, loading, reload: load };
 }

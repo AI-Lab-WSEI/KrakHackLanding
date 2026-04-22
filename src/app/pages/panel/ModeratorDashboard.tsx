@@ -269,13 +269,15 @@ function useClaims(token: string | null, status?: string) {
   return { claims, loading, error, reload: load };
 }
 
-function ClaimsTab({ token }: { token: string | null }) {
+function ClaimsTab({ token, isAdmin }: { token: string | null; isAdmin: boolean }) {
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
   const { claims, loading, error, reload } = useClaims(
     token,
     filter === 'pending' ? 'pending' : undefined
   );
   const [acting, setActing] = useState<string | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
 
   async function act(id: string, action: 'confirm' | 'reject') {
     if (!token || acting) return;
@@ -292,6 +294,28 @@ function ClaimsTab({ token }: { token: string | null }) {
     }
   }
 
+  async function runBackfill() {
+    if (!token || backfilling) return;
+    setBackfilling(true);
+    setBackfillMsg(null);
+    try {
+      const res = await fetch('/api/panel/claims/backfill', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBackfillMsg(`OK — dolinkowano ${data.linked ?? 0} członków zespołów.`);
+      } else {
+        setBackfillMsg(data.error ?? 'Błąd');
+      }
+    } catch {
+      setBackfillMsg('Błąd sieci');
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
       pending:   'bg-amber-900/30 text-amber-400',
@@ -303,21 +327,38 @@ function ClaimsTab({ token }: { token: string | null }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Filter toggle */}
-      <div className="flex gap-2">
-        {(['pending', 'all'] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
-              filter === f
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-800 text-gray-400 hover:text-white'
-            }`}
-          >
-            {f === 'pending' ? 'Oczekujące' : 'Wszystkie'}
-          </button>
-        ))}
+      {/* Filter toggle + admin-only backfill */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex gap-2">
+          {(['pending', 'all'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
+                filter === f
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:text-white'
+              }`}
+            >
+              {f === 'pending' ? 'Oczekujące' : 'Wszystkie'}
+            </button>
+          ))}
+        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            {backfillMsg && (
+              <span className="text-xs text-gray-400">{backfillMsg}</span>
+            )}
+            <button
+              onClick={runBackfill}
+              disabled={backfilling}
+              className="text-xs px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white disabled:opacity-50"
+              title="Dolinkuj team_members dla wszystkich potwierdzonych claimów"
+            >
+              {backfilling ? 'Linkuję…' : '🔗 Backfill members'}
+            </button>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -525,7 +566,7 @@ export function ModeratorDashboard() {
       )}
 
       {/* ── Claims tab ── */}
-      {activeTab === 'claims' && <ClaimsTab token={token} />}
+      {activeTab === 'claims' && <ClaimsTab token={token} isAdmin={isAdmin} />}
 
       {/* Invite modal */}
       {showInvite && (

@@ -15,15 +15,17 @@ import { useAuth } from '@/contexts/AuthContext';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Event {
-  id:          string;
-  title:       string;
-  eventType:   string;
-  startsAt:    string | null;
-  deadlineAt:  string | null;
-  visibility:  string;
-  organizer:   string | null;
-  url:         string | null;
-  isFeatured:  boolean;
+  id:             string;
+  title:          string;
+  eventType:      string;
+  startsAt:       string | null;
+  deadlineAt:     string | null;
+  visibility:     string;
+  organizer:      string | null;
+  url:            string | null;
+  isFeatured:     boolean;
+  notifiedAt:     string | null;
+  notifiedCount:  number;
 }
 
 const EVENT_TYPE_LABEL: Record<string, string> = {
@@ -62,15 +64,17 @@ function useEvents(token: string | null) {
       const data = await res.json();
       setEvents(
         (data.events ?? []).map((e: Record<string, unknown>) => ({
-          id:         e.id,
-          title:      e.title,
-          eventType:  e.event_type ?? e.eventType,
-          startsAt:   e.starts_at  ?? e.startsAt  ?? null,
-          deadlineAt: e.deadline_at ?? e.deadlineAt ?? null,
-          visibility: e.visibility,
-          organizer:  e.organizer ?? null,
-          url:        e.url ?? null,
-          isFeatured: e.is_featured ?? e.isFeatured ?? false,
+          id:            e.id as string,
+          title:         e.title as string,
+          eventType:     (e.event_type ?? e.eventType) as string,
+          startsAt:      (e.starts_at  ?? e.startsAt  ?? null) as string | null,
+          deadlineAt:    (e.deadline_at ?? e.deadlineAt ?? null) as string | null,
+          visibility:    e.visibility as string,
+          organizer:     (e.organizer ?? null) as string | null,
+          url:           (e.url ?? null) as string | null,
+          isFeatured:    Boolean(e.is_featured ?? e.isFeatured),
+          notifiedAt:    (e.notified_at ?? e.notifiedAt ?? null) as string | null,
+          notifiedCount: Number(e.notified_count ?? e.notifiedCount ?? 0),
         }))
       );
     } catch (e) {
@@ -209,9 +213,42 @@ export function EventsAdminPage() {
   const { events, loading, error, reload } = useEvents(token);
   const [toggling, setToggling] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [notifying, setNotifying] = useState<string | null>(null);
+  const [notifyMsg, setNotifyMsg]   = useState<{ id: string; text: string } | null>(null);
 
   if (!user) return null;
   if (!user.keycloakRoles.includes('admin')) return <Navigate to="/panel" replace />;
+
+  async function notifyEvent(ev: Event) {
+    if (!token || notifying) return;
+    if (ev.visibility !== 'public') {
+      alert('Ustaw widoczność na "public" przed rozgłoszeniem.');
+      return;
+    }
+    const force = !!ev.notifiedAt;
+    if (force && !confirm('Wydarzenie już było rozgłoszone. Wysłać ponownie?')) return;
+    setNotifying(ev.id);
+    setNotifyMsg(null);
+    try {
+      const res = await fetch(`/api/events/${ev.id}/notify`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNotifyMsg({
+          id: ev.id,
+          text: `Wysłano do ${data.sent}/${data.recipients} odbiorców${data.failed ? ` (błędy: ${data.failed})` : ''}`,
+        });
+        reload();
+      } else {
+        setNotifyMsg({ id: ev.id, text: data.error ?? 'Błąd' });
+      }
+    } finally {
+      setNotifying(null);
+    }
+  }
 
   async function toggleVisibility(ev: Event) {
     if (!token || toggling) return;
@@ -310,7 +347,7 @@ export function EventsAdminPage() {
                     </button>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-2 flex-wrap">
                       {ev.url && (
                         <a
                           href={ev.url}
@@ -322,6 +359,24 @@ export function EventsAdminPage() {
                         </a>
                       )}
                       <button
+                        onClick={() => notifyEvent(ev)}
+                        disabled={notifying === ev.id || ev.visibility !== 'public'}
+                        className={`text-xs px-2.5 py-1 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                          ev.notifiedAt
+                            ? 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                            : 'bg-emerald-700 text-white hover:bg-emerald-600'
+                        }`}
+                        title={ev.notifiedAt
+                          ? `Rozgłoszono ${new Date(ev.notifiedAt).toLocaleString('pl-PL')} (${ev.notifiedCount} odbiorców) — klik = ponów`
+                          : ev.visibility === 'public' ? 'Wyślij maile do subskrybentów' : 'Najpierw ustaw visibility=public'}
+                      >
+                        {notifying === ev.id
+                          ? 'Wysyłam…'
+                          : ev.notifiedAt
+                            ? `✓ ${ev.notifiedCount}`
+                            : '📢 Rozgłoś'}
+                      </button>
+                      <button
                         onClick={() => deleteEvent(ev.id)}
                         disabled={deleting === ev.id}
                         className="text-xs text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
@@ -329,6 +384,9 @@ export function EventsAdminPage() {
                         {deleting === ev.id ? '…' : 'Usuń'}
                       </button>
                     </div>
+                    {notifyMsg?.id === ev.id && (
+                      <p className="text-[10px] text-gray-400 text-right mt-1">{notifyMsg.text}</p>
+                    )}
                   </td>
                 </tr>
               ))}

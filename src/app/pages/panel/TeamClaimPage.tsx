@@ -121,12 +121,20 @@ export function TeamClaimPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-10 flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold">Mój zespół</h1>
-        <p className="text-gray-400 text-sm mt-1">
-          Znajdź swój zespół z Hackathonu 2026 i zgłoś przynależność.
-          Admin potwierdzi Twoje zgłoszenie.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold">Mój zespół</h1>
+          <p className="text-gray-400 text-sm mt-1">
+            Znajdź swój zespół z Hackathonu 2026 i zgłoś przynależność.
+            Admin potwierdzi Twoje zgłoszenie.
+          </p>
+        </div>
+        <a
+          href="/panel/zespoly/nowy"
+          className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap"
+        >
+          + Utwórz nowy zespół
+        </a>
       </div>
 
       {/* Active claims */}

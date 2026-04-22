@@ -41,6 +41,9 @@ export interface AuthUser {
   graduationYear: number | null;
   skills: string[];
   onboardingCompleted: boolean;
+  isPublic: boolean;
+  notifyEvents: boolean;
+  profileSlug: string | null;
   keycloakRoles: string[];
 }
 

@@ -12,10 +12,12 @@ import { ProjectEditPage } from '@/app/pages/panel/ProjectEditPage';
 import { ProjectPublicView } from '@/app/pages/ProjectPublicView';
 import { JuryPanel } from '@/app/pages/JuryPanel';
 import { TeamClaimPage } from '@/app/pages/panel/TeamClaimPage';
+import { TeamCreatePage } from '@/app/pages/panel/TeamCreatePage';
 import { EventsPage } from '@/app/pages/EventsPage';
 import { EventsAdminPage } from '@/app/pages/panel/EventsAdminPage';
 import { ParticipantsPage } from '@/app/pages/ParticipantsPage';
 import { ParticipantProfile } from '@/app/pages/ParticipantProfile';
+import { JuryResultsPage } from '@/app/pages/JuryResultsPage';
 import { HomePage } from '@/app/pages/HomePage';
 import { Edition2026 } from '@/app/pages/Edition2026';
 import { Edition2025 } from '@/app/pages/Edition2025';
@@ -194,6 +196,7 @@ export const router = createBrowserRouter([
           { path: 'projekty/nowy',               Component: ProjectEditPage },
           { path: 'projekty/:id/edytuj',         Component: ProjectEditPage },
           { path: 'moj-zespol',                  Component: TeamClaimPage },
+          { path: 'zespoly/nowy',                Component: TeamCreatePage },
           { path: 'admin',                       Component: AdminDashboard },
           { path: 'admin/wydarzenia',            Component: EventsAdminPage },
           { path: 'moderator',                   Component: ModeratorDashboard },
@@ -220,6 +223,12 @@ export const router = createBrowserRouter([
       {
         path: 'uczestnicy/:slug',
         Component: ParticipantProfile,
+      },
+
+      // Jury results (public scoreboard)
+      {
+        path: 'wyniki/:edition',
+        Component: JuryResultsPage,
       },
     ],
   },

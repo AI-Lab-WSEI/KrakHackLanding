@@ -832,6 +832,9 @@ app.get('/api/me', verifyKeycloakToken, async (req, res) => {
       graduationYear: user.graduation_year,
       skills: user.skills ?? [],
       onboardingCompleted: user.onboarding_completed,
+      isPublic: user.is_public !== false,           // default true if column missing
+      notifyEvents: user.notify_events !== false,   // default true if column missing
+      profileSlug: user.profile_slug ?? null,
       keycloakRoles: roles,
     });
   } catch (err) {
@@ -1075,7 +1078,7 @@ app.patch('/api/panel/users/:id/role', requireRole('admin'), async (req, res) =>
  */
 app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
   const { keycloakId } = req.kcUser;
-  const { displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills } = req.body;
+  const { displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills, isPublic, notifyEvents } = req.body;
 
   // Auto-generate profile_slug the first time displayName is set (preserve URL once assigned)
   const candidateSlug = displayName
@@ -1093,6 +1096,8 @@ app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
          graduation_year = COALESCE($7, graduation_year),
          skills          = COALESCE($8, skills),
          profile_slug    = CASE WHEN profile_slug IS NULL AND $9 IS NOT NULL THEN $9 ELSE profile_slug END,
+         is_public       = COALESCE($10, is_public),
+         notify_events   = COALESCE($11, notify_events),
          updated_at      = NOW()
        WHERE keycloak_id = $1
        RETURNING id`,
@@ -1106,6 +1111,8 @@ app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
         graduationYear ? Number(graduationYear) : null,
         skills         ? JSON.stringify(skills) : null,
         candidateSlug,
+        typeof isPublic     === 'boolean' ? isPublic     : null,
+        typeof notifyEvents === 'boolean' ? notifyEvents : null,
       ]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
@@ -1117,6 +1124,48 @@ app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
 });
 
 // ─── Email builder: invite ────────────────────────────────────────────────────
+
+function buildEventNotificationEmail(event, eventsUrl) {
+  const dateStr = new Date(event.starts_at).toLocaleDateString('pl-PL', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  });
+  const deadlineStr = event.deadline_at
+    ? new Date(event.deadline_at).toLocaleDateString('pl-PL', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      })
+    : null;
+  const typeLabel = {
+    hackathon: '🏆 Hackathon', conference: '🎤 Konferencja', competition: '🥊 Konkurs',
+    workshop: '🛠 Warsztat', deadline: '⏰ Deadline', other: '📌 Wydarzenie',
+  }[event.event_type] || '📌 Wydarzenie';
+
+  const safeDesc = (event.description || '').slice(0, 400);
+  return `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1f2937">
+      <p style="color:#6366f1;font-size:12px;text-transform:uppercase;letter-spacing:2px;margin:0">
+        ${typeLabel}
+      </p>
+      <h2 style="color:#111827;margin:8px 0 16px 0">${event.title}</h2>
+      <p style="color:#4b5563;line-height:1.6">${safeDesc}</p>
+      <div style="background:#f3f4f6;border-radius:8px;padding:16px;margin:20px 0">
+        <p style="margin:0 0 4px 0"><strong>Start:</strong> ${dateStr}</p>
+        ${event.location ? `<p style="margin:0 0 4px 0"><strong>Miejsce:</strong> ${event.location}</p>` : ''}
+        ${event.organizer ? `<p style="margin:0 0 4px 0"><strong>Organizator:</strong> ${event.organizer}</p>` : ''}
+        ${deadlineStr ? `<p style="margin:0;color:#dc2626"><strong>Deadline:</strong> ${deadlineStr}</p>` : ''}
+      </div>
+      <p style="margin:24px 0">
+        <a href="${event.url || eventsUrl}"
+           style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+          Szczegóły →
+        </a>
+      </p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">
+        Dostajesz ten mail, bo masz włączone powiadomienia o wydarzeniach.
+        Możesz je wyłączyć w <a style="color:#6366f1" href="${eventsUrl.replace('/wydarzenia','/panel/profil')}">/panel/profil</a>.
+      </p>
+    </div>
+  `;
+}
 
 function buildInviteEmail(firstName, inviteUrl) {
   return `
@@ -4071,6 +4120,89 @@ app.delete('/api/events/:id', requireRole('admin'), async (req, res) => {
 });
 
 /**
+ * POST /api/events/:id/notify
+ * Admin/moderator. Broadcasts the event to all subscribed users (notify_events=true).
+ * Respects users.is_active + onboarding_completed. Sets events.notified_at on success.
+ * Returns: { sent, failed, skippedAlreadyNotified? }
+ */
+app.post('/api/events/:id/notify', requireRole('admin', 'moderator'), async (req, res) => {
+  const { id } = req.params;
+  const { force } = req.body || {};
+
+  try {
+    const eventResult = await pool.query(
+      `SELECT id, title, description, event_type, starts_at, ends_at, deadline_at,
+              location, url, organizer, visibility, notified_at
+       FROM events WHERE id = $1`,
+      [id]
+    );
+    if (eventResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Wydarzenie nie znalezione' });
+    }
+    const event = eventResult.rows[0];
+
+    if (event.visibility !== 'public') {
+      return res.status(400).json({
+        error: 'Wydarzenie musi mieć visibility=public przed powiadomieniem',
+      });
+    }
+    if (event.notified_at && !force) {
+      return res.status(409).json({
+        error: 'Wydarzenie już zostało rozgłoszone — użyj force=true aby powtórzyć',
+        notifiedAt: event.notified_at,
+      });
+    }
+
+    // Fetch subscribed recipients
+    const recipientsResult = await pool.query(
+      `SELECT email, display_name
+       FROM users
+       WHERE is_active = true
+         AND onboarding_completed = true
+         AND notify_events = true
+         AND email IS NOT NULL`
+    );
+    const recipients = recipientsResult.rows;
+
+    if (recipients.length === 0) {
+      await pool.query(
+        `UPDATE events SET notified_at = NOW(), notified_count = 0 WHERE id = $1`,
+        [id]
+      );
+      return res.json({ sent: 0, failed: 0, recipients: 0 });
+    }
+
+    const baseUrl = process.env.FRONTEND_URL || 'https://krakhack.info';
+    const eventsUrl = `${baseUrl}/wydarzenia`;
+    const subject = `📢 Nowe wydarzenie: ${event.title}`;
+    const html = buildEventNotificationEmail(event, eventsUrl);
+
+    // Send in chunks of 10 to respect Resend rate limits
+    let sent = 0, failed = 0;
+    for (let i = 0; i < recipients.length; i += 10) {
+      const batch = recipients.slice(i, i + 10);
+      const results = await Promise.allSettled(
+        batch.map(r => sendResendEmail(r.email, subject, html))
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) sent++;
+        else failed++;
+      }
+    }
+
+    await pool.query(
+      `UPDATE events SET notified_at = NOW(), notified_count = $2 WHERE id = $1`,
+      [id, sent]
+    );
+
+    res.json({ sent, failed, recipients: recipients.length });
+  } catch (err) {
+    console.error('[/api/events/:id/notify] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
  * POST /api/events/bot
  * Bot webhook (OpenClaw / Discord). Authenticated via X-Bot-Key header.
  * Body: { title, startsAt, description?, eventType?, url?, organizer?, tags?, relevanceScore? }
@@ -6157,6 +6289,7 @@ app.get('/api/public/participants', async (req, res) => {
        WHERE onboarding_completed = true
          AND profile_slug IS NOT NULL
          AND is_active = true
+         AND is_public = true
        ORDER BY display_name ASC
        LIMIT 500`
     );
@@ -6192,7 +6325,10 @@ app.get('/api/public/participants/:slug', async (req, res) => {
       `SELECT id, profile_slug, display_name, avatar_url, bio,
               university, graduation_year, skills, github_url, linkedin_url, role
        FROM users
-       WHERE profile_slug = $1 AND onboarding_completed = true AND is_active = true`,
+       WHERE profile_slug = $1
+         AND onboarding_completed = true
+         AND is_active = true
+         AND is_public = true`,
       [slug]
     );
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
@@ -6322,6 +6458,155 @@ app.patch('/api/panel/claims/:id', requireRole('admin', 'moderator'), async (req
     res.status(500).json({ error: 'Błąd serwera' });
   } finally {
     client.release();
+  }
+});
+
+// ─── Faza 9: Team self-registration ───────────────────────────────────────────
+
+/**
+ * POST /api/hackathon/teams
+ * Authenticated participant creates a new team for an edition.
+ * Body: { name, description?, editionNumber? }
+ * Creator is inserted as 'captain'. Slug auto-generated from name.
+ * Returns: { id, slug }
+ */
+app.post('/api/hackathon/teams', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const { name, description, editionNumber = 3 } = req.body;
+
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ error: 'Podaj nazwę zespołu' });
+  }
+  const trimmedName = name.trim();
+  if (trimmedName.length > 255) {
+    return res.status(400).json({ error: 'Nazwa za długa (max 255 znaków)' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Resolve user
+    const userResult = await client.query(
+      'SELECT id FROM users WHERE keycloak_id = $1',
+      [keycloakId]
+    );
+    if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    }
+    const userId = userResult.rows[0].id;
+
+    // Generate unique slug. Retry a few times on collision (slug is UNIQUE).
+    let slug = slugify(trimmedName);
+    if (!slug) slug = 'team';
+    let attempt = 0;
+    let inserted = null;
+    while (attempt < 5 && !inserted) {
+      const candidate = attempt === 0 ? slug : `${slug}-${crypto.randomBytes(2).toString('hex')}`;
+      try {
+        const r = await client.query(
+          `INSERT INTO teams (name, slug, description, edition_number, created_by, created_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())
+           RETURNING id, slug`,
+          [trimmedName, candidate, description?.trim() || null, editionNumber, userId]
+        );
+        inserted = r.rows[0];
+      } catch (err) {
+        if (err.code === '23505') {  // unique_violation
+          attempt++;
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (!inserted) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Nie udało się wygenerować unikalnego slugu' });
+    }
+
+    // Creator becomes captain
+    await client.query(
+      `INSERT INTO team_members (team_id, user_id, role, joined_at)
+       VALUES ($1, $2, 'captain', NOW())
+       ON CONFLICT (team_id, user_id) DO NOTHING`,
+      [inserted.id, userId]
+    );
+
+    await client.query('COMMIT');
+    res.status(201).json({ id: inserted.id, slug: inserted.slug });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[/api/hackathon/teams POST] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * GET /api/panel/my-teams
+ * Authenticated. Returns all teams the current user is a member of.
+ */
+app.get('/api/panel/my-teams', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.json({ teams: [] });
+    const userId = userResult.rows[0].id;
+
+    const { rows } = await pool.query(
+      `SELECT t.id, t.name, t.slug, t.description, t.edition_number, t.avatar_url,
+              tm.role, tm.joined_at,
+              (SELECT COUNT(*)::int FROM team_members WHERE team_id = t.id) AS member_count
+       FROM team_members tm
+       JOIN teams t ON t.id = tm.team_id
+       WHERE tm.user_id = $1
+       ORDER BY t.created_at DESC`,
+      [userId]
+    );
+    res.json({
+      teams: rows.map(r => ({
+        id:             r.id,
+        name:           r.name,
+        slug:           r.slug,
+        description:    r.description,
+        editionNumber:  r.edition_number,
+        avatarUrl:      r.avatar_url,
+        role:           r.role,
+        joinedAt:       r.joined_at,
+        memberCount:    r.member_count,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/panel/my-teams] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * POST /api/panel/claims/backfill
+ * Admin only. Backfills team_members from all confirmed team_claims whose
+ * (team_slug, edition_number) now has a matching teams row.
+ * Idempotent — safe to re-run anytime (e.g. after running Faza 4 migration).
+ */
+app.post('/api/panel/claims/backfill', requireRole('admin'), async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO team_members (team_id, user_id, role, joined_at)
+       SELECT t.id, tc.user_id, 'member', COALESCE(tc.reviewed_at, NOW())
+       FROM team_claims tc
+       JOIN teams t
+         ON t.slug = tc.team_slug
+        AND t.edition_number = tc.edition_number
+       WHERE tc.status = 'confirmed'
+       ON CONFLICT (team_id, user_id) DO NOTHING
+       RETURNING team_id, user_id`
+    );
+    res.json({ ok: true, linked: rows.length });
+  } catch (err) {
+    console.error('[/api/panel/claims/backfill] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
   }
 });
 

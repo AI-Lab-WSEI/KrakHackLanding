@@ -18,6 +18,8 @@ export function ProfilePage() {
     graduationYear: user?.graduationYear?.toString() ?? '',
     skills:         user?.skills?.join(', ')  ?? '',
   });
+  const [isPublic, setIsPublic] = useState<boolean>(user?.isPublic !== false);
+  const [notifyEvents, setNotifyEvents] = useState<boolean>(user?.notifyEvents !== false);
   const [saving, setSaving]   = useState(false);
   const [saved,  setSaved]    = useState(false);
   const [error,  setError]    = useState<string | null>(null);
@@ -42,6 +44,8 @@ export function ProfilePage() {
           .split(',')
           .map(s => s.trim())
           .filter(Boolean),
+        isPublic,
+        notifyEvents,
       };
       const res = await fetch('/api/panel/me', {
         method: 'PATCH',
@@ -116,6 +120,53 @@ export function ProfilePage() {
         {field('skills', 'Umiejętności (po przecinku)', {
           placeholder: 'React, TypeScript, Python, ML',
         })}
+
+        {/* Privacy + notifications toggles */}
+        <div className="border-t border-gray-800 pt-4 mt-2 flex flex-col gap-4">
+          {/* Profile public */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative mt-0.5 shrink-0">
+              <input
+                type="checkbox"
+                checked={isPublic}
+                onChange={e => setIsPublic(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-10 h-5 bg-gray-700 rounded-full peer-checked:bg-indigo-600 transition-colors" />
+              <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5" />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm text-white font-medium">Profil publiczny</div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {isPublic
+                  ? <>Pojawiasz się na liście <a className="underline" href="/uczestnicy" target="_blank" rel="noreferrer">/uczestnicy</a> i masz publiczny link do profilu{user.profileSlug ? <> — <code className="text-gray-400">/uczestnicy/{user.profileSlug}</code></> : '.'}</>
+                  : 'Twój profil jest ukryty — nie pojawiasz się w katalogu i strona profilu zwraca 404.'}
+              </p>
+            </div>
+          </label>
+
+          {/* Event notifications */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative mt-0.5 shrink-0">
+              <input
+                type="checkbox"
+                checked={notifyEvents}
+                onChange={e => setNotifyEvents(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-10 h-5 bg-gray-700 rounded-full peer-checked:bg-indigo-600 transition-colors" />
+              <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5" />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm text-white font-medium">Powiadomienia mailowe o wydarzeniach</div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {notifyEvents
+                  ? 'Dostajesz maila gdy admin dodaje nowy hackathon, warsztat lub deadline.'
+                  : 'Nie dostajesz maili o nowych wydarzeniach (nadal widać je w kalendarzu /wydarzenia).'}
+              </p>
+            </div>
+          </label>
+        </div>
 
         {error && (
           <p className="text-xs text-red-400 bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">
