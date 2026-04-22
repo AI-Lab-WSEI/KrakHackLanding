@@ -5769,12 +5769,13 @@ app.get('/sitemap.xml', (req, res) => {
   res.type('application/xml').send(sitemap);
 });
 
-// SPA fallback with OG meta tag injection for certificate pages
-app.get('*', async (req, res) => {
-  // Don't serve HTML for API routes — let later routes match or Express return 404 JSON.
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'Nie znaleziono endpointu', path: req.path });
-  }
+// SPA fallback with OG meta tag injection for certificate pages.
+// IMPORTANT: Express tries handlers in order. Any /api route defined AFTER this
+// wildcard would normally be hijacked. We skip /api/* via next() so later
+// handlers (Faza 8+ endpoints) can match; if nothing does, a JSON 404 handler
+// registered at the end of this file catches it.
+app.get('*', async (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
   const indexPath = path.join(__dirname, 'dist', 'index.html');
 
   // Inject OG meta tags for /verify/:hash URLs
@@ -6637,6 +6638,12 @@ app.get('/api/hackathon/my-vote', verifyKeycloakToken, async (req, res) => {
     console.error('[/api/hackathon/my-vote] Error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
   }
+});
+
+// Final 404 handler for /api/* paths that no earlier route matched.
+// (Non-API paths were handled by the SPA fallback above.)
+app.use('/api/', (req, res) => {
+  res.status(404).json({ error: 'Nie znaleziono endpointu', path: req.path });
 });
 
 // ─── Start ─────────────────────────────────────────────────
