@@ -3494,6 +3494,206 @@ app.get('/api/admin/migrate-hackathon-data/status', requireRole('admin'), async 
   }
 });
 
+// ─── Jury panel (Faza 5) ──────────────────────────────────────────────────────
+
+/**
+ * Jury magic-token middleware.
+ * Reads token from Authorization header OR ?token= query param.
+ */
+async function verifyJuryToken(req, res, next) {
+  const token = (req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : null) ?? req.query.token;
+
+  if (!token) return res.status(401).json({ error: 'Missing jury token' });
+  try {
+    const result = await pool.query(
+      'SELECT * FROM jury_members WHERE magic_token = $1 AND token_expires_at > NOW()',
+      [token]
+    );
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid or expired jury token' });
+    }
+    req.juror = result.rows[0];
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Auth check failed' });
+  }
+}
+
+/**
+ * POST /api/jury/magic-link
+ * Admin creates/refreshes a magic link for a jury member.
+ * Body: { name, title?, company?, editionNumber, avatarUrl?, isHeadJury?, expiresInDays? }
+ */
+app.post('/api/jury/magic-link', requireRole('admin'), async (req, res) => {
+  const {
+    name, title, company, editionNumber, avatarUrl,
+    isHeadJury = false, expiresInDays = 14,
+  } = req.body;
+
+  if (!name || !editionNumber) {
+    return res.status(400).json({ error: 'name i editionNumber są wymagane' });
+  }
+
+  const token   = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, ''); // 64-char token
+  const expires = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO jury_members (name, title, company, avatar_url, edition_number,
+                                  is_head_jury, magic_token, token_expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+       ON CONFLICT (magic_token) DO UPDATE SET
+         name = EXCLUDED.name,
+         magic_token = EXCLUDED.magic_token,
+         token_expires_at = EXCLUDED.token_expires_at
+       RETURNING id, magic_token`,
+      [name, title ?? null, company ?? null, avatarUrl ?? null,
+       editionNumber, isHeadJury, token, expires]
+    );
+
+    const jurorId   = result.rows[0].id;
+    const magicLink = `${process.env.FRONTEND_URL || 'https://krakhack.info'}/jury/${token}`;
+
+    // Optionally send email (if company/name provided)
+    // sendResendEmail(email, ...) — skipped since jury member email not in table
+
+    res.json({ ok: true, jurorId, magicLink, expiresAt: expires });
+  } catch (err) {
+    console.error('[/api/jury/magic-link] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/jury/verify?token=XXX
+ * Public. Verifies magic token and returns juror info.
+ */
+app.get('/api/jury/verify', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ error: 'Brak tokenu' });
+  try {
+    const result = await pool.query(
+      'SELECT id, name, title, company, edition_number FROM jury_members WHERE magic_token = $1 AND token_expires_at > NOW()',
+      [token]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Nieprawidłowy lub wygasły link' });
+    }
+    const j = result.rows[0];
+    res.json({
+      id:            j.id,
+      name:          j.name,
+      title:         j.title,
+      company:       j.company,
+      editionNumber: j.edition_number,
+    });
+  } catch (err) {
+    console.error('[/api/jury/verify] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/jury/projects?edition=3
+ * Returns team_projects for the juror's edition, merged with own scores.
+ * Requires jury magic-token auth.
+ */
+app.get('/api/jury/projects', verifyJuryToken, async (req, res) => {
+  const editionNumber = parseInt(req.query.edition) || req.juror.edition_number;
+  try {
+    const projects = await pool.query(
+      `SELECT tp.*,
+              js.innovation, js.technical_value, js.usefulness, js.presentation_quality, js.notes,
+              js.scores AS scores_json
+       FROM team_projects tp
+       LEFT JOIN jury_scores js ON js.team_slug = tp.slug
+                                AND js.edition_number = tp.edition_number
+                                AND (js.jury_member_id = $2 OR js.juror_name = $3)
+       WHERE tp.edition_number = $1
+       ORDER BY tp.placement NULLS LAST, tp.name`,
+      [editionNumber, req.juror.id, req.juror.name]
+    );
+
+    res.json({
+      projects: projects.rows.map(p => ({
+        id:               p.id,
+        slug:             p.slug,
+        name:             p.name,
+        projectName:      p.project_name || p.name,
+        challenge:        p.challenge,
+        members:          p.members ?? [],
+        shortDescription: p.short_description ?? '',
+        technologies:     p.technologies ?? [],
+        scores: (p.innovation !== null || p.scores_json)
+          ? {
+              innovation:           p.innovation ?? 0,
+              technical_value:      p.technical_value ?? 0,
+              usefulness:           p.usefulness ?? 0,
+              presentation_quality: p.presentation_quality ?? 0,
+              ...(p.scores_json ?? {}),
+            }
+          : null,
+        notes: p.notes ?? '',
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/jury/projects] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * POST /api/jury/scores
+ * Upserts a juror's scores for a team.
+ * Body: { teamSlug, scores: { innovation, technical_value, usefulness, presentation_quality }, notes? }
+ */
+app.post('/api/jury/scores', verifyJuryToken, async (req, res) => {
+  const { teamSlug, scores, notes } = req.body;
+  if (!teamSlug || !scores) return res.status(400).json({ error: 'teamSlug i scores są wymagane' });
+
+  const { innovation, technical_value, usefulness, presentation_quality } = scores;
+
+  try {
+    // Fetch team_project info
+    const tp = await pool.query(
+      'SELECT id, edition_number, challenge FROM team_projects WHERE slug = $1 AND edition_number = $2',
+      [teamSlug, req.juror.edition_number]
+    );
+    if (tp.rows.length === 0) return res.status(404).json({ error: 'Projekt nie znaleziony' });
+    const { id: teamProjectId, edition_number: editionNumber, challenge } = tp.rows[0];
+
+    await pool.query(
+      `INSERT INTO jury_scores (
+         edition_number, team_project_id, team_slug, challenge, juror_name,
+         jury_member_id, innovation, technical_value, usefulness, presentation_quality, scores, notes,
+         created_at, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())
+       ON CONFLICT (edition_number, team_slug, juror_name) DO UPDATE SET
+         innovation           = EXCLUDED.innovation,
+         technical_value      = EXCLUDED.technical_value,
+         usefulness           = EXCLUDED.usefulness,
+         presentation_quality = EXCLUDED.presentation_quality,
+         scores               = EXCLUDED.scores,
+         notes                = EXCLUDED.notes,
+         jury_member_id       = EXCLUDED.jury_member_id,
+         updated_at           = NOW()`,
+      [
+        editionNumber, teamProjectId, teamSlug, challenge, req.juror.name,
+        req.juror.id,
+        innovation ?? 0, technical_value ?? 0, usefulness ?? 0, presentation_quality ?? 0,
+        JSON.stringify(scores),
+        notes ?? '',
+      ]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/jury/scores] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
 // ─── Team Projects API ──────────────────────────────────────
 
 // POST /api/admin/team-projects/seed — Seed from JSON data (admin)

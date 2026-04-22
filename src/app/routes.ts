@@ -10,6 +10,7 @@ import { ProfilePage } from '@/app/pages/panel/ProfilePage';
 import { ProjectsPage } from '@/app/pages/panel/ProjectsPage';
 import { ProjectEditPage } from '@/app/pages/panel/ProjectEditPage';
 import { ProjectPublicView } from '@/app/pages/ProjectPublicView';
+import { JuryPanel } from '@/app/pages/JuryPanel';
 import { HomePage } from '@/app/pages/HomePage';
 import { Edition2026 } from '@/app/pages/Edition2026';
 import { Edition2025 } from '@/app/pages/Edition2025';
@@ -204,5 +205,11 @@ export const router = createBrowserRouter([
   {
     path: '/auth/callback',
     Component: AuthCallback,
+  },
+
+  // Jury panel — magic-link, no Keycloak, full-screen standalone
+  {
+    path: '/jury/:token',
+    Component: JuryPanel,
   },
 ]);
