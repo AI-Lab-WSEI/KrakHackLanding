@@ -61,9 +61,9 @@ export function PanelHome() {
       {/* Quick links grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {([
-          { label: 'Moje projekty', emoji: '📁', disabled: true,  phase: 'Faza 3' },
-          { label: 'Mój zespół',    emoji: '👥', disabled: true,  phase: 'Faza 3' },
-          { label: 'Kalendarz',     emoji: '📅', disabled: true,  phase: 'Faza 7' },
+          { label: 'Moje projekty', emoji: '📁', disabled: false, href: '/panel/projekty' },
+          { label: 'Mój zespół',    emoji: '👥', disabled: false, href: '/panel/moj-zespol' },
+          { label: 'Wydarzenia',    emoji: '📅', disabled: false, href: '/wydarzenia' },
           { label: 'Certyfikaty',   emoji: '🏆', disabled: false, href: '/verify' },
         ] as const).map(item => (
           <button
