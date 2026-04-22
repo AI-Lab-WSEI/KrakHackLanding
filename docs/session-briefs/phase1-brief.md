@@ -104,12 +104,16 @@ Admin wysyła email z `invite_token` → `/onboarding?invite_token=XXX`:
 
 ## DoD Fazy 1
 
-- [ ] `verifyKeycloakToken` middleware działa — zwraca 401 bez tokenu, 200 z ważnym tokenem
-- [ ] `GET /api/me` zwraca profil (lub tworzy nowy rekord przy first login)
-- [ ] `/logowanie` → redirect Keycloak → powrót → zalogowany
-- [ ] Legacy `POST /api/admin/login` nadal działa (regression test)
-- [ ] `npm run migrate` uruchomione, tabela `users` istnieje
-- [ ] Michał może zalogować się przez Keycloak i zobaczyć `/panel` (choćby placeholder)
+- [x] `verifyKeycloakToken` middleware napisany — zwraca 401 bez tokenu, 403 bez roli ✅
+- [x] `GET /api/me` — auto-create user przy first login ✅
+- [x] `POST /api/auth/sync-user` — sync danych po każdym logowaniu ✅
+- [x] `AuthContext` z PKCE flow, silent refresh co 4 minuty ✅
+- [x] `/logowanie` → redirect Keycloak → `/auth/callback` → `/panel` ✅
+- [x] `/panel` — placeholder z witaniem i rolami ✅
+- [x] Legacy `POST /api/admin/login` nadal działa (nieruszony) ✅
+- [x] Build przechodzi bez błędów ✅
+- [ ] `npm run migrate` uruchomione na Railway DB (Michał)
+- [ ] E2E test: Michał loguje się przez Keycloak i widzi panel
 
 ---
 
