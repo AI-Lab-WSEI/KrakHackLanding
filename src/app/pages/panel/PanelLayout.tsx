@@ -16,6 +16,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/panel',            label: 'Dashboard',   emoji: '🏠', end: true },
+  { to: '/panel/profil',     label: 'Mój profil',  emoji: '👤' },
+  { to: '/panel/projekty',   label: 'Projekty',    emoji: '📁' },
   { to: '/panel/moderator',  label: 'Użytkownicy', emoji: '👥', roles: ['admin', 'moderator'] },
   { to: '/panel/admin',      label: 'Admin',       emoji: '⚙️', roles: ['admin'] },
   { to: '/verify',           label: 'Certyfikaty', emoji: '🏆' },

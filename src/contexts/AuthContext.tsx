@@ -34,6 +34,12 @@ export interface AuthUser {
   displayName: string | null;
   avatarUrl: string | null;
   role: string;
+  bio: string | null;
+  githubUrl: string | null;
+  linkedinUrl: string | null;
+  university: string | null;
+  graduationYear: number | null;
+  skills: string[];
   onboardingCompleted: boolean;
   keycloakRoles: string[];
 }

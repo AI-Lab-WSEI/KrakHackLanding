@@ -6,6 +6,10 @@ import { PanelLayout } from '@/app/pages/panel/PanelLayout';
 import { PanelHome } from '@/app/pages/panel/PanelHome';
 import { AdminDashboard } from '@/app/pages/panel/AdminDashboard';
 import { ModeratorDashboard } from '@/app/pages/panel/ModeratorDashboard';
+import { ProfilePage } from '@/app/pages/panel/ProfilePage';
+import { ProjectsPage } from '@/app/pages/panel/ProjectsPage';
+import { ProjectEditPage } from '@/app/pages/panel/ProjectEditPage';
+import { ProjectPublicView } from '@/app/pages/ProjectPublicView';
 import { HomePage } from '@/app/pages/HomePage';
 import { Edition2026 } from '@/app/pages/Edition2026';
 import { Edition2025 } from '@/app/pages/Edition2025';
@@ -178,10 +182,20 @@ export const router = createBrowserRouter([
         path: 'panel',
         Component: PanelLayout,
         children: [
-          { index: true,         Component: PanelHome },
-          { path: 'admin',       Component: AdminDashboard },
-          { path: 'moderator',   Component: ModeratorDashboard },
+          { index: true,                         Component: PanelHome },
+          { path: 'profil',                      Component: ProfilePage },
+          { path: 'projekty',                    Component: ProjectsPage },
+          { path: 'projekty/nowy',               Component: ProjectEditPage },
+          { path: 'projekty/:id/edytuj',         Component: ProjectEditPage },
+          { path: 'admin',                       Component: AdminDashboard },
+          { path: 'moderator',                   Component: ModeratorDashboard },
         ],
+      },
+
+      // Public project view (no auth required)
+      {
+        path: 'projekty/:slug',
+        Component: ProjectPublicView,
       },
     ],
   },

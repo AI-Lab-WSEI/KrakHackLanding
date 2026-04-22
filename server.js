@@ -1114,6 +1114,256 @@ function buildInviteEmail(firstName, inviteUrl) {
   `;
 }
 
+// ─── Projects — CRUD (Faza 3) ────────────────────────────────────────────────
+
+/**
+ * GET /api/panel/projects
+ * Own projects for the logged-in user.
+ */
+app.get('/api/panel/projects', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const userId = userResult.rows[0].id;
+
+    const result = await pool.query(
+      `SELECT id, slug, title, description, status, visibility, project_type,
+              tech_stack, tags, github_url, demo_url, thumbnail_url, created_at
+       FROM projects
+       WHERE owner_user_id = $1
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+    res.json({
+      projects: result.rows.map(p => ({
+        id:          p.id,
+        slug:        p.slug,
+        title:       p.title,
+        description: p.description,
+        status:      p.status,
+        visibility:  p.visibility,
+        projectType: p.project_type,
+        techStack:   p.tech_stack ?? [],
+        tags:        p.tags ?? [],
+        githubUrl:   p.github_url,
+        demoUrl:     p.demo_url,
+        thumbnailUrl:p.thumbnail_url,
+        createdAt:   p.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/panel/projects GET] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/panel/projects/:id
+ * Get a single project (owner only).
+ */
+app.get('/api/panel/projects/:id', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const userId = userResult.rows[0].id;
+
+    const result = await pool.query(
+      `SELECT * FROM projects WHERE id = $1 AND owner_user_id = $2`,
+      [req.params.id, userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Projekt nie znaleziony' });
+    const p = result.rows[0];
+    res.json({
+      id:          p.id,
+      slug:        p.slug,
+      title:       p.title,
+      description: p.description,
+      status:      p.status,
+      visibility:  p.visibility,
+      projectType: p.project_type,
+      techStack:   p.tech_stack ?? [],
+      tags:        p.tags ?? [],
+      githubUrl:   p.github_url,
+      demoUrl:     p.demo_url,
+      thumbnailUrl:p.thumbnail_url,
+    });
+  } catch (err) {
+    console.error('[/api/panel/projects/:id GET] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * POST /api/panel/projects
+ * Create a new project.
+ */
+app.post('/api/panel/projects', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const { title, slug, description, projectType, visibility, status,
+          techStack, tags, githubUrl, demoUrl } = req.body;
+
+  if (!title || !slug) return res.status(400).json({ error: 'title i slug są wymagane' });
+
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const userId = userResult.rows[0].id;
+
+    const result = await pool.query(
+      `INSERT INTO projects (
+         slug, title, description, project_type, visibility, status,
+         tech_stack, tags, github_url, demo_url, owner_user_id, created_at, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())
+       RETURNING id, slug`,
+      [
+        slug,
+        title,
+        description   ?? null,
+        projectType   ?? 'personal',
+        visibility    ?? 'private',
+        status        ?? 'draft',
+        techStack     ?? [],
+        tags          ?? [],
+        githubUrl     ?? null,
+        demoUrl       ?? null,
+        userId,
+      ]
+    );
+    res.status(201).json({ ok: true, id: result.rows[0].id, slug: result.rows[0].slug });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Slug już istnieje — spróbuj innej nazwy projektu' });
+    }
+    console.error('[/api/panel/projects POST] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * PATCH /api/panel/projects/:id
+ * Update own project.
+ */
+app.patch('/api/panel/projects/:id', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const { title, description, projectType, visibility, status,
+          techStack, tags, githubUrl, demoUrl } = req.body;
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const userId = userResult.rows[0].id;
+
+    const result = await pool.query(
+      `UPDATE projects SET
+         title        = COALESCE($3, title),
+         description  = COALESCE($4, description),
+         project_type = COALESCE($5, project_type),
+         visibility   = COALESCE($6, visibility),
+         status       = COALESCE($7, status),
+         tech_stack   = COALESCE($8, tech_stack),
+         tags         = COALESCE($9, tags),
+         github_url   = COALESCE($10, github_url),
+         demo_url     = COALESCE($11, demo_url),
+         updated_at   = NOW()
+       WHERE id = $1 AND owner_user_id = $2
+       RETURNING id`,
+      [
+        req.params.id, userId,
+        title        ?? null,
+        description  ?? null,
+        projectType  ?? null,
+        visibility   ?? null,
+        status       ?? null,
+        techStack    ? techStack : null,
+        tags         ? tags      : null,
+        githubUrl    ?? null,
+        demoUrl      ?? null,
+      ]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Projekt nie znaleziony' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/panel/projects/:id PATCH] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * DELETE /api/panel/projects/:id
+ * Delete own project.
+ */
+app.delete('/api/panel/projects/:id', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const userId = userResult.rows[0].id;
+
+    const result = await pool.query(
+      'DELETE FROM projects WHERE id = $1 AND owner_user_id = $2 RETURNING id',
+      [req.params.id, userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Projekt nie znaleziony' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/panel/projects/:id DELETE] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/public/projects/:slug
+ * Public project view — no auth required.
+ * Only returns projects with visibility = 'public'.
+ */
+app.get('/api/public/projects/:slug', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT p.*,
+              u.display_name  AS owner_display_name,
+              u.avatar_url    AS owner_avatar_url,
+              u.github_url    AS owner_github_url,
+              t.name          AS team_name,
+              t.slug          AS team_slug
+       FROM projects p
+       LEFT JOIN users  u ON u.id = p.owner_user_id
+       LEFT JOIN teams  t ON t.id = p.team_id
+       WHERE p.slug = $1 AND p.visibility = 'public'`,
+      [req.params.slug]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Projekt nie znaleziony' });
+    const p = result.rows[0];
+    res.json({
+      id:             p.id,
+      slug:           p.slug,
+      title:          p.title,
+      description:    p.description,
+      projectType:    p.project_type,
+      techStack:      p.tech_stack  ?? [],
+      tags:           p.tags        ?? [],
+      githubUrl:      p.github_url,
+      demoUrl:        p.demo_url,
+      thumbnailUrl:   p.thumbnail_url,
+      images:         p.images      ?? [],
+      placementLabel: p.placement_label,
+      specialMention: p.special_mention,
+      owner: p.owner_display_name ? {
+        displayName: p.owner_display_name,
+        avatarUrl:   p.owner_avatar_url,
+        githubUrl:   p.owner_github_url,
+      } : null,
+      team: p.team_name ? {
+        name: p.team_name,
+        slug: p.team_slug,
+      } : null,
+    });
+  } catch (err) {
+    console.error('[/api/public/projects/:slug] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
 // Submit form (public)
 app.post('/api/submissions', async (req, res) => {
   try {
