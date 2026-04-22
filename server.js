@@ -750,7 +750,96 @@ function requireRole(...roles) {
 
 // ─── API Routes ────────────────────────────────────────────
 
-// Admin login
+/**
+ * POST /api/auth/login
+ * Custom login form (Keycloak ROPC — Direct Access Grants).
+ * Frontend collects email+password, posts here; we proxy to Keycloak's token
+ * endpoint and return the access_token + refresh_token directly.
+ *
+ * Requires on Keycloak `frontend-app` client: "Direct Access Grants: Enabled".
+ */
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Podaj email i hasło' });
+  }
+  if (!KEYCLOAK_URL) {
+    return res.status(503).json({ error: 'Auth service not configured' });
+  }
+  const clientId = process.env.KEYCLOAK_FRONTEND_CLIENT_ID || 'frontend-app';
+  try {
+    const tokenRes = await fetch(
+      `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          client_id:  clientId,
+          username:   String(email).trim().toLowerCase(),
+          password:   String(password),
+          scope:      'openid profile email',
+        }),
+      }
+    );
+    if (!tokenRes.ok) {
+      // Keycloak returns 401 for wrong credentials, 400 for other issues.
+      const errBody = await tokenRes.text().catch(() => '');
+      const status  = tokenRes.status;
+      let message   = 'Nieprawidłowy email lub hasło';
+      try {
+        const j = JSON.parse(errBody);
+        if (j.error_description) message = j.error_description;
+      } catch { /* keep generic msg */ }
+      return res.status(status === 401 ? 401 : 400).json({ error: message });
+    }
+    const data = await tokenRes.json();
+    res.json({
+      accessToken:  data.access_token,
+      refreshToken: data.refresh_token,
+      expiresIn:    data.expires_in,
+    });
+  } catch (err) {
+    console.error('[/api/auth/login] Error:', err);
+    res.status(500).json({ error: 'Błąd połączenia z Keycloak' });
+  }
+});
+
+/**
+ * POST /api/auth/refresh
+ * Refresh access token using a valid refresh_token.
+ */
+app.post('/api/auth/refresh', async (req, res) => {
+  const { refreshToken } = req.body || {};
+  if (!refreshToken) return res.status(400).json({ error: 'Brak refresh_token' });
+  const clientId = process.env.KEYCLOAK_FRONTEND_CLIENT_ID || 'frontend-app';
+  try {
+    const r = await fetch(
+      `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type:    'refresh_token',
+          client_id:     clientId,
+          refresh_token: refreshToken,
+        }),
+      }
+    );
+    if (!r.ok) return res.status(401).json({ error: 'Sesja wygasła' });
+    const data = await r.json();
+    res.json({
+      accessToken:  data.access_token,
+      refreshToken: data.refresh_token,
+      expiresIn:    data.expires_in,
+    });
+  } catch (err) {
+    console.error('[/api/auth/refresh] Error:', err);
+    res.status(500).json({ error: 'Błąd połączenia z Keycloak' });
+  }
+});
+
+// Legacy admin login (password-only /admin panel — kept as backdoor for ops)
 app.post('/api/admin/login', (req, res) => {
   const { password } = req.body;
   const adminPassword = process.env.ADMIN_PASSWORD || 'MakaPaka2026';

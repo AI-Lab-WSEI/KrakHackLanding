@@ -51,7 +51,10 @@ interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   loading: boolean;
+  /** Redirect-based SSO (PKCE) — used for Google IdP etc. */
   login: () => void;
+  /** Direct email+password login via ROPC through /api/auth/login. */
+  loginWithPassword: (email: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   exchangeCode: (code: string, redirectUri: string) => Promise<void>;
@@ -151,6 +154,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Login with email + password (custom form, routed through our backend) ──
+
+  const loginWithPassword = useCallback(async (email: string, password: string) => {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Błąd logowania' }));
+      throw new Error(err.error ?? 'Nieprawidłowy email lub hasło');
+    }
+    const data = await res.json();
+    sessionStorage.setItem(TOKEN_KEY, data.accessToken);
+    if (data.refreshToken) {
+      sessionStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+    }
+    setToken(data.accessToken);
+    await fetchUser(data.accessToken);
+
+    // Sync user row in our DB (creates the record on first login).
+    await fetch('/api/auth/sync-user', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${data.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+  }, [fetchUser]);
+
   // ── Login: redirect to Keycloak ───────────────────────────────────────────
 
   const login = useCallback(async () => {
@@ -227,7 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, refreshUser, exchangeCode }}>
+    <AuthContext.Provider value={{ user, token, loading, login, loginWithPassword, logout, refreshUser, exchangeCode }}>
       {children}
     </AuthContext.Provider>
   );
