@@ -5771,6 +5771,10 @@ app.get('/sitemap.xml', (req, res) => {
 
 // SPA fallback with OG meta tag injection for certificate pages
 app.get('*', async (req, res) => {
+  // Don't serve HTML for API routes — let later routes match or Express return 404 JSON.
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Nie znaleziono endpointu', path: req.path });
+  }
   const indexPath = path.join(__dirname, 'dist', 'index.html');
 
   // Inject OG meta tags for /verify/:hash URLs
