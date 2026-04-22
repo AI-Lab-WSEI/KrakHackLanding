@@ -3694,6 +3694,381 @@ app.post('/api/jury/scores', verifyJuryToken, async (req, res) => {
   }
 });
 
+// ─── Faza 6: Hackathon flow — voting + team claims ────────────────────────────
+
+/**
+ * GET /api/hackathon/teams?edition=3
+ * Public. Returns team_projects list for a given edition.
+ */
+app.get('/api/hackathon/teams', async (req, res) => {
+  const edition = parseInt(req.query.edition) || 3;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, slug, name, project_name, challenge, members, placement, placement_label, edition_number
+       FROM team_projects WHERE edition_number = $1 ORDER BY placement NULLS LAST, name`,
+      [edition]
+    );
+    res.json({
+      teams: rows.map(t => ({
+        id:            t.id,
+        slug:          t.slug,
+        name:          t.name,
+        projectName:   t.project_name || t.name,
+        challenge:     t.challenge,
+        members:       t.members ?? [],
+        placement:     t.placement,
+        placementLabel:t.placement_label,
+        editionNumber: t.edition_number,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/hackathon/teams] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * POST /api/hackathon/teams/claim
+ * Authenticated participant claims team membership.
+ * Body: { teamSlug, editionNumber }
+ */
+app.post('/api/hackathon/teams/claim', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const { teamSlug, editionNumber = 3 } = req.body;
+  if (!teamSlug) return res.status(400).json({ error: 'teamSlug wymagany' });
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const userId = userResult.rows[0].id;
+
+    await pool.query(
+      `INSERT INTO team_claims (user_id, edition_number, team_slug, status, claimed_at)
+       VALUES ($1, $2, $3, 'pending', NOW())
+       ON CONFLICT (user_id, edition_number, team_slug) DO NOTHING`,
+      [userId, editionNumber, teamSlug]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/hackathon/teams/claim POST] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * DELETE /api/hackathon/teams/claim
+ * Withdraw a pending claim.
+ * Body: { teamSlug, editionNumber }
+ */
+app.delete('/api/hackathon/teams/claim', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const { teamSlug, editionNumber = 3 } = req.body;
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const userId = userResult.rows[0].id;
+    await pool.query(
+      `DELETE FROM team_claims WHERE user_id = $1 AND edition_number = $2 AND team_slug = $3 AND status = 'pending'`,
+      [userId, editionNumber, teamSlug]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/hackathon/teams/claim DELETE] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/hackathon/my-claims
+ * Returns current user's team claims.
+ */
+app.get('/api/hackathon/my-claims', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.json({ claims: [] });
+    const userId = userResult.rows[0].id;
+    const { rows } = await pool.query(
+      'SELECT team_slug AS slug, status FROM team_claims WHERE user_id = $1',
+      [userId]
+    );
+    res.json({ claims: rows });
+  } catch (err) {
+    console.error('[/api/hackathon/my-claims] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * POST /api/hackathon/vote
+ * Participant votes for a team (one per user per edition).
+ * Body: { teamSlug, editionNumber }
+ */
+app.post('/api/hackathon/vote', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const { teamSlug, editionNumber = 3 } = req.body;
+  if (!teamSlug) return res.status(400).json({ error: 'teamSlug wymagany' });
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const userId = userResult.rows[0].id;
+    await pool.query(
+      `INSERT INTO participant_votes (user_id, edition_number, team_slug)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, edition_number) DO UPDATE SET team_slug = EXCLUDED.team_slug, voted_at = NOW()`,
+      [userId, editionNumber, teamSlug]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/hackathon/vote POST] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/public/votes/:edition
+ * Public. Returns vote counts per team for an edition.
+ */
+app.get('/api/public/votes/:edition', async (req, res) => {
+  const edition = parseInt(req.params.edition);
+  try {
+    const { rows } = await pool.query(
+      `SELECT team_slug, COUNT(*)::int AS vote_count
+       FROM participant_votes WHERE edition_number = $1
+       GROUP BY team_slug ORDER BY vote_count DESC`,
+      [edition]
+    );
+    res.json({ edition, votes: rows });
+  } catch (err) {
+    console.error('[/api/public/votes] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/public/results/:edition
+ * Public. Aggregated jury scores per team + challenge.
+ * Returns: { teams: [{ slug, name, challenge, placement, totalScore, avgPerJuror, jurorCount, scores }] }
+ */
+app.get('/api/public/results/:edition', async (req, res) => {
+  const edition = parseInt(req.params.edition);
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         tp.slug, tp.name, tp.project_name, tp.challenge,
+         tp.placement, tp.placement_label, tp.special_mention,
+         COUNT(js.id)::int                                   AS juror_count,
+         ROUND(AVG(js.innovation + js.technical_value + js.usefulness + js.presentation_quality), 2) AS avg_total,
+         SUM(js.innovation)::int                             AS sum_innovation,
+         SUM(js.technical_value)::int                        AS sum_technical,
+         SUM(js.usefulness)::int                             AS sum_usefulness,
+         SUM(js.presentation_quality)::int                   AS sum_presentation
+       FROM team_projects tp
+       LEFT JOIN jury_scores js ON js.team_slug = tp.slug AND js.edition_number = tp.edition_number
+       WHERE tp.edition_number = $1
+       GROUP BY tp.slug, tp.name, tp.project_name, tp.challenge,
+                tp.placement, tp.placement_label, tp.special_mention
+       ORDER BY tp.placement NULLS LAST, avg_total DESC NULLS LAST, tp.name`,
+      [edition]
+    );
+    res.json({
+      edition,
+      teams: rows.map(r => ({
+        slug:           r.slug,
+        name:           r.name,
+        projectName:    r.project_name || r.name,
+        challenge:      r.challenge,
+        placement:      r.placement,
+        placementLabel: r.placement_label,
+        specialMention: r.special_mention,
+        jurorCount:     r.juror_count,
+        avgTotal:       parseFloat(r.avg_total) || 0,
+        breakdown: {
+          innovation:   r.sum_innovation  || 0,
+          technical:    r.sum_technical   || 0,
+          usefulness:   r.sum_usefulness  || 0,
+          presentation: r.sum_presentation || 0,
+        },
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/public/results] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// ─── Faza 7: Events / Calendar ────────────────────────────────────────────────
+
+/**
+ * GET /api/public/events
+ * Public. Returns upcoming events with visibility='public'.
+ * Logged-in users also see 'members_only' events (frontend handles this
+ * by using Bearer token if available, though public endpoint returns only public).
+ */
+app.get('/api/public/events', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, description, event_type, starts_at, ends_at, deadline_at,
+              location, url, organizer, is_featured, tags
+       FROM events
+       WHERE visibility = 'public'
+         AND (ends_at IS NULL OR ends_at >= NOW() - INTERVAL '1 day')
+       ORDER BY starts_at ASC
+       LIMIT 100`
+    );
+    res.json({
+      events: rows.map(e => ({
+        id:          e.id,
+        title:       e.title,
+        description: e.description,
+        eventType:   e.event_type,
+        startsAt:    e.starts_at,
+        endsAt:      e.ends_at,
+        deadlineAt:  e.deadline_at,
+        location:    e.location,
+        url:         e.url,
+        organizer:   e.organizer,
+        isFeatured:  e.is_featured,
+        tags:        e.tags ?? [],
+        visibility:  'public',
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/public/events] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/events
+ * Admin/moderator. All events including admin_only.
+ */
+app.get('/api/events', requireRole('admin', 'moderator'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM events ORDER BY starts_at ASC LIMIT 200`
+    );
+    res.json({ events: rows });
+  } catch (err) {
+    console.error('[/api/events GET] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * POST /api/events
+ * Admin/moderator. Create event.
+ */
+app.post('/api/events', requireRole('admin', 'moderator'), async (req, res) => {
+  const {
+    title, description, eventType, startsAt, endsAt, deadlineAt,
+    location, url, organizer, visibility = 'admin_only',
+    isFeatured = false, tags = [], relevanceScore,
+  } = req.body;
+  if (!title || !startsAt) return res.status(400).json({ error: 'title i startsAt wymagane' });
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [req.kcUser.keycloakId]);
+    const createdBy  = userResult.rows[0]?.id ?? null;
+    const { rows } = await pool.query(
+      `INSERT INTO events (title, description, event_type, starts_at, ends_at, deadline_at,
+                            location, url, organizer, visibility, is_featured, tags,
+                            relevance_score, source, created_by, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'manual',$14,NOW(),NOW())
+       RETURNING id`,
+      [title, description ?? null, eventType ?? null, startsAt, endsAt ?? null, deadlineAt ?? null,
+       location ?? null, url ?? null, organizer ?? null, visibility, isFeatured, tags,
+       relevanceScore ?? null, createdBy]
+    );
+    res.status(201).json({ ok: true, id: rows[0].id });
+  } catch (err) {
+    console.error('[/api/events POST] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * PATCH /api/events/:id
+ * Admin/moderator. Update event.
+ */
+app.patch('/api/events/:id', requireRole('admin', 'moderator'), async (req, res) => {
+  const {
+    title, description, eventType, startsAt, endsAt, deadlineAt,
+    location, url, organizer, visibility, isFeatured, tags, relevanceScore,
+  } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE events SET
+         title           = COALESCE($2, title),
+         description     = COALESCE($3, description),
+         event_type      = COALESCE($4, event_type),
+         starts_at       = COALESCE($5, starts_at),
+         ends_at         = COALESCE($6, ends_at),
+         deadline_at     = COALESCE($7, deadline_at),
+         location        = COALESCE($8, location),
+         url             = COALESCE($9, url),
+         organizer       = COALESCE($10, organizer),
+         visibility      = COALESCE($11, visibility),
+         is_featured     = COALESCE($12, is_featured),
+         tags            = COALESCE($13, tags),
+         relevance_score = COALESCE($14, relevance_score),
+         updated_at      = NOW()
+       WHERE id = $1
+       RETURNING id`,
+      [req.params.id, title ?? null, description ?? null, eventType ?? null,
+       startsAt ?? null, endsAt ?? null, deadlineAt ?? null, location ?? null,
+       url ?? null, organizer ?? null, visibility ?? null, isFeatured ?? null,
+       tags ?? null, relevanceScore ?? null]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/events PATCH] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * DELETE /api/events/:id
+ * Admin only.
+ */
+app.delete('/api/events/:id', requireRole('admin'), async (req, res) => {
+  try {
+    await pool.query('DELETE FROM events WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/events DELETE] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * POST /api/events/bot
+ * Bot webhook (OpenClaw / Discord). Authenticated via X-Bot-Key header.
+ * Body: { title, startsAt, description?, eventType?, url?, organizer?, tags?, relevanceScore? }
+ */
+app.post('/api/events/bot', async (req, res) => {
+  const botKey = req.headers['x-bot-key'];
+  if (!botKey || botKey !== process.env.BOT_API_KEY) {
+    return res.status(401).json({ error: 'Invalid bot key' });
+  }
+  const { title, startsAt, description, eventType, url, organizer, tags, relevanceScore, source } = req.body;
+  if (!title || !startsAt) return res.status(400).json({ error: 'title i startsAt wymagane' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO events (title, description, event_type, starts_at, url, organizer,
+                            tags, relevance_score, source, visibility, source_data, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'admin_only',$10,NOW(),NOW())
+       RETURNING id`,
+      [title, description ?? null, eventType ?? null, startsAt, url ?? null,
+       organizer ?? null, tags ?? [], relevanceScore ?? null,
+       source ?? 'bot_openclaw', JSON.stringify(req.body)]
+    );
+    res.status(201).json({ ok: true, id: rows[0].id });
+  } catch (err) {
+    console.error('[/api/events/bot] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
 // ─── Team Projects API ──────────────────────────────────────
 
 // POST /api/admin/team-projects/seed — Seed from JSON data (admin)

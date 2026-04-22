@@ -11,6 +11,8 @@ import { ProjectsPage } from '@/app/pages/panel/ProjectsPage';
 import { ProjectEditPage } from '@/app/pages/panel/ProjectEditPage';
 import { ProjectPublicView } from '@/app/pages/ProjectPublicView';
 import { JuryPanel } from '@/app/pages/JuryPanel';
+import { TeamClaimPage } from '@/app/pages/panel/TeamClaimPage';
+import { EventsPage } from '@/app/pages/EventsPage';
 import { HomePage } from '@/app/pages/HomePage';
 import { Edition2026 } from '@/app/pages/Edition2026';
 import { Edition2025 } from '@/app/pages/Edition2025';
@@ -188,6 +190,7 @@ export const router = createBrowserRouter([
           { path: 'projekty',                    Component: ProjectsPage },
           { path: 'projekty/nowy',               Component: ProjectEditPage },
           { path: 'projekty/:id/edytuj',         Component: ProjectEditPage },
+          { path: 'moj-zespol',                  Component: TeamClaimPage },
           { path: 'admin',                       Component: AdminDashboard },
           { path: 'moderator',                   Component: ModeratorDashboard },
         ],
@@ -197,6 +200,12 @@ export const router = createBrowserRouter([
       {
         path: 'projekty/:slug',
         Component: ProjectPublicView,
+      },
+
+      // Events calendar
+      {
+        path: 'wydarzenia',
+        Component: EventsPage,
       },
     ],
   },
