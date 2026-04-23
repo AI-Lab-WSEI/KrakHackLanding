@@ -8,9 +8,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import {
-  FolderKanban, Users2, Calendar, Award, Shield,
-  TrendingUp, ClipboardList, UserCheck, MessageSquare,
+  FolderKanban, Users2, Calendar, Award, Shield, Compass, Vote,
+  TrendingUp, ClipboardList, UserCheck, MessageSquare, CalendarCheck, Mail,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminFetch } from '@/lib/adminApi';
 import { PanelCard } from '@/app/components/panel/shared/PanelCard';
@@ -69,9 +70,49 @@ export function PanelHome() {
 
   if (!user) return null;
 
-  const isAdmin     = user.keycloakRoles.includes('admin');
-  const isModerator = user.keycloakRoles.includes('moderator');
-  const userSkills  = new Set(user.skills.map(s => s.toLowerCase()));
+  const isAdmin           = user.keycloakRoles.includes('admin');
+  const isModerator       = user.keycloakRoles.includes('moderator');
+  const isHackathon       = user.keycloakRoles.includes('hackathon-participant');
+  const isScienceclub     = user.keycloakRoles.includes('scienceclub-participant');
+  const isJury            = user.keycloakRoles.includes('jury');
+  const hasAnyParticipant = isHackathon || isScienceclub || isJury;
+  const userSkills        = new Set(user.skills.map(s => s.toLowerCase()));
+
+  /**
+   * Role-aware missing integrations — dla userów koła chcemy explicit ClickUp,
+   * dla hackathonu Discord, dla obu — sensownie oba. Pokazujemy amber banner
+   * jeśli user logged in jako participant ale nie ma wymaganego pola.
+   */
+  const missingIntegrations: string[] = [];
+  if (hasAnyParticipant) {
+    if (!user.discordUsername?.trim()) missingIntegrations.push('Discord');
+    if (isScienceclub && !user.clickupEmail?.trim()) missingIntegrations.push('ClickUp');
+  }
+
+  /**
+   * Quick links — budowane dynamicznie na podstawie RZECZYWISTYCH ról usera.
+   *
+   * Admin, który nie jest jednocześnie hackathon-participantem, NIE widzi
+   * "Mój zespół" (bo nie ma zespołu — admin zarządza zespołami przez panel admin,
+   * nie przez user-side). Żeby przetestować user-side, admin musi mieć rolę
+   * uczestnika explicit w Keycloak.
+   */
+  type QuickLink = { label: string; icon: LucideIcon; href: string; hint?: string };
+  const quickLinks: QuickLink[] = [
+    { label: 'Mój profil',    icon: Users2,       href: '/panel/profil' },
+    { label: 'Moje projekty', icon: FolderKanban, href: '/panel/projekty' },
+  ];
+  if (isHackathon) {
+    quickLinks.push({ label: 'Mój zespół',    icon: Users2,        href: '/panel/moj-zespol', hint: 'Hackathon' });
+    quickLinks.push({ label: 'Moja obecność', icon: CalendarCheck, href: '/panel/moja-obecnosc', hint: 'Hackathon' });
+  }
+  if (isScienceclub) {
+    quickLinks.push({ label: 'Mój kompas',    icon: Compass, href: '/panel/moj-kompas', hint: 'Koło' });
+  }
+  if (hasAnyParticipant) {
+    quickLinks.push({ label: 'Głosowanie',    icon: Vote, href: '/panel/glosowanie' });
+  }
+  quickLinks.push({ label: 'Wydarzenia', icon: Calendar, href: '/wydarzenia' });
 
   return (
     <div className="p-6 sm:p-8 max-w-5xl mx-auto flex flex-col gap-6">
@@ -108,6 +149,55 @@ export function PanelHome() {
           >
             Uzupełnij profil →
           </Link>
+        </PanelCard>
+      )}
+
+      {/* Missing integrations nudge (Discord / ClickUp) — scope-aware */}
+      {missingIntegrations.length > 0 && (
+        <PanelCard padding="md" className="!bg-amber-500/5 !border-amber-500/20">
+          <div className="flex items-start gap-3">
+            <Mail className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-amber-300 font-medium text-sm">
+                Brakuje {missingIntegrations.join(' + ')} w Twoim profilu
+              </p>
+              <p className="text-amber-200/70 text-xs mt-1 leading-relaxed">
+                {isScienceclub && 'Jako członek koła potrzebujemy te dane żeby zaprosić Cię do Discord i workspace ClickUp.'}
+                {!isScienceclub && isHackathon && 'Dodaj nick na Discordzie żebyśmy mogli zaprosić Cię do serwera hackathonu.'}
+              </p>
+              <Link
+                to="/panel/profil"
+                className="inline-block mt-2 text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Uzupełnij integracje →
+              </Link>
+            </div>
+          </div>
+        </PanelCard>
+      )}
+
+      {/* Jury-only welcome — kierujemy do magic linka */}
+      {isJury && !isAdmin && !isModerator && (
+        <PanelCard padding="md" className="!bg-amber-500/5 !border-amber-500/20">
+          <p className="text-sm font-medium text-amber-200 mb-1">Jesteś jurorem — użyj magic linka</p>
+          <p className="text-xs text-amber-200/70 leading-relaxed">
+            Panel oceny projektów jest na osobnym URL-u, który dostałeś/aś emailem
+            (<code>/jury/&lt;token&gt;</code>). Ten panel nie jest potrzebny do oceny —
+            możesz zignorować jeśli nie szukasz czegoś specjalnego.
+          </p>
+        </PanelCard>
+      )}
+
+      {/* No role — user zalogowany ale nie jest jeszcze przypisany do żadnego trybu */}
+      {!hasAnyParticipant && !isAdmin && !isModerator && (
+        <PanelCard padding="md" className="!bg-blue-500/5 !border-blue-500/20">
+          <p className="text-sm font-medium text-blue-200 mb-1">Konto czeka na przypisanie</p>
+          <p className="text-xs text-blue-200/70 leading-relaxed">
+            Jesteś zalogowany/a, ale nie masz jeszcze przypisanej roli uczestnika.
+            Administrator musi potwierdzić Twoją aplikację — skontaktuj się z{' '}
+            <a href="mailto:knai@wsei.edu.pl" className="underline">knai@wsei.edu.pl</a>{' '}
+            jeśli zaproszenie zaginęło.
+          </p>
         </PanelCard>
       )}
 
@@ -167,14 +257,18 @@ export function PanelHome() {
         </div>
       )}
 
-      {/* My stats — widoczne dla wszystkich zalogowanych */}
+      {/* My stats — scope-aware (zespoły tylko dla hackathon, głos dla tych którzy mogą głosować) */}
       {stats && (
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Twoje statystyki</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <MyStatTile label="Moje projekty"  value={stats.myProjects}    icon={FolderKanban} />
-            <MyStatTile label="Moje zespoły"   value={stats.myTeams}       icon={Users2} />
-            <MyStatTile label="Oddany głos"    value={stats.myVotes}       icon={TrendingUp} />
+            {isHackathon && (
+              <MyStatTile label="Moje zespoły"   value={stats.myTeams}       icon={Users2} />
+            )}
+            {hasAnyParticipant && (
+              <MyStatTile label="Oddany głos"    value={stats.myVotes}       icon={TrendingUp} />
+            )}
             <MyStatTile label="Umiejętności"   value={stats.mySkillsCount} icon={Award} />
           </div>
         </div>
@@ -249,23 +343,23 @@ export function PanelHome() {
         </PanelCard>
       )}
 
-      {/* Quick links */}
+      {/* Quick links — scope-aware (budowane dynamicznie na podstawie roli) */}
       <div>
         <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Szybki dostęp</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'Mój profil',     icon: Users2,       href: '/panel/profil' },
-            { label: 'Moje projekty',  icon: FolderKanban, href: '/panel/projekty' },
-            { label: 'Mój zespół',     icon: Users2,       href: '/panel/moj-zespol' },
-            { label: 'Wydarzenia',     icon: Calendar,     href: '/wydarzenia' },
-          ].map(l => (
+          {quickLinks.map(l => (
             <Link
               key={l.href}
               to={l.href}
               className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 flex flex-col gap-2 transition-colors"
             >
               <l.icon className="w-5 h-5 text-gray-400" />
-              <span className="text-sm text-white">{l.label}</span>
+              <div className="flex-1">
+                <span className="text-sm text-white block">{l.label}</span>
+                {l.hint && (
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">{l.hint}</span>
+                )}
+              </div>
             </Link>
           ))}
         </div>

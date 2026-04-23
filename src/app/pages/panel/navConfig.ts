@@ -97,19 +97,25 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 /**
- * Mapa Keycloak role → UserScope. Admin ma wszystkie scope (widzi wszystko).
+ * Mapa Keycloak role → UserScope.
+ *
+ * WAŻNA ZMIANA (audyt per-rola):
+ *   Wcześniej admin dostawał AUTOMATYCZNIE wszystkie scope'y (hackathon +
+ *   scienceclub + jury) — przez co widział "Mój zespół", "Moja obecność",
+ *   "Mój kompas" mimo że nie był uczestnikiem. To było mylące (scope bleed).
+ *
+ *   Teraz: scope'y zależą WYŁĄCZNIE od rzeczywistych ról Keycloak.
+ *   Admin który jest jednocześnie scienceclub-participant + hackathon-participant
+ *   — widzi oba. Admin bez tych ról — widzi tylko Profil + Projekty (uniwersalne).
+ *
+ *   Jeśli admin chce podglądać jak uczestnik, powinniśmy dodać "Preview as..."
+ *   toggle (future) zamiast automatycznie dawać wszystko.
  */
 function scopesForRoles(keycloakRoles: string[]): Set<UserScope> {
   const scopes = new Set<UserScope>();
-  if (keycloakRoles.includes('admin')) {
-    scopes.add('hackathon');
-    scopes.add('scienceclub');
-    scopes.add('jury');
-    return scopes;
-  }
   if (keycloakRoles.includes('hackathon-participant'))    scopes.add('hackathon');
   if (keycloakRoles.includes('scienceclub-participant'))  scopes.add('scienceclub');
-  if (keycloakRoles.includes('jury'))                      scopes.add('jury');
+  if (keycloakRoles.includes('jury'))                     scopes.add('jury');
   return scopes;
 }
 

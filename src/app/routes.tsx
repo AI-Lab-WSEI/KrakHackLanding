@@ -151,11 +151,15 @@ export const router = createBrowserRouter([
           { path: 'projekty',                    Component: ProjectsPage },
           { path: 'projekty/nowy',               Component: ProjectEditPage },
           { path: 'projekty/:id/edytuj',         Component: ProjectEditPage },
-          { path: 'moj-zespol',                  Component: TeamClaimPage },
+          // Strony hackathon-scoped — guard pilnuje żeby czysty scienceclub-participant
+          // ani jury nie wchodzili tu przez URL (w nav już ukryte przez requiredScopes).
+          { path: 'moj-zespol',                  Component: guarded(TeamClaimPage,    ['admin', 'moderator', 'hackathon-participant']) },
           { path: 'moja-obecnosc',               Component: guarded(MojaObecnoscPage, ['admin', 'hackathon-participant']) },
+          { path: 'zespoly/nowy',                Component: guarded(TeamCreatePage,   ['admin', 'moderator', 'hackathon-participant']) },
+          // Strona scienceclub-scoped — kompas jest narzędziem koła
           { path: 'moj-kompas',                  Component: guarded(MyKompasPage,     ['admin', 'scienceclub-participant']) },
-          { path: 'glosowanie',                  Component: GlosowaniePage },
-          { path: 'zespoly/nowy',                Component: TeamCreatePage },
+          // Głosowanie — dla każdej z ról uczestnika (hackathon + scienceclub głosuje)
+          { path: 'glosowanie',                  Component: guarded(GlosowaniePage,   ['admin', 'moderator', 'hackathon-participant', 'scienceclub-participant']) },
 
           // ── Legacy moderator alias (zostaje dla starych linków) ──────────
           { path: 'moderator',                   Component: guarded(ModeratorDashboard, ['admin', 'moderator']) },
