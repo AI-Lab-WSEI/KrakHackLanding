@@ -24,6 +24,8 @@ export function PanelLayout() {
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  // Wszystkie hook'i PRZED early returnem (React rules of hooks — stabilna kolejność)
+  const { previewScope, setPreviewScope, canUsePreview, isPreviewActive } = usePreviewScope();
 
   useEffect(() => {
     if (!loading && !user) navigate('/login', { replace: true });
@@ -38,7 +40,6 @@ export function PanelLayout() {
   }
 
   const currentCtx                = readCtx(location.search);
-  const { previewScope, setPreviewScope, canUsePreview, isPreviewActive } = usePreviewScope();
   const { user: userNav, admin: adminNav } = partitionNav(user.keycloakRoles, currentCtx, previewScope);
   const isAdminOrMod              = user.keycloakRoles.includes('admin') || user.keycloakRoles.includes('moderator');
 

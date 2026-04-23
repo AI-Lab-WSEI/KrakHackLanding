@@ -69,9 +69,10 @@ export function PanelHome() {
     return () => { cancelled = true; };
   }, []);
 
-  if (!user) return null;
-
+  // Hook MUSI być przed early return (React rules of hooks — stabilne wywołania).
   const { previewScope, isPreviewActive } = usePreviewScope();
+
+  if (!user) return null;
 
   const realIsAdmin       = user.keycloakRoles.includes('admin');
   const realIsModerator   = user.keycloakRoles.includes('moderator');
