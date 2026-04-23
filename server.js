@@ -491,14 +491,55 @@ app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
 // ─── Helpers ───────────────────────────────────────────────
 
-async function sendResendEmail(to, subject, html) {
+/**
+ * Kontekst emaila → który `from` adres użyć:
+ *   'krakhack'  → EMAIL_FROM_KRAKHACK (np. "AI Krak Hack <no-reply@krakhack.info>")
+ *                 Emaile związane z hackathonem: team edit link, certyfikaty,
+ *                 invite hackathon-participant, jury magic link, attendance.
+ *
+ *   'lab'       → EMAIL_FROM_LAB (np. "AI Possibilities Lab <no-reply@possibilitieslab.org>")
+ *                 Emaile związane z kołem: membership applications, survey
+ *                 invites, welcome, bulk invite dla scienceclub, discord/clickup
+ *                 request-fill, reset hasła dla admin/moderator/lab member.
+ *
+ *   'auto'      → zdecyduj z role/context: hackathon-participant/jury → krakhack,
+ *                 inne → lab. Użyj gdy endpoint dotyczy konkretnego usera.
+ *
+ * Fallback chain (gdy env var nie ustawiona):
+ *   EMAIL_FROM_<CTX> → EMAIL_FROM (global) → 'onboarding@resend.dev' (test)
+ */
+function resolveEmailFrom(context) {
+  const labFrom      = process.env.EMAIL_FROM_LAB;
+  const krakhackFrom = process.env.EMAIL_FROM_KRAKHACK;
+  const globalFrom   = process.env.EMAIL_FROM;
+  const testFallback = 'AI Krak Hack Team <onboarding@resend.dev>';
+
+  if (context === 'krakhack') return krakhackFrom || globalFrom || testFallback;
+  if (context === 'lab')      return labFrom      || globalFrom || testFallback;
+  // 'auto' or unknown — default do Lab (koło jest parent, szerszy domain)
+  return labFrom || globalFrom || testFallback;
+}
+
+/** Mapuje Keycloak role na sender context. Użyj dla emaili user-scoped. */
+function contextForRole(role) {
+  if (role === 'hackathon-participant' || role === 'jury') return 'krakhack';
+  return 'lab'; // admin, moderator, scienceclub-participant, unknown
+}
+
+/**
+ * @param {string} to
+ * @param {string} subject
+ * @param {string} html
+ * @param {'krakhack'|'lab'|'auto'} [context='lab'] — który sender użyć
+ */
+async function sendResendEmail(to, subject, html, context = 'lab') {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn('[Email] RESEND_API_KEY not set, skipping email to:', to);
     return false;
   }
-  const fromAddr = process.env.EMAIL_FROM || 'AI Krak Hack Team <onboarding@resend.dev>';
-  console.log(`[Email] Sending to: ${to}, from: ${fromAddr}, subject: ${subject}`);
+  const fromAddr = resolveEmailFrom(context);
+  console.log(`[Email] Sending to: ${to}, from: ${fromAddr}, ctx: ${context}, subject: ${subject}`);
   try {
     const payload = { from: fromAddr, to, subject, html };
     const res = await fetch('https://api.resend.com/emails', {
@@ -1234,11 +1275,13 @@ app.post('/api/invite/bulk', requireRole('admin'), async (req, res) => {
         [email, `${firstName} ${lastName}`.trim() || null, targetRole]
       );
 
-      // Email
+      // Email — sender context zależy od docelowej roli (krakhack dla hackathon
+      // participant, lab dla scienceclub-participant / moderator / admin).
       await sendResendEmail(
         email,
         'Zaproszenie do AI Possibilities Lab / Krak Hack',
         buildBulkInviteEmail(firstName, email, tempPassword, loginUrl + '/login', message),
+        contextForRole(targetRole),
       );
 
       results.sent++;
@@ -1398,7 +1441,7 @@ app.post('/api/panel/users/:id/resend-invite', requireRole('admin'), async (req,
   const { reason = 'resend_invite' } = req.body || {};
   try {
     const userRes = await pool.query(
-      'SELECT id, email, display_name, keycloak_id FROM users WHERE id = $1',
+      'SELECT id, email, display_name, keycloak_id, role FROM users WHERE id = $1',
       [req.params.id]
     );
     if (userRes.rows.length === 0) return res.status(404).json({ error: 'User nie znaleziony' });
@@ -1419,10 +1462,11 @@ app.post('/api/panel/users/:id/resend-invite', requireRole('admin'), async (req,
 
     // sendResendEmail returns bool (false gdy Resend API fail) — nie throw.
     // Trzeba checkować jawnie, inaczej emailSent=true kłamie do admina.
+    // Sender context z user.role: hackathon-participant/jury → krakhack, inne → lab.
     let emailSent = false;
     let emailError = null;
     try {
-      emailSent = await sendResendEmail(u.email, mail.subject, mail.body);
+      emailSent = await sendResendEmail(u.email, mail.subject, mail.body, contextForRole(u.role));
       if (!emailSent) emailError = 'Resend API odrzuciło wysyłkę (sprawdź logi serwera — najczęściej: domain not verified, rate limit, invalid recipient)';
     } catch (mailErr) {
       emailError = mailErr.message;
@@ -1480,7 +1524,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
   try {
     const userRes = await pool.query(
-      'SELECT id, email, display_name, keycloak_id FROM users WHERE email = $1 LIMIT 1',
+      'SELECT id, email, display_name, keycloak_id, role FROM users WHERE email = $1 LIMIT 1',
       [email]
     );
     const u = userRes.rows[0];
@@ -1493,7 +1537,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         const loginUrl = (process.env.FRONTEND_URL || 'https://krakhack.info') + '/login';
         const firstName = (u.display_name || '').split(' ')[0] || '';
         const mail = buildResetPasswordEmail({ firstName, email: u.email, tempPassword, loginUrl, reason: 'forgot_password' });
-        await sendResendEmail(u.email, mail.subject, mail.body);
+        await sendResendEmail(u.email, mail.subject, mail.body, contextForRole(u.role));
       } catch (err) {
         // Log serwer-side, ale nie leak do klienta
         console.error(`[forgot-password] Error for ${email}:`, err.message);
@@ -1671,6 +1715,7 @@ app.post('/api/membership-applications/bulk/create-profile', requireRole('admin'
           email,
           'Twój profil w AI Possibilities Lab jest gotowy',
           buildBulkInviteEmail(firstName, email, tempPassword, loginUrl, customMessage),
+          contextForRole(targetRole),
         );
         if (!emailSent) emailError = 'Resend API odrzuciło wysyłkę';
       } catch (emailErr) {
@@ -1730,7 +1775,8 @@ app.post('/api/invite/send', requireRole('admin', 'moderator'), async (req, res)
     await sendResendEmail(
       email,
       'Zaproszenie do AI Krak Hack — uzupełnij profil',
-      buildInviteEmail(firstName, inviteUrl)
+      buildInviteEmail(firstName, inviteUrl),
+      'krakhack',
     );
 
     res.json({
@@ -3163,7 +3209,8 @@ app.post('/api/submissions', async (req, res) => {
             <p style="color: #6b7280; font-size: 13px; margin: 0 0 8px;">Pytania? Napisz na: <a href="mailto:knai@wsei.edu.pl" style="color: #06b6d4;">knai@wsei.edu.pl</a></p>
             <p style="color: #6b7280; font-size: 13px; margin: 0;">Pozdrawiamy,<br><strong>Zespół AI Krak Hack</strong><br>AI Possibilities Lab &bull; WSEI Kraków</p>
           </div>
-        </div>`
+        </div>`,
+        'krakhack',
       ).catch(err => console.error('[Email] User confirmation error:', err.message || err));
 
       // Email notification to admin
@@ -3182,7 +3229,8 @@ app.post('/api/submissions', async (req, res) => {
                 `<tr><td style="padding: 6px 10px; border: 1px solid #e5e7eb; font-weight: bold; background: #f9fafb;">${formatKey(k)}</td><td style="padding: 6px 10px; border: 1px solid #e5e7eb;">${formatValue(v)}</td></tr>`
               ).join('')}
             </table>
-          </div>`
+          </div>`,
+          'krakhack',
         ).catch(err => console.error('[Email] Admin notification error:', err));
       }
     }
@@ -3442,7 +3490,8 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
         res.status(400).json({ error: 'Brak adresu email' });
         return;
       }
-      const success = await sendResendEmail(email, subject, htmlContent);
+      // Mass mailing to hackathon audiences (participant/mentor/company/attendance/all)
+      const success = await sendResendEmail(email, subject, htmlContent, 'krakhack');
       res.json({ success });
       return;
     } else if (target === 'all' || target === 'attendance' || target === 'participant' || target === 'mentor' || target === 'company') {
@@ -3490,7 +3539,7 @@ app.post('/api/admin/mail/send', requireAdmin, async (req, res) => {
           personalizedHtml = personalizedHtml.split('{{team_name}}').join(recipient.team_name);
         }
 
-        const ok = await sendResendEmail(recipient.email, subject, personalizedHtml);
+        const ok = await sendResendEmail(recipient.email, subject, personalizedHtml, 'krakhack');
         if (ok) sentCount++;
       }
 
@@ -3542,7 +3591,7 @@ app.post('/api/admin/mail/schedule', requireAdmin, async (req, res) => {
         const result = await pool.query(queryStr, queryParams);
         let sent = 0;
         for (const recipient of result.rows) {
-          const ok = await sendResendEmail(recipient.email, subject, html);
+          const ok = await sendResendEmail(recipient.email, subject, html, 'krakhack');
           if (ok) sent++;
         }
         entry.status = 'sent';
@@ -4312,7 +4361,8 @@ app.post('/api/certificates/:id/send-email', requireAdmin, async (req, res) => {
     const success = await sendResendEmail(
       email,
       `${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'} - AI Krak Hack 2026`,
-      html
+      html,
+      'krakhack',
     );
     if (!success) {
       return res.status(500).json({ error: 'Nie udalo sie wyslac emaila (sprawdz RESEND_API_KEY i logi serwera)' });
@@ -4369,7 +4419,8 @@ app.post('/api/certificates/bulk-send-email', requireAdmin, async (req, res) => 
       const ok = await sendResendEmail(
         email,
         `${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'} - AI Krak Hack 2026`,
-        html
+        html,
+        'krakhack',
       );
       if (ok) sent++;
     }
@@ -5144,6 +5195,7 @@ app.post('/api/membership-applications/:id/create-profile', requireAdmin, async 
         email,
         'Twój profil w AI Possibilities Lab jest gotowy',
         buildBulkInviteEmail(firstName, email, tempPassword, loginUrl + '/login', customMessage),
+        contextForRole(targetRole),
       );
       if (!emailSent) emailError = 'Resend API odrzuciło wysyłkę (zobacz logi serwera — najczęściej: domain not verified lub rate limit)';
     } catch (emailErr) {
@@ -6290,7 +6342,7 @@ app.post('/api/admin/team-projects/:id/send-edit-link', requireAdmin, async (req
     let emailSent = false;
     if (memberEmails.length > 0) {
       for (const email of memberEmails) {
-        const ok = await sendResendEmail(email, 'Edytuj profil swojego zespolu — AI Krak Hack 2026', html);
+        const ok = await sendResendEmail(email, 'Edytuj profil swojego zespolu — AI Krak Hack 2026', html, 'krakhack');
         if (ok) emailSent = true;
       }
     }
@@ -6375,7 +6427,7 @@ app.post('/api/admin/team-projects/bulk-send-edit-links', requireAdmin, async (r
       let teamSent = false;
       if (memberEmails.length > 0) {
         for (const email of memberEmails) {
-          const ok = await sendResendEmail(email, 'Edytuj profil swojego zespolu — AI Krak Hack 2026', html);
+          const ok = await sendResendEmail(email, 'Edytuj profil swojego zespolu — AI Krak Hack 2026', html, 'krakhack');
           if (ok) teamSent = true;
         }
       }
@@ -6487,7 +6539,7 @@ app.post('/api/admin/team-projects/:id/send-test-email', requireAdmin, async (re
       : `${baseUrl}/zespoly/${team.slug}/edytuj/TOKEN_PLACEHOLDER`;
     const html = buildTeamEditLinkHtml(team, editLink);
 
-    const success = await sendResendEmail(email, 'Edytuj profil swojego zespolu — AI Krak Hack 2026', html);
+    const success = await sendResendEmail(email, 'Edytuj profil swojego zespolu — AI Krak Hack 2026', html, 'krakhack');
     if (!success) return res.status(500).json({ success: false, message: 'Wysylka nie powiodla sie — sprawdz RESEND_API_KEY' });
 
     res.json({ success: true, message: `Email testowy wyslany na ${email}` });
@@ -6547,7 +6599,8 @@ app.post('/api/admin/certificates/:id/send-test-email', requireAdmin, async (req
     const success = await sendResendEmail(
       email,
       `${isWinner ? 'Certyfikat Zwyciezcy' : 'Certyfikat Uczestnictwa'} - AI Krak Hack 2026`,
-      html
+      html,
+      'krakhack',
     );
     if (!success) return res.status(500).json({ success: false, message: 'Wysylka nie powiodla sie — sprawdz RESEND_API_KEY' });
 
@@ -8129,7 +8182,8 @@ app.post('/api/platform-contact', async (req, res) => {
     const sent = await sendResendEmail(
       'michalmadejski2@gmail.com',
       `[KrakHack Platforma] Zapytanie od ${name}`,
-      html
+      html,
+      'krakhack',
     );
 
     if (sent) {
