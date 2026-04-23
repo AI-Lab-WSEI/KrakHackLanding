@@ -91,12 +91,12 @@ export function PanelHome() {
   const userSkills        = new Set(user.skills.map(s => s.toLowerCase()));
 
   /**
-   * Role-aware missing integrations — dla userów koła chcemy explicit ClickUp,
-   * dla hackathonu Discord, dla obu — sensownie oba. Pokazujemy amber banner
-   * jeśli user logged in jako participant ale nie ma wymaganego pola.
+   * Role-aware missing integrations — tylko dla hackathon + scienceclub (jury
+   * nie korzysta z Discord/ClickUp — używa standalone magic linka).
    */
+  const needsIntegrations = isHackathon || isScienceclub;
   const missingIntegrations: string[] = [];
-  if (hasAnyParticipant) {
+  if (needsIntegrations) {
     if (!user.discordUsername?.trim()) missingIntegrations.push('Discord');
     if (isScienceclub && !user.clickupEmail?.trim()) missingIntegrations.push('ClickUp');
   }
@@ -148,9 +148,12 @@ export function PanelHome() {
         </div>
       </PanelCard>
 
-      {/* Onboarding nudge — tylko dla participantów. Admin/moderator nie muszą
-           mieć publicznego bio — mają inne odpowiedzialności. */}
-      {!user.onboardingCompleted && hasAnyParticipant && (
+      {/* Onboarding nudge — tylko dla hackathon/scienceclub (publiczny profil).
+          Jury nie ma widoczności publicznej — używa magic linka. Admin/moderator
+          mają inne odpowiedzialności niż publiczny profil. Pokazujemy TYLKO gdy
+          nie ma Missing integrations (żeby nie spamować 2 amber cards).
+      */}
+      {!user.onboardingCompleted && needsIntegrations && missingIntegrations.length === 0 && (
         <PanelCard padding="md" className="!bg-amber-500/10 !border-amber-500/30">
           <p className="text-amber-300 font-medium text-sm">Uzupełnij swój profil</p>
           <p className="text-amber-200/70 text-xs mt-1">
