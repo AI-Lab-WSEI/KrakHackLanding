@@ -37,6 +37,11 @@ export interface MembershipFormData {
   valuesResonance: string;
   engagementTypes: EngagementType[];
   howDidYouHear?: string;
+  /** Opcjonalne, mocno rekomendowane — nazwa na Discordzie (do dodania do serwera koła). */
+  discordUsername?: string;
+  /** Opcjonalne, mocno rekomendowane — email używany do logowania w ClickUp
+   *  (na ten adres wyślemy zaproszenie do workspace koła). */
+  clickupEmail?: string;
 }
 
 export interface MembershipApplication extends MembershipFormData {

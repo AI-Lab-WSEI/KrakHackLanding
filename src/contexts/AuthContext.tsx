@@ -40,6 +40,12 @@ export interface AuthUser {
   university: string | null;
   graduationYear: number | null;
   skills: string[];
+  /** Discord username (nowy styl: bez #4-digit, albo legacy janek#1234). Null = user nie podał. */
+  discordUsername: string | null;
+  /** Snowflake ID Discorda (auto-wypełniane jeśli podłączymy Discord OAuth). */
+  discordId: string | null;
+  /** Email ClickUp (dla scienceclub-participant — zaproszenie do workspace). */
+  clickupEmail: string | null;
   onboardingCompleted: boolean;
   isPublic: boolean;
   notifyEvents: boolean;

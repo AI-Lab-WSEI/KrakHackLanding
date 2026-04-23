@@ -51,6 +51,9 @@ interface ApplicationRow {
   updated_at: string;
   /** UUID usera, jeśli admin już utworzył profil z tej aplikacji. */
   user_id: string | null;
+  /** Integracje (opcjonalne w formularzu /dolacz). */
+  discord_username: string | null;
+  clickup_email:    string | null;
 }
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -350,6 +353,14 @@ export function AdminApplications() {
                               <p className="text-gray-300"><span className="text-gray-500">Spotkania:</span> {app.attend_meetings ? 'Tak' : 'Nie'}</p>
                               <p className="text-gray-300"><span className="text-gray-500">Stacjonarnie:</span> {app.attend_in_person ? 'Tak' : 'Nie'}</p>
                               <p className="text-gray-300"><span className="text-gray-500">Godziny/mies.:</span> {app.monthly_hours}h</p>
+                              <p className="text-gray-300">
+                                <span className="text-gray-500">Discord:</span>{' '}
+                                {app.discord_username ? <code className="text-cyan-400">{app.discord_username}</code> : <span className="text-gray-600 italic">nie podano</span>}
+                              </p>
+                              <p className="text-gray-300">
+                                <span className="text-gray-500">ClickUp:</span>{' '}
+                                {app.clickup_email ? <code className="text-cyan-400">{app.clickup_email}</code> : <span className="text-gray-600 italic">nie podano</span>}
+                              </p>
                             </div>
                           </div>
 
@@ -820,6 +831,22 @@ function CreateProfileModal({
                     <span className="text-emerald-400">✓ markdown z 3 sekcji aplikacji</span>
                   ) : (
                     <span className="text-gray-600 italic">pusto (aplikacja bez tekstów)</span>
+                  )}
+                </p>
+                <p>
+                  <span className="text-gray-500">discord:</span>{' '}
+                  {application.discord_username ? (
+                    <code className="text-emerald-400">{application.discord_username}</code>
+                  ) : (
+                    <span className="text-gray-600 italic">nie podano w aplikacji</span>
+                  )}
+                </p>
+                <p>
+                  <span className="text-gray-500">clickup:</span>{' '}
+                  {application.clickup_email ? (
+                    <code className="text-emerald-400">{application.clickup_email}</code>
+                  ) : (
+                    <span className="text-gray-600 italic">nie podano w aplikacji</span>
                   )}
                 </p>
               </div>

@@ -18,6 +18,8 @@ export function ProfilePage() {
     university:     user?.university     ?? '',
     graduationYear: user?.graduationYear?.toString() ?? '',
     skills:         user?.skills?.join(', ')  ?? '',
+    discordUsername: user?.discordUsername ?? '',
+    clickupEmail:    user?.clickupEmail    ?? '',
   });
   const [isPublic, setIsPublic] = useState<boolean>(user?.isPublic !== false);
   const [notifyEvents, setNotifyEvents] = useState<boolean>(user?.notifyEvents !== false);
@@ -45,6 +47,9 @@ export function ProfilePage() {
           .split(',')
           .map(s => s.trim())
           .filter(Boolean),
+        // Empty string wysyłamy explicite — backend użyje NULLIF żeby wyczyścić pole
+        discordUsername: form.discordUsername.trim(),
+        clickupEmail:    form.clickupEmail.trim(),
         isPublic,
         notifyEvents,
       };
@@ -97,12 +102,31 @@ export function ProfilePage() {
     );
   }
 
+  // Banner "brakuje integracji" — pokazujemy jeśli user nie ma Discord lub ClickUp.
+  // Inspirowane UX'em banera uzupełnij profil w onboardingu — ale explicit o tym
+  // czego brakuje, bo wiadomo że Discord/ClickUp są krytyczne dla podpięcia do narzędzi.
+  const missingDiscord = !user.discordUsername?.trim();
+  const missingClickup = !user.clickupEmail?.trim();
+  const missingAny     = missingDiscord || missingClickup;
+
   return (
     <div className="max-w-xl mx-auto px-6 py-10 flex flex-col gap-8">
       <div>
         <h1 className="text-xl font-bold">Mój profil</h1>
         <p className="text-gray-400 text-sm mt-1">{user.email}</p>
       </div>
+
+      {missingAny && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+          <p className="text-sm font-semibold text-amber-200 mb-1">Uzupełnij integracje</p>
+          <p className="text-xs text-amber-300/80 leading-relaxed">
+            {missingDiscord && missingClickup && 'Brakuje Twojej nazwy na Discordzie i adresu ClickUp. '}
+            {missingDiscord && !missingClickup && 'Brakuje Twojej nazwy na Discordzie. '}
+            {!missingDiscord && missingClickup && 'Brakuje Twojego adresu dla ClickUp. '}
+            Bez tych danych nie możemy automatycznie dodać Cię do serwera Discord / workspace ClickUp — uzupełnij w sekcji "Integracje" poniżej.
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col gap-4">
         {field('displayName', 'Imię i nazwisko', { placeholder: 'Jan Kowalski' })}
@@ -117,6 +141,21 @@ export function ProfilePage() {
         {field('skills', 'Umiejętności (po przecinku)', {
           placeholder: 'React, TypeScript, Python, ML',
         })}
+
+        {/* Integracje — Discord + ClickUp. Explicit sekcja żeby było widać braki. */}
+        <div className="border-t border-gray-800 pt-4 mt-2">
+          <p className="text-xs text-gray-400 uppercase tracking-wider font-bold mb-1">Integracje</p>
+          <p className="text-xs text-gray-500 mb-3">
+            Nazwa na Discordzie + email ClickUp (jeśli inny niż powyżej). Zostaw puste jeśli nie używasz.
+          </p>
+          {field('discordUsername', 'Nazwa na Discordzie', {
+            placeholder: 'np. janek.kowalski lub janek#1234',
+          })}
+          {field('clickupEmail', 'Email do ClickUp', {
+            placeholder: user.email,
+            type: 'email',
+          })}
+        </div>
 
         {/* Privacy + notifications toggles */}
         <div className="border-t border-gray-800 pt-4 mt-2 flex flex-col gap-4">

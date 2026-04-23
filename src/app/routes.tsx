@@ -68,6 +68,7 @@ import { EditionsPage } from '@/app/pages/panel/admin/krakhack/EditionsPage';
 import { KrakHackDashboardPage } from '@/app/pages/panel/admin/krakhack/DashboardPage';
 import { KrakHackTeamsViewPage } from '@/app/pages/panel/admin/krakhack/TeamsViewPage';
 import { AdminKompasPage } from '@/app/pages/panel/admin/lab/KompasPage';
+import { IntegrationsPage } from '@/app/pages/panel/admin/IntegrationsPage';
 import { MojaObecnoscPage } from '@/app/pages/panel/my/AttendancePage';
 import { MyKompasPage } from '@/app/pages/panel/my/MyKompasPage';
 import { GlosowaniePage } from '@/app/pages/panel/my/GlosowaniePage';
@@ -182,6 +183,9 @@ export const router = createBrowserRouter([
 
           // ── AI Lab context (ctx=lab) ─────────────────────────────────────
           { path: 'admin/lab/kompas',            Component: guarded(AdminKompasPage,            ['admin']) },
+
+          // ── System context (ctx=system) — integracje zewnętrzne ──────────
+          { path: 'admin/integracje',            Component: guarded(IntegrationsPage,           ['admin']) },
         ],
       },
 

@@ -36,6 +36,8 @@ const initialFormData: MembershipFormData = {
   valuesResonance: '',
   engagementTypes: [],
   howDidYouHear: '',
+  discordUsername: '',
+  clickupEmail: '',
 };
 
 function validateStep(step: number, data: MembershipFormData): string | null {

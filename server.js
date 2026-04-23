@@ -275,6 +275,23 @@ async function initDB() {
     ALTER TABLE membership_applications ADD COLUMN IF NOT EXISTS how_did_you_hear VARCHAR(255) DEFAULT '';
   `).catch(() => {});
 
+  // Migration 0020 — Discord + ClickUp integration fields
+  // users: potrzebne do matching user ↔ serwer Discord + workspace ClickUp
+  // membership_applications: te same pola w formularzu /dolacz (opcjonalne)
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS discord_username VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS discord_id       VARCHAR(64),
+      ADD COLUMN IF NOT EXISTS clickup_email    VARCHAR(255);
+    CREATE INDEX IF NOT EXISTS idx_users_discord_username
+      ON users (LOWER(discord_username)) WHERE discord_username IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_users_discord_id
+      ON users (discord_id) WHERE discord_id IS NOT NULL;
+    ALTER TABLE membership_applications
+      ADD COLUMN IF NOT EXISTS discord_username VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS clickup_email    VARCHAR(255);
+  `).catch(err => console.warn('[migration 0020] discord/clickup:', err.message));
+
   // Auto-seed team_projects from teams-seed.json if table is empty
   try {
     const countResult = await pool.query('SELECT COUNT(*) FROM team_projects');
@@ -931,6 +948,9 @@ app.get('/api/me', verifyKeycloakToken, async (req, res) => {
       university: user.university,
       graduationYear: user.graduation_year,
       skills: user.skills ?? [],
+      discordUsername: user.discord_username ?? null,
+      discordId:       user.discord_id ?? null,
+      clickupEmail:    user.clickup_email ?? null,
       onboardingCompleted: user.onboarding_completed,
       isPublic: user.is_public !== false,           // default true if column missing
       notifyEvents: user.notify_events !== false,   // default true if column missing
@@ -1171,6 +1191,134 @@ app.post('/api/invite/bulk', requireRole('admin'), async (req, res) => {
   res.json(results);
 });
 
+/**
+ * Email: prośba o uzupełnienie Discord / ClickUp / innych brakujących pól.
+ * Używamy z panelu /panel/admin/integracje — single lub bulk.
+ */
+function buildRequestFillEmail({ firstName, missing, customMessage, profileUrl }) {
+  const greeting = firstName ? `Cześć ${firstName}!` : 'Cześć!';
+  const fieldLabels = {
+    discord_username: {
+      label:       'nazwa użytkownika na Discordzie',
+      instruction: 'Wejdź w ustawienia Discorda → "Mój profil" → skopiuj swoją nazwę (np. <code>username</code> lub <code>username#1234</code> dla starych kont).',
+    },
+    clickup_email: {
+      label:       'email, którym logujesz się do ClickUp',
+      instruction: 'Ten email dostaje zaproszenia do naszego workspace (nie musi być taki sam jak email do logowania w panelu).',
+    },
+  };
+  const missingListHtml = missing.map(field => {
+    const meta = fieldLabels[field] || { label: field, instruction: '' };
+    return `<li style="margin-bottom:12px"><strong>${meta.label}</strong><br/><span style="color:#6b7280;font-size:13px">${meta.instruction}</span></li>`;
+  }).join('');
+  const customHtml = customMessage && customMessage.trim()
+    ? `<p style="color:#4b5563;line-height:1.6;background:#fef3c7;border-left:3px solid #f59e0b;padding:12px 16px;border-radius:4px">${customMessage.replace(/\n/g, '<br/>')}</p>`
+    : '';
+  return `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1f2937">
+      <h2 style="color:#4f46e5">${greeting}</h2>
+      <p style="color:#4b5563;line-height:1.6">
+        Brakuje nam kilku informacji w Twoim profilu, żebyśmy mogli w pełni Cię podpiąć do narzędzi koła.
+        To zajmie dosłownie minutę — wystarczy zaktualizować profil w panelu.
+      </p>
+      ${customHtml}
+      <p style="color:#4b5563;line-height:1.6;margin-top:20px"><strong>Do uzupełnienia:</strong></p>
+      <ol style="color:#4b5563;line-height:1.6;padding-left:20px">
+        ${missingListHtml}
+      </ol>
+      <p style="margin:28px 0">
+        <a href="${profileUrl}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+          Uzupełnij profil →
+        </a>
+      </p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:32px">
+        Link otwiera Twój profil w panelu AI Possibilities Lab. Po zapisaniu zmian możesz zamknąć kartę.
+      </p>
+    </div>
+  `;
+}
+
+/**
+ * POST /api/admin/integrations/request-fill
+ * Admin. Wysyła email z prośbą o uzupełnienie brakujących pól
+ * (discord_username, clickup_email). Akceptuje single lub bulk userIds.
+ *
+ * Body: {
+ *   userIds:       string[]                         // wymagane, min 1
+ *   fields:        ('discord'|'clickup')[]          // które pola prosić
+ *   customMessage?: string                          // dopisek w emailu
+ *   onlyIfMissing?: boolean (default true)          // skip userów którzy już mają to pole
+ * }
+ *
+ * Per-user: wysyła tylko jeśli user faktycznie nie ma tego pola (gdy onlyIfMissing=true).
+ * Zwraca: { sent: N, skipped: [...], errors: [...] }
+ */
+app.post('/api/admin/integrations/request-fill', requireRole('admin'), async (req, res) => {
+  const { userIds, fields, customMessage, onlyIfMissing = true } = req.body || {};
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'userIds[] wymagane' });
+  }
+  const ALLOWED_FIELDS = ['discord', 'clickup'];
+  const targetFields = (Array.isArray(fields) ? fields : [])
+    .filter(f => ALLOWED_FIELDS.includes(f));
+  if (targetFields.length === 0) {
+    return res.status(400).json({ error: 'fields[] wymagane (discord/clickup)' });
+  }
+
+  const profileUrl = (process.env.FRONTEND_URL || 'https://krakhack.info') + '/panel/profil';
+  const results = { sent: 0, skipped: [], errors: [] };
+
+  try {
+    const usersRes = await pool.query(
+      `SELECT id, email, display_name, discord_username, clickup_email
+       FROM users WHERE id = ANY($1::uuid[])`,
+      [userIds]
+    );
+
+    for (const u of usersRes.rows) {
+      const missingDbFields = [];
+      if (targetFields.includes('discord') && (!u.discord_username || !u.discord_username.trim())) {
+        missingDbFields.push('discord_username');
+      }
+      if (targetFields.includes('clickup') && (!u.clickup_email || !u.clickup_email.trim())) {
+        missingDbFields.push('clickup_email');
+      }
+
+      if (onlyIfMissing && missingDbFields.length === 0) {
+        results.skipped.push({ userId: u.id, reason: 'user ma wszystkie pola' });
+        continue;
+      }
+
+      // Jeśli onlyIfMissing=false i user ma wszystko, prosimy i tak o wszystko
+      // (use case: "zweryfikuj swoje dane"). Wtedy lista to targetFields mapowane na DB names.
+      const listToSend = missingDbFields.length > 0 ? missingDbFields :
+        targetFields.map(f => f === 'discord' ? 'discord_username' : 'clickup_email');
+
+      const firstName = (u.display_name || '').split(' ')[0] || '';
+      try {
+        await sendResendEmail(
+          u.email,
+          'Uzupełnij profil — AI Possibilities Lab',
+          buildRequestFillEmail({
+            firstName,
+            missing:       listToSend,
+            customMessage,
+            profileUrl,
+          }),
+        );
+        results.sent++;
+      } catch (mailErr) {
+        results.errors.push({ userId: u.id, email: u.email, reason: mailErr.message });
+      }
+    }
+
+    res.json(results);
+  } catch (err) {
+    console.error('[integrations/request-fill] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera', detail: err.message });
+  }
+});
+
 app.post('/api/invite/send', requireRole('admin', 'moderator'), async (req, res) => {
   const { email, displayName } = req.body;
   if (!email || typeof email !== 'string') {
@@ -1319,7 +1467,8 @@ app.patch('/api/invite/complete', verifyKeycloakToken, async (req, res) => {
 app.get('/api/panel/users', requireRole('admin', 'moderator'), async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, email, display_name, role, onboarding_completed, is_active, created_at
+      `SELECT id, email, display_name, role, onboarding_completed, is_active,
+              discord_username, discord_id, clickup_email, keycloak_id, created_at
        FROM users
        ORDER BY created_at DESC
        LIMIT 500`
@@ -1332,6 +1481,10 @@ app.get('/api/panel/users', requireRole('admin', 'moderator'), async (req, res) 
         role:                u.role,
         onboardingCompleted: u.onboarding_completed,
         isActive:            u.is_active,
+        discordUsername:     u.discord_username,
+        discordId:           u.discord_id,
+        clickupEmail:        u.clickup_email,
+        hasKeycloak:         !!u.keycloak_id,
         createdAt:           u.created_at,
       })),
     });
@@ -1374,6 +1527,7 @@ app.get('/api/panel/users/:id', requireRole('admin', 'moderator'), async (req, r
     const result = await pool.query(
       `SELECT id, email, display_name, avatar_url, role, bio, github_url, linkedin_url,
               university, graduation_year, skills, is_active, is_public, notify_events,
+              discord_username, discord_id, clickup_email,
               onboarding_completed, profile_slug, created_at, updated_at
        FROM users WHERE id = $1`,
       [req.params.id]
@@ -1395,6 +1549,9 @@ app.get('/api/panel/users/:id', requireRole('admin', 'moderator'), async (req, r
       isActive:            u.is_active,
       isPublic:            u.is_public,
       notifyEvents:        u.notify_events,
+      discordUsername:     u.discord_username,
+      discordId:           u.discord_id,
+      clickupEmail:        u.clickup_email,
       onboardingCompleted: u.onboarding_completed,
       profileSlug:         u.profile_slug,
       createdAt:           u.created_at,
@@ -1420,6 +1577,7 @@ app.patch('/api/panel/users/:id', requireRole('admin', 'moderator'), async (req,
   const {
     displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills,
     isActive, isPublic, notifyEvents,
+    discordUsername, discordId, clickupEmail,
   } = req.body;
 
   // Moderator nie może zmieniać is_active / is_public / notify_events.
@@ -1427,20 +1585,28 @@ app.patch('/api/panel/users/:id', requireRole('admin', 'moderator'), async (req,
   const canTogglePublic = isAdmin && typeof isPublic === 'boolean';
   const canToggleNotify = isAdmin && typeof notifyEvents === 'boolean';
 
+  // Pola discord/clickup: pozwalamy explicit "wyczyść" przez empty string → null
+  const normDiscord  = discordUsername !== undefined ? ((discordUsername || '').trim() || null) : undefined;
+  const normDiscId   = discordId       !== undefined ? ((discordId       || '').trim() || null) : undefined;
+  const normClickup  = clickupEmail    !== undefined ? ((clickupEmail    || '').trim().toLowerCase() || null) : undefined;
+
   try {
     const result = await pool.query(
       `UPDATE users SET
-         display_name    = COALESCE($2, display_name),
-         bio             = COALESCE($3, bio),
-         github_url      = COALESCE($4, github_url),
-         linkedin_url    = COALESCE($5, linkedin_url),
-         university      = COALESCE($6, university),
-         graduation_year = COALESCE($7, graduation_year),
-         skills          = COALESCE($8, skills),
-         is_active       = COALESCE($9,  is_active),
-         is_public       = COALESCE($10, is_public),
-         notify_events   = COALESCE($11, notify_events),
-         updated_at      = NOW()
+         display_name     = COALESCE($2, display_name),
+         bio              = COALESCE($3, bio),
+         github_url       = COALESCE($4, github_url),
+         linkedin_url     = COALESCE($5, linkedin_url),
+         university       = COALESCE($6, university),
+         graduation_year  = COALESCE($7, graduation_year),
+         skills           = COALESCE($8, skills),
+         is_active        = COALESCE($9,  is_active),
+         is_public        = COALESCE($10, is_public),
+         notify_events    = COALESCE($11, notify_events),
+         discord_username = CASE WHEN $12::text IS NOT NULL THEN NULLIF($12, '_CLEAR_') ELSE discord_username END,
+         discord_id       = CASE WHEN $13::text IS NOT NULL THEN NULLIF($13, '_CLEAR_') ELSE discord_id END,
+         clickup_email    = CASE WHEN $14::text IS NOT NULL THEN NULLIF($14, '_CLEAR_') ELSE clickup_email END,
+         updated_at       = NOW()
        WHERE id = $1
        RETURNING id`,
       [
@@ -1455,6 +1621,10 @@ app.patch('/api/panel/users/:id', requireRole('admin', 'moderator'), async (req,
         canToggleActive ? isActive     : null,
         canTogglePublic ? isPublic     : null,
         canToggleNotify ? notifyEvents : null,
+        // Empty string input → '_CLEAR_' sentinel → NULLIF → null
+        normDiscord  === null ? '_CLEAR_' : (normDiscord  ?? null),
+        normDiscId   === null ? '_CLEAR_' : (normDiscId   ?? null),
+        normClickup  === null ? '_CLEAR_' : (normClickup  ?? null),
       ]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
@@ -1530,27 +1700,33 @@ app.delete('/api/panel/users/:id', requireRole('admin'), async (req, res) => {
  */
 app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
   const { keycloakId } = req.kcUser;
-  const { displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills, isPublic, notifyEvents } = req.body;
+  const { displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills,
+          isPublic, notifyEvents, discordUsername, clickupEmail } = req.body;
 
   // Auto-generate profile_slug the first time displayName is set (preserve URL once assigned)
   const candidateSlug = displayName
     ? slugify(displayName) + '-' + crypto.randomBytes(3).toString('hex')
     : null;
 
+  const normDiscord = discordUsername !== undefined ? ((discordUsername || '').trim() || null) : undefined;
+  const normClickup = clickupEmail    !== undefined ? ((clickupEmail    || '').trim().toLowerCase() || null) : undefined;
+
   try {
     const result = await pool.query(
       `UPDATE users SET
-         display_name    = COALESCE($2, display_name),
-         bio             = COALESCE($3, bio),
-         github_url      = COALESCE($4, github_url),
-         linkedin_url    = COALESCE($5, linkedin_url),
-         university      = COALESCE($6, university),
-         graduation_year = COALESCE($7, graduation_year),
-         skills          = COALESCE($8, skills),
-         profile_slug    = CASE WHEN profile_slug IS NULL AND $9 IS NOT NULL THEN $9 ELSE profile_slug END,
-         is_public       = COALESCE($10, is_public),
-         notify_events   = COALESCE($11, notify_events),
-         updated_at      = NOW()
+         display_name     = COALESCE($2, display_name),
+         bio              = COALESCE($3, bio),
+         github_url       = COALESCE($4, github_url),
+         linkedin_url     = COALESCE($5, linkedin_url),
+         university       = COALESCE($6, university),
+         graduation_year  = COALESCE($7, graduation_year),
+         skills           = COALESCE($8, skills),
+         profile_slug     = CASE WHEN profile_slug IS NULL AND $9 IS NOT NULL THEN $9 ELSE profile_slug END,
+         is_public        = COALESCE($10, is_public),
+         notify_events    = COALESCE($11, notify_events),
+         discord_username = CASE WHEN $12::text IS NOT NULL THEN NULLIF($12, '_CLEAR_') ELSE discord_username END,
+         clickup_email    = CASE WHEN $13::text IS NOT NULL THEN NULLIF($13, '_CLEAR_') ELSE clickup_email END,
+         updated_at       = NOW()
        WHERE keycloak_id = $1
        RETURNING id`,
       [
@@ -1565,6 +1741,8 @@ app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
         candidateSlug,
         typeof isPublic     === 'boolean' ? isPublic     : null,
         typeof notifyEvents === 'boolean' ? notifyEvents : null,
+        normDiscord === null ? '_CLEAR_' : (normDiscord ?? null),
+        normClickup === null ? '_CLEAR_' : (normClickup ?? null),
       ]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
@@ -4219,7 +4397,7 @@ app.post('/api/membership-applications', async (req, res) => {
     const { firstName, lastName, email, university, fieldOfStudy, yearOrStatus,
             attendMeetings, attendInPerson, monthlyHours, competencies,
             whatYouBring, expectations, valuesResonance, engagementTypes,
-            howDidYouHear } = req.body;
+            howDidYouHear, discordUsername, clickupEmail } = req.body;
 
     if (!firstName || !lastName || !email) {
       return res.status(400).json({ error: 'Imię, nazwisko i email są wymagane' });
@@ -4231,14 +4409,17 @@ app.post('/api/membership-applications', async (req, res) => {
       `INSERT INTO membership_applications
         (first_name, last_name, email, university, field_of_study, year_or_status,
          is_wsei, attend_meetings, attend_in_person, monthly_hours, competencies,
-         what_you_bring, expectations, values_resonance, engagement_types, how_did_you_hear)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16)
+         what_you_bring, expectations, values_resonance, engagement_types, how_did_you_hear,
+         discord_username, clickup_email)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15,$16,$17,$18)
        RETURNING id`,
       [firstName, lastName, email, university || '', fieldOfStudy || '', yearOrStatus || '',
        isWsei, !!attendMeetings, !!attendInPerson, monthlyHours || 5,
        JSON.stringify(competencies || {}),
        whatYouBring || '', expectations || '', valuesResonance || '',
-       engagementTypes || [], howDidYouHear || '']
+       engagementTypes || [], howDidYouHear || '',
+       (discordUsername || '').trim() || null,
+       (clickupEmail || '').trim().toLowerCase() || null]
     );
 
     // Send confirmation email
@@ -4508,6 +4689,8 @@ app.post('/api/membership-applications/:id/create-profile', requireAdmin, async 
     }
 
     // 5. Users row — insert or update (COALESCE, nigdy nie nadpisujemy wypełnionych pól)
+    const appDiscord = (application.discord_username || '').trim() || null;
+    const appClickUp = (application.clickup_email || '').trim().toLowerCase() || null;
     let userId;
     if (existingUser) {
       // Link kierunku: membership_applications.user_id → users.id (jedna strona).
@@ -4523,6 +4706,8 @@ app.post('/api/membership-applications/:id/create-profile', requireAdmin, async 
               WHEN jsonb_array_length(COALESCE(users.skills, '[]'::jsonb)) = 0 THEN $5::jsonb
               ELSE users.skills
             END,
+            discord_username   = COALESCE(users.discord_username, $8),
+            clickup_email      = COALESCE(users.clickup_email, $9),
             role               = $6::user_role,
             is_active          = true,
             updated_at         = NOW()
@@ -4536,6 +4721,8 @@ app.post('/api/membership-applications/:id/create-profile', requireAdmin, async 
           JSON.stringify(skills),
           targetRole,
           existingUser.id,
+          appDiscord,
+          appClickUp,
         ]
       );
       userId = updRes.rows[0].id;
@@ -4543,9 +4730,10 @@ app.post('/api/membership-applications/:id/create-profile', requireAdmin, async 
       const insRes = await client.query(
         `INSERT INTO users (
             keycloak_id, email, display_name, bio, university, skills, role,
+            discord_username, clickup_email,
             is_active, onboarding_completed, created_at, updated_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::user_role, true, false, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::user_role, $8, $9, true, false, NOW(), NOW())
          RETURNING id`,
         [
           keycloakId,
@@ -4555,6 +4743,8 @@ app.post('/api/membership-applications/:id/create-profile', requireAdmin, async 
           application.university || null,
           JSON.stringify(skills),
           targetRole,
+          appDiscord,
+          appClickUp,
         ]
       );
       userId = insRes.rows[0].id;
