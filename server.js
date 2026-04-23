@@ -1032,6 +1032,23 @@ async function getKeycloakAdminToken() {
  * Tworzy usera w Keycloaku + ustawia temp password + przypisuje rolę.
  * Zwraca Keycloak user UUID. Idempotent — jeśli user istnieje (409), zwraca istniejący UUID.
  */
+/**
+ * Ustaw tymczasowe hasło dla istniejącego usera Keycloak (reset path).
+ * temporary=true wymusza zmianę przy pierwszym logowaniu.
+ */
+async function resetKeycloakPassword(keycloakId, tempPassword) {
+  const token = await getKeycloakAdminToken();
+  const res = await fetch(`${KEYCLOAK_URL}/admin/realms/${KEYCLOAK_REALM}/users/${keycloakId}/reset-password`, {
+    method:  'PUT',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ type: 'password', value: tempPassword, temporary: true }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Keycloak reset-password failed: ${res.status} ${txt}`);
+  }
+}
+
 async function createKeycloakUser({ email, firstName, lastName, tempPassword, role }) {
   const token = await getKeycloakAdminToken();
 
@@ -1086,6 +1103,49 @@ async function createKeycloakUser({ email, firstName, lastName, tempPassword, ro
   }
 
   return userId;
+}
+
+/**
+ * Email: prośba o ustawienie nowego hasła (self-service forgot password
+ * lub admin reset). Wysyłany gdy user kliknął "zapomniałem hasła" lub
+ * gdy admin zrobił reset. Zawiera temp hasło (temporary=true w Keycloak).
+ */
+function buildResetPasswordEmail({ firstName, email, tempPassword, loginUrl, reason }) {
+  const greeting = firstName ? `Cześć ${firstName}!` : 'Cześć!';
+  const intro = reason === 'admin_reset'
+    ? `<p style="color:#4b5563;line-height:1.6">Administrator AI Possibilities Lab zresetował Twoje hasło.
+         Poniżej znajdziesz nowe hasło tymczasowe — przy pierwszym logowaniu wymusimy zmianę na Twoje własne.</p>`
+    : reason === 'resend_invite'
+    ? `<p style="color:#4b5563;line-height:1.6">Wysyłamy ponownie dane do logowania.
+         Jeśli poprzedni email zaginął albo hasło przestało działać — użyj tych danych.</p>`
+    : `<p style="color:#4b5563;line-height:1.6">Otrzymaliśmy prośbę o reset hasła do Twojego konta.
+         Poniżej nowe hasło tymczasowe. Jeśli to nie Ty zainicjowałeś/aś reset —
+         zignoruj tę wiadomość, stare hasło nadal działa (temp jest osobne) i zmień je dla pewności.</p>`;
+  const subject = reason === 'admin_reset' ? 'Administrator zresetował Twoje hasło'
+                : reason === 'resend_invite' ? 'Twoje dane do logowania — ponowna wysyłka'
+                : 'Reset hasła — AI Possibilities Lab';
+  const body = `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1f2937">
+      <h2 style="color:#4f46e5">${greeting}</h2>
+      ${intro}
+      <div style="background:#f3f4f6;border-radius:8px;padding:20px;margin:20px 0">
+        <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280">Email do logowania:</p>
+        <p style="margin:0 0 16px 0;font-weight:600">${email}</p>
+        <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280">Nowe hasło tymczasowe:</p>
+        <p style="margin:0;font-family:monospace;font-size:16px;font-weight:600;color:#4f46e5">${tempPassword}</p>
+      </div>
+      <p style="margin:24px 0">
+        <a href="${loginUrl}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+          Zaloguj się i ustaw nowe hasło →
+        </a>
+      </p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:32px">
+        Przy pierwszym logowaniu zostaniesz poproszony/a o zmianę hasła tymczasowego na własne.
+        Po zmianie — normalnie loguj się z panelu.
+      </p>
+    </div>
+  `;
+  return { subject, body };
 }
 
 function buildBulkInviteEmail(firstName, email, tempPassword, loginUrl, customMessage) {
@@ -1317,6 +1377,318 @@ app.post('/api/admin/integrations/request-fill', requireRole('admin'), async (re
     console.error('[integrations/request-fill] Error:', err);
     res.status(500).json({ error: 'Błąd serwera', detail: err.message });
   }
+});
+
+/**
+ * POST /api/panel/users/:id/resend-invite
+ * Admin. Generuje nowe tymczasowe hasło dla usera (w Keycloak) + wysyła
+ * email z nowymi danymi do logowania. Użyj gdy:
+ *   - Pierwotne zaproszenie zaginęło w spamie / nie doszło
+ *   - Admin chce zresetować komuś hasło
+ *   - User zgłosił "nie mogę się zalogować"
+ *
+ * Body: { reason?: 'resend_invite' | 'admin_reset' | 'forgot_password' }
+ *   'resend_invite' (default) — "wysyłamy ponownie dane"
+ *   'admin_reset'              — "admin zresetował Twoje hasło"
+ *
+ * Wymaga: user istnieje w users + ma keycloak_id (bez keycloak_id nie ma konta
+ * Keycloak do zresetowania — wtedy użyj create-profile).
+ */
+app.post('/api/panel/users/:id/resend-invite', requireRole('admin'), async (req, res) => {
+  const { reason = 'resend_invite' } = req.body || {};
+  try {
+    const userRes = await pool.query(
+      'SELECT id, email, display_name, keycloak_id FROM users WHERE id = $1',
+      [req.params.id]
+    );
+    if (userRes.rows.length === 0) return res.status(404).json({ error: 'User nie znaleziony' });
+    const u = userRes.rows[0];
+    if (!u.keycloak_id) {
+      return res.status(400).json({
+        error: 'User nie ma konta Keycloak',
+        detail: 'Ten user nigdy nie miał utworzonego konta. Użyj "Utwórz profil uczestnika" w aplikacjach albo "Zaproś" w panelu userów.',
+      });
+    }
+
+    const tempPassword = crypto.randomBytes(6).toString('base64url') + '!A1';
+    await resetKeycloakPassword(u.keycloak_id, tempPassword);
+
+    const loginUrl = (process.env.FRONTEND_URL || 'https://krakhack.info') + '/login';
+    const firstName = (u.display_name || '').split(' ')[0] || '';
+    const mail = buildResetPasswordEmail({ firstName, email: u.email, tempPassword, loginUrl, reason });
+
+    // sendResendEmail returns bool (false gdy Resend API fail) — nie throw.
+    // Trzeba checkować jawnie, inaczej emailSent=true kłamie do admina.
+    let emailSent = false;
+    let emailError = null;
+    try {
+      emailSent = await sendResendEmail(u.email, mail.subject, mail.body);
+      if (!emailSent) emailError = 'Resend API odrzuciło wysyłkę (sprawdź logi serwera — najczęściej: domain not verified, rate limit, invalid recipient)';
+    } catch (mailErr) {
+      emailError = mailErr.message;
+    }
+
+    // Hasło zresetowane bez względu na email status — zwracamy temp żeby admin
+    // mógł przekazać offline gdyby email nie doszedł
+    res.json({
+      ok:           true,
+      email:        u.email,
+      emailSent,
+      emailError,
+      reason,
+      tempPassword,
+    });
+  } catch (err) {
+    console.error('[resend-invite] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera', detail: err.message });
+  }
+});
+
+/**
+ * POST /api/auth/forgot-password
+ * Public, rate-limited. Email → generate new temp password → wyślij.
+ *
+ * Security:
+ *   - Zawsze zwraca 200 (żeby nie można było enumerować emaili)
+ *   - Rate limit: max 3 prób/godz per email (in-memory, prosty)
+ *
+ * Body: { email }
+ */
+const forgotRateMap = new Map();
+function forgotRateLimit(email) {
+  const now = Date.now();
+  const key = String(email || '').toLowerCase().trim();
+  const entry = forgotRateMap.get(key) || { count: 0, reset: now + 3600_000 };
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + 3600_000; }
+  entry.count += 1;
+  forgotRateMap.set(key, entry);
+  return entry.count <= 3;
+}
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email: rawEmail } = req.body || {};
+  const email = String(rawEmail || '').toLowerCase().trim();
+  if (!email || !email.includes('@')) {
+    // Bez leak — nie mówimy user czy email był poprawny.
+    return res.json({ ok: true, message: 'Jeśli konto istnieje — email został wysłany.' });
+  }
+
+  // Rate-limit
+  if (!forgotRateLimit(email)) {
+    return res.json({ ok: true, message: 'Jeśli konto istnieje — email został wysłany (rate-limit: max 3/h).' });
+  }
+
+  try {
+    const userRes = await pool.query(
+      'SELECT id, email, display_name, keycloak_id FROM users WHERE email = $1 LIMIT 1',
+      [email]
+    );
+    const u = userRes.rows[0];
+
+    // Even if user nie znaleziony albo nie ma keycloak — nie zwracaj info (anti-enum).
+    if (u && u.keycloak_id) {
+      try {
+        const tempPassword = crypto.randomBytes(6).toString('base64url') + '!A1';
+        await resetKeycloakPassword(u.keycloak_id, tempPassword);
+        const loginUrl = (process.env.FRONTEND_URL || 'https://krakhack.info') + '/login';
+        const firstName = (u.display_name || '').split(' ')[0] || '';
+        const mail = buildResetPasswordEmail({ firstName, email: u.email, tempPassword, loginUrl, reason: 'forgot_password' });
+        await sendResendEmail(u.email, mail.subject, mail.body);
+      } catch (err) {
+        // Log serwer-side, ale nie leak do klienta
+        console.error(`[forgot-password] Error for ${email}:`, err.message);
+      }
+    } else if (u && !u.keycloak_id) {
+      console.log(`[forgot-password] User ${email} has no keycloak_id — skipped (invite row).`);
+    } else {
+      console.log(`[forgot-password] Unknown email: ${email}`);
+    }
+
+    res.json({ ok: true, message: 'Jeśli konto istnieje — email został wysłany. Sprawdź skrzynkę (także spam).' });
+  } catch (err) {
+    console.error('[forgot-password] Fatal:', err);
+    // Nadal zwracamy 200 żeby nie leak
+    res.json({ ok: true, message: 'Jeśli konto istnieje — email został wysłany.' });
+  }
+});
+
+/**
+ * POST /api/membership-applications/bulk/create-profile
+ * Admin. Bulk wersja /api/membership-applications/:id/create-profile.
+ * Dla każdej z applicationIds uruchamia tę samą logikę (Keycloak user +
+ * users row z bio/skills/university/discord/clickup + link aplikacji + email).
+ *
+ * Skip aplikacji z user_id już ustawionym (ale nie orphan — sprawdzamy istnienie).
+ *
+ * Body: {
+ *   applicationIds: number[],
+ *   role?: 'scienceclub-participant' | 'hackathon-participant' | 'moderator' | 'admin'
+ *   customMessage?: string
+ *   overrideExisting?: boolean  (dla userów z emailem już w users)
+ * }
+ *
+ * Zwraca: {
+ *   created: [{ appId, userId, email, tempPassword }],
+ *   skipped: [{ appId, reason }],
+ *   errors:  [{ appId, email, reason }],
+ * }
+ */
+app.post('/api/membership-applications/bulk/create-profile', requireRole('admin'), async (req, res) => {
+  const { applicationIds, role, customMessage, overrideExisting } = req.body || {};
+  if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
+    return res.status(400).json({ error: 'applicationIds[] wymagane' });
+  }
+  const ALLOWED_ROLES = ['scienceclub-participant', 'hackathon-participant', 'moderator', 'admin'];
+  const targetRole = ALLOWED_ROLES.includes(role) ? role : 'scienceclub-participant';
+
+  const loginUrl = (process.env.FRONTEND_URL || 'https://krakhack.info') + '/login';
+  const results = { created: [], skipped: [], errors: [] };
+
+  // Competency + engagement label maps (same as single create-profile)
+  const competencyLabels = {
+    programming: 'Programowanie', analytics: 'Analityka / Data Science',
+    softSkills:  'Umiejętności miękkie', organization: 'Organizacja',
+    creativity:  'Kreatywność / Design',  marketing:    'Marketing / PR',
+  };
+  const engagementLabels = {
+    technical_projects:   'Projekty techniczne',
+    discussions_research: 'Research i dyskusje',
+    marketing_pr:         'Marketing i PR',
+    organization:         'Koordynacja wydarzeń',
+    academic_path:        'Ścieżka naukowa',
+  };
+
+  for (const appId of applicationIds) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const appRes = await client.query('SELECT * FROM membership_applications WHERE id = $1 FOR UPDATE', [appId]);
+      if (appRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        results.errors.push({ appId, reason: 'Aplikacja nie znaleziona' });
+        continue;
+      }
+      const app = appRes.rows[0];
+
+      // Idempotency: pomiń jeśli user_id już istnieje (i user żyje)
+      if (app.user_id) {
+        const refUser = await client.query('SELECT 1 FROM users WHERE id = $1', [app.user_id]);
+        if (refUser.rows.length > 0) {
+          await client.query('ROLLBACK');
+          results.skipped.push({ appId, reason: 'Profil już utworzony' });
+          continue;
+        }
+        await client.query('UPDATE membership_applications SET user_id = NULL WHERE id = $1', [appId]);
+      }
+
+      const email = String(app.email || '').toLowerCase().trim();
+      if (!email) {
+        await client.query('ROLLBACK');
+        results.errors.push({ appId, reason: 'Aplikacja bez emaila' });
+        continue;
+      }
+
+      const existingUserRes = await client.query(
+        'SELECT id, keycloak_id FROM users WHERE email = $1 LIMIT 1', [email]);
+      const existingUser = existingUserRes.rows[0];
+      if (existingUser && existingUser.keycloak_id && !overrideExisting) {
+        await client.query('ROLLBACK');
+        results.skipped.push({ appId, email, reason: `User już istnieje (id ${existingUser.id}) — użyj overrideExisting=true` });
+        continue;
+      }
+
+      const firstName = app.first_name || '';
+      const lastName  = app.last_name  || '';
+      const displayName = `${firstName} ${lastName}`.trim() || email;
+
+      const comp = typeof app.competencies === 'string' ? JSON.parse(app.competencies || '{}') : (app.competencies || {});
+      const skillsFromComp = Object.entries(competencyLabels)
+        .filter(([k]) => Number(comp[k] || 0) >= 5).map(([, l]) => l);
+      const skillsFromEng  = (app.engagement_types || []).map(t => engagementLabels[t]).filter(Boolean);
+      const skills = Array.from(new Set([...skillsFromComp, ...skillsFromEng]));
+
+      const bioParts = [];
+      if (app.what_you_bring)   bioParts.push(`## Co wnoszę do koła\n${app.what_you_bring}`);
+      if (app.expectations)     bioParts.push(`## Moje oczekiwania\n${app.expectations}`);
+      if (app.values_resonance) bioParts.push(`## Co mi rezonuje\n${app.values_resonance}`);
+      const bio = bioParts.join('\n\n') || null;
+
+      const appDiscord = (app.discord_username || '').trim() || null;
+      const appClickUp = (app.clickup_email || '').trim().toLowerCase() || null;
+
+      const tempPassword = crypto.randomBytes(6).toString('base64url') + '!A1';
+      let keycloakId;
+      try {
+        keycloakId = await createKeycloakUser({ email, firstName, lastName, tempPassword, role: targetRole });
+      } catch (kcErr) {
+        await client.query('ROLLBACK');
+        results.errors.push({ appId, email, reason: `Keycloak: ${kcErr.message}` });
+        continue;
+      }
+
+      let userId;
+      if (existingUser) {
+        const updRes = await client.query(
+          `UPDATE users SET
+              keycloak_id        = COALESCE(users.keycloak_id, $1),
+              display_name       = COALESCE(NULLIF(users.display_name, ''), $2),
+              bio                = COALESCE(NULLIF(users.bio, ''), $3),
+              university         = COALESCE(NULLIF(users.university, ''), $4),
+              skills             = CASE WHEN jsonb_array_length(COALESCE(users.skills, '[]'::jsonb)) = 0 THEN $5::jsonb ELSE users.skills END,
+              discord_username   = COALESCE(users.discord_username, $8),
+              clickup_email      = COALESCE(users.clickup_email, $9),
+              role               = $6::user_role,
+              is_active          = true,
+              updated_at         = NOW()
+           WHERE id = $7 RETURNING id`,
+          [keycloakId, displayName, bio, app.university || null, JSON.stringify(skills), targetRole, existingUser.id, appDiscord, appClickUp]
+        );
+        userId = updRes.rows[0].id;
+      } else {
+        const insRes = await client.query(
+          `INSERT INTO users (keycloak_id, email, display_name, bio, university, skills, role, discord_username, clickup_email, is_active, onboarding_completed, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::user_role, $8, $9, true, false, NOW(), NOW())
+           RETURNING id`,
+          [keycloakId, email, displayName, bio, app.university || null, JSON.stringify(skills), targetRole, appDiscord, appClickUp]
+        );
+        userId = insRes.rows[0].id;
+      }
+
+      await client.query(
+        `UPDATE membership_applications SET user_id = $1, status = 'przyjęty', updated_at = NOW() WHERE id = $2`,
+        [userId, appId]
+      );
+      await client.query('COMMIT');
+
+      // Email poza transakcją. sendResendEmail returns bool (nie throw na
+      // Resend API fail) — checkujemy jawnie, żeby admin zobaczył prawdziwy
+      // status. Profil i tak został utworzony; temp password zwrócony.
+      let emailSent = false;
+      let emailError = null;
+      try {
+        emailSent = await sendResendEmail(
+          email,
+          'Twój profil w AI Possibilities Lab jest gotowy',
+          buildBulkInviteEmail(firstName, email, tempPassword, loginUrl, customMessage),
+        );
+        if (!emailSent) emailError = 'Resend API odrzuciło wysyłkę';
+      } catch (emailErr) {
+        emailError = emailErr.message;
+        console.error(`[bulk/create-profile] Email exception ${email}:`, emailErr.message);
+      }
+
+      results.created.push({ appId, userId, email, tempPassword, emailSent, emailError });
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch {}
+      console.error(`[bulk/create-profile] appId=${appId}:`, err.message);
+      results.errors.push({ appId, reason: err.message });
+    } finally {
+      client.release();
+    }
+  }
+
+  res.json(results);
 });
 
 app.post('/api/invite/send', requireRole('admin', 'moderator'), async (req, res) => {
@@ -4761,15 +5133,22 @@ app.post('/api/membership-applications/:id/create-profile', requireAdmin, async 
     await client.query('COMMIT');
 
     // 7. Email (poza transakcją — failure nie powinien rollbackować profilu)
+    //    sendResendEmail zwraca bool (false jeśli Resend API odrzucił np. domain
+    //    not verified). Łapiemy bool EXPLICIT — bez tego `emailSent: true`
+    //    kłamałby do admina gdy email się nie wysłał.
     const loginUrl = process.env.FRONTEND_URL || 'https://krakhack.info';
+    let emailSent = false;
+    let emailError = null;
     try {
-      await sendResendEmail(
+      emailSent = await sendResendEmail(
         email,
         'Twój profil w AI Possibilities Lab jest gotowy',
         buildBulkInviteEmail(firstName, email, tempPassword, loginUrl + '/login', customMessage),
       );
+      if (!emailSent) emailError = 'Resend API odrzuciło wysyłkę (zobacz logi serwera — najczęściej: domain not verified lub rate limit)';
     } catch (emailErr) {
-      console.error('[create-profile] Email error (non-fatal):', emailErr.message);
+      emailError = emailErr.message;
+      console.error('[create-profile] Email exception:', emailErr.message);
     }
 
     res.json({
@@ -4781,7 +5160,8 @@ app.post('/api/membership-applications/:id/create-profile', requireAdmin, async 
       displayName,
       skillsCount:   skills.length,
       hasBio:        !!bio,
-      emailSent:     true,
+      emailSent,
+      emailError,
     });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch {}

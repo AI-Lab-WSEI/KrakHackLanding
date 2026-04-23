@@ -7,6 +7,7 @@ import { DemoPage } from '@/app/pages/DemoPage';
 import { NotFoundPage } from '@/app/pages/NotFoundPage';
 import { AuthCallback } from '@/app/pages/AuthCallback';
 import { Logowanie } from '@/app/pages/Logowanie';
+import { ForgotPasswordPage } from '@/app/pages/ForgotPasswordPage';
 import { Onboarding } from '@/app/pages/Onboarding';
 import { Edition2026 } from '@/app/pages/Edition2026';
 import { Edition2025 } from '@/app/pages/Edition2025';
@@ -135,6 +136,8 @@ export const router = createBrowserRouter([
       // ══ Auth ═════════════════════════════════════════════════════════════
       { path: 'logowanie',                       Component: Logowanie },
       { path: 'login',                           Component: Logowanie },   // alias EN
+      { path: 'zapomniane-haslo',                Component: ForgotPasswordPage },
+      { path: 'forgot-password',                 Component: ForgotPasswordPage }, // alias EN
       { path: 'onboarding',                      Component: Onboarding },
 
       // ══ Panel — unified role-based hub ═══════════════════════════════════

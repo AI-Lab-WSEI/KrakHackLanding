@@ -26,6 +26,7 @@ import {
   Copy,
   Check,
   Sparkles,
+  Mail,
 } from 'lucide-react';
 
 interface ApplicationRow {
@@ -80,6 +81,14 @@ export function AdminApplications() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkInvite, setShowBulkInvite] = useState(false);
   const [createProfileApp, setCreateProfileApp] = useState<ApplicationRow | null>(null);
+  const [resendingId, setResendingId] = useState<number | null>(null);
+  const [resendResult, setResendResult] = useState<{
+    appId:        number;
+    email:        string;
+    emailSent:    boolean;
+    emailError:   string | null;
+    tempPassword: string;
+  } | null>(null);
 
   function toggleSelected(id: number) {
     setSelectedIds(prev => {
@@ -149,6 +158,43 @@ export function AdminApplications() {
       setError(err instanceof Error ? err.message : 'Błąd');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  /**
+   * Resend welcome email dla apps których profil już został utworzony.
+   * Generuje nowe tymczasowe hasło (Keycloak reset-password) i wysyła email.
+   * Użyj gdy:
+   *   - Admin kliknął "Utwórz profil" ale email się nie wysłał (Resend fail)
+   *   - User zgłosił "nie dostałem maila / nie pamiętam hasła"
+   *   - Admin chce reset hasła z powodu zapomnienia
+   */
+  const resendInvite = async (app: ApplicationRow) => {
+    if (!app.user_id) return;
+    setResendingId(app.id);
+    setError('');
+    try {
+      const { adminFetch } = await import('@/lib/adminApi');
+      const res = await adminFetch(`/api/panel/users/${app.user_id}/resend-invite`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: 'resend_invite' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || data.error || `HTTP ${res.status}`);
+        return;
+      }
+      setResendResult({
+        appId:        app.id,
+        email:        data.email,
+        emailSent:    data.emailSent !== false,
+        emailError:   data.emailError ?? null,
+        tempPassword: data.tempPassword,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Błąd');
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -266,10 +312,11 @@ export function AdminApplications() {
           {selectedIds.size > 0 && (
             <button
               onClick={() => setShowBulkInvite(true)}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium text-sm transition-colors flex items-center gap-2"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm uppercase tracking-wider transition-colors flex items-center gap-2"
+              title="Dla każdej zaznaczonej aplikacji: utwórz konto Keycloak + profil (bio/skills/university/discord/clickup z aplikacji) + wyślij email z hasłem tymczasowym. Jak 'Utwórz profil uczestnika' tylko hurtowo."
             >
-              <UserPlus className="w-4 h-4" />
-              Zaproś zaznaczonych ({selectedIds.size})
+              <Sparkles className="w-4 h-4" />
+              Utwórz profile ({selectedIds.size})
             </button>
           )}
         </div>
@@ -468,13 +515,33 @@ export function AdminApplications() {
 
                         {/* Utwórz profil z aplikacji — core feature */}
                         {app.user_id ? (
-                          <div
-                            className="px-4 py-1.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5"
-                            title={`Profil utworzony (user id: ${app.user_id}). Powiązany przez membership_applications.user_id.`}
-                          >
-                            <UserCheck className="w-3 h-3" />
-                            Profil utworzony
-                          </div>
+                          <>
+                            <div
+                              className="px-4 py-1.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5"
+                              title={`Profil utworzony (user id: ${app.user_id}).`}
+                            >
+                              <UserCheck className="w-3 h-3" />
+                              Profil utworzony
+                            </div>
+                            <button
+                              onClick={() => resendInvite(app)}
+                              disabled={resendingId === app.id}
+                              className="px-3 py-1.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-medium hover:bg-indigo-500/30 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                              title="Wyślij email z nowym tymczasowym hasłem. Używaj gdy: user nie dostał maila, zapomniał hasła, admin chce zresetować hasło."
+                            >
+                              {resendingId === app.id ? (
+                                <>
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                  Wysyłam…
+                                </>
+                              ) : (
+                                <>
+                                  <Mail className="w-3 h-3" />
+                                  Wyślij email ponownie / reset hasła
+                                </>
+                              )}
+                            </button>
+                          </>
                         ) : (
                           <button
                             onClick={() => setCreateProfileApp(app)}
@@ -498,7 +565,7 @@ export function AdminApplications() {
 
       {showBulkInvite && (
         <BulkInviteModal
-          emails={filtered.filter(a => selectedIds.has(a.id)).map(a => a.email)}
+          applications={filtered.filter(a => selectedIds.has(a.id))}
           onClose={() => setShowBulkInvite(false)}
           onSent={() => { setShowBulkInvite(false); setSelectedIds(new Set()); fetchApplications(); }}
         />
@@ -511,122 +578,259 @@ export function AdminApplications() {
           onCreated={() => { setCreateProfileApp(null); fetchApplications(); }}
         />
       )}
+
+      {resendResult && (
+        <ResendResultModal
+          result={resendResult}
+          onClose={() => setResendResult(null)}
+        />
+      )}
     </motion.div>
   );
 }
 
-// ─── Bulk invite modal ────────────────────────────────────────────────────────
+// ─── Bulk create-profile modal ─────────────────────────────────────────────
+// Wersja single "Utwórz profil uczestnika" dla wielu aplikacji naraz.
+// Używa /api/membership-applications/bulk/create-profile — dla każdej
+// aplikacji pełny flow: Keycloak user + users row (bio/skills/university/discord/
+// clickup z aplikacji) + link aplikacji + email.
+//
+// UI pokazuje per-user status emaila (Resend może odrzucić niektóre), żeby
+// admin widział które profiles wymagają retry.
 
 function BulkInviteModal({
-  emails, onClose, onSent,
+  applications, onClose, onSent,
 }: {
-  emails: string[];
+  applications: ApplicationRow[];
   onClose: () => void;
   onSent: () => void;
 }) {
-  const [role, setRole]       = useState<'scienceclub-participant' | 'hackathon-participant'>('scienceclub-participant');
-  const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const [result, setResult]   = useState<{ sent: number; errors: Array<{ email: string; reason: string }> } | null>(null);
+  const [role, setRole]                       = useState<'scienceclub-participant' | 'hackathon-participant' | 'moderator' | 'admin'>('scienceclub-participant');
+  const [message, setMessage]                 = useState('');
+  const [overrideExisting, setOverrideExisting] = useState(false);
+  const [sending, setSending]                 = useState(false);
+  const [result, setResult]                   = useState<{
+    created: Array<{ appId: number; userId: string; email: string; tempPassword: string; emailSent: boolean; emailError: string | null }>;
+    skipped: Array<{ appId: number; reason: string; email?: string }>;
+    errors:  Array<{ appId: number; email?: string; reason: string }>;
+  } | null>(null);
+  const [error, setError]                     = useState<string | null>(null);
 
   async function handleSubmit() {
-    if (sending) return;
+    if (sending || result) return;
+    setError(null);
     setSending(true);
     try {
       const { adminFetch } = await import('@/lib/adminApi');
-      const res  = await adminFetch('/api/invite/bulk', {
+      const res  = await adminFetch('/api/membership-applications/bulk/create-profile', {
         method: 'POST',
-        body: JSON.stringify({ emails, role, message: message.trim() || undefined }),
+        body:   JSON.stringify({
+          applicationIds: applications.map(a => a.id),
+          role,
+          customMessage:  message.trim() || undefined,
+          overrideExisting,
+        }),
       });
       const data = await res.json();
-      setResult({ sent: data.sent ?? 0, errors: data.errors ?? [] });
-      if (data.sent > 0) setTimeout(onSent, 1500);
+      if (!res.ok) {
+        setError(data.detail || data.error || `HTTP ${res.status}`);
+        return;
+      }
+      setResult({
+        created: data.created ?? [],
+        skipped: data.skipped ?? [],
+        errors:  data.errors ?? [],
+      });
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setSending(false);
     }
   }
 
+  const sentCount     = (result?.created ?? []).filter(c => c.emailSent).length;
+  const emailFailures = (result?.created ?? []).filter(c => !c.emailSent);
+
   return (
     <div className="fixed inset-0 z-[10000] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-950 border border-white/10 rounded-2xl w-full max-w-xl my-8">
+      <div className="bg-gray-950 border border-white/10 rounded-2xl w-full max-w-2xl my-8">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h3 className="text-lg font-semibold text-white">Bulk invite — {emails.length} os.</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              Utwórz profile dla zaznaczonych
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {applications.length} {applications.length === 1 ? 'aplikacja' : 'aplikacje'} · pełny create-profile flow (Keycloak + bio + skills + discord/clickup + email)
+            </p>
+          </div>
           <button onClick={onClose} className="p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
-          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300">
-            <strong>Co się stanie:</strong> dla każdego emaila utworzymy konto Keycloak z tymczasowym hasłem,
-            przypiszemy rolę <code>{role}</code> i wyślemy email z danymi do logowania. Przy pierwszym loginie
-            user jest zmuszony zmienić hasło.
-          </div>
+        {!result ? (
+          <div className="px-6 py-5 space-y-4">
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 leading-relaxed">
+              <strong className="block mb-1">Co się wydarzy (per aplikacja):</strong>
+              1. Konto Keycloak z tymczasowym hasłem<br />
+              2. Users row: bio (markdown z 3 sekcji), skills (kompetencje ≥5 + engagement), university, discord, clickup<br />
+              3. Link aplikacja → user (status "przyjęty")<br />
+              4. Email z hasłem tymczasowym<br />
+              <span className="opacity-70">Aplikacje z user_id już ustawionym zostaną pominięte (idempotency).</span>
+            </div>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-gray-400 uppercase tracking-wider">Rola docelowa</span>
-            <select
-              value={role}
-              onChange={e => setRole(e.target.value as typeof role)}
-              className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30"
-            >
-              <option value="scienceclub-participant">scienceclub-participant (członek koła)</option>
-              <option value="hackathon-participant">hackathon-participant (uczestnik hackathonu)</option>
-            </select>
-          </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Rola docelowa</span>
+              <select
+                value={role}
+                onChange={e => setRole(e.target.value as typeof role)}
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30 [&>option]:bg-gray-900"
+              >
+                <option value="scienceclub-participant">Członek koła (default)</option>
+                <option value="hackathon-participant">Uczestnik hackathonu</option>
+                <option value="moderator">Moderator</option>
+                <option value="admin">Admin (ostrożnie!)</option>
+              </select>
+            </label>
 
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-gray-400 uppercase tracking-wider">Własna wiadomość (opcjonalna)</span>
-            <textarea
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              rows={3}
-              placeholder="Np. 'Witaj! Zostałeś przyjęty/a do koła. Pierwsze spotkanie w piątek…'"
-              className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/30 resize-none"
-            />
-          </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Własna wiadomość (opcjonalna)</span>
+              <textarea
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                rows={3}
+                placeholder="Np. 'Witaj! Zostałeś/aś przyjęty/a do koła. Pierwsze spotkanie w piątek…'"
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/30 resize-none"
+              />
+            </label>
 
-          <div className="max-h-40 overflow-y-auto bg-white/5 border border-white/10 rounded-lg p-3">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Odbiorcy ({emails.length})</p>
-            <div className="flex flex-wrap gap-1.5">
-              {emails.map(e => (
-                <span key={e} className="text-[11px] bg-white/10 text-gray-300 px-2 py-0.5 rounded-full">{e}</span>
-              ))}
+            <label className="flex items-start gap-2 text-xs text-gray-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={overrideExisting}
+                onChange={e => setOverrideExisting(e.target.checked)}
+                className="mt-0.5 accent-emerald-500"
+              />
+              <span>
+                <span className="text-gray-300 font-medium">Podepnij istniejących userów</span><br />
+                Jeśli email już ma konto Keycloak — zamiast pominąć, dopełnij profil (bio, skills, discord) + zaktualizuj rolę + zresetuj hasło. Użyj ostrożnie (może nadpisać istniejące uprawnienia).
+              </span>
+            </label>
+
+            <div className="max-h-40 overflow-y-auto bg-white/5 border border-white/10 rounded-lg p-3">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Odbiorcy ({applications.length})</p>
+              <div className="flex flex-wrap gap-1.5">
+                {applications.map(a => (
+                  <span key={a.id} className="text-[11px] bg-white/10 text-gray-300 px-2 py-0.5 rounded-full" title={a.email}>
+                    #{a.id} {a.first_name} {a.last_name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-300">
+                <strong>Błąd:</strong> {error}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={sending}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              >
+                Anuluj
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={sending || applications.length === 0}
+                className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50"
+              >
+                {sending ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Tworzę {applications.length} profili…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Utwórz profile ({applications.length})
+                  </>
+                )}
+              </button>
             </div>
           </div>
+        ) : (
+          <div className="px-6 py-5 space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-center">
+                <p className="text-2xl font-bold text-emerald-300">{result.created.length}</p>
+                <p className="text-[10px] text-emerald-400 uppercase tracking-wider">Utworzono</p>
+              </div>
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-center">
+                <p className="text-2xl font-bold text-amber-300">{result.skipped.length}</p>
+                <p className="text-[10px] text-amber-400 uppercase tracking-wider">Pominięto</p>
+              </div>
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-center">
+                <p className="text-2xl font-bold text-red-300">{result.errors.length}</p>
+                <p className="text-[10px] text-red-400 uppercase tracking-wider">Błędów</p>
+              </div>
+            </div>
 
-          {result && (
-            <div className={`p-3 rounded-lg text-xs ${result.errors.length > 0 ? 'bg-amber-500/10 border border-amber-500/20 text-amber-300' : 'bg-green-500/10 border border-green-500/20 text-green-300'}`}>
-              <strong>Wysłano: {result.sent}.</strong>
-              {result.errors.length > 0 && (
-                <div className="mt-2 space-y-0.5">
-                  {result.errors.map((e, i) => (
-                    <div key={i} className="text-[10px]">• {e.email}: {e.reason}</div>
-                  ))}
-                </div>
+            <div className="p-3 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-300">
+              Emaile: <strong className="text-emerald-400">{sentCount}</strong> wysłane /
+              <strong className="text-red-400"> {emailFailures.length}</strong> NIE wysłane
+              {emailFailures.length > 0 && (
+                <span className="text-[10px] text-gray-500 block mt-1">
+                  (profile utworzone, temp hasła dostępne poniżej — admin może skopiować i przekazać offline)
+                </span>
               )}
             </div>
-          )}
 
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={sending}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
-            >
-              Anuluj
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={sending || emails.length === 0}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-            >
-              {sending ? 'Wysyłam…' : `Wyślij zaproszenia (${emails.length})`}
-            </button>
+            {emailFailures.length > 0 && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 max-h-40 overflow-y-auto">
+                <p className="text-xs font-bold text-red-300 mb-2">Emaile NIE wysłane — temp hasła do przekazania offline:</p>
+                {emailFailures.map(f => (
+                  <div key={f.appId} className="text-[11px] text-red-200/90 py-0.5 flex items-center justify-between gap-2">
+                    <span className="truncate">{f.email}</span>
+                    <code className="bg-black/30 px-2 py-0.5 rounded text-white select-all shrink-0">{f.tempPassword}</code>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {result.skipped.length > 0 && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 max-h-32 overflow-y-auto text-[11px] text-amber-300">
+                <p className="font-bold mb-1">Pominięte:</p>
+                {result.skipped.map((s, i) => (
+                  <div key={i}>#{s.appId}: {s.reason}</div>
+                ))}
+              </div>
+            )}
+
+            {result.errors.length > 0 && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 max-h-32 overflow-y-auto text-[11px] text-red-300">
+                <p className="font-bold mb-1">Błędy (profile NIE utworzone):</p>
+                {result.errors.map((e, i) => (
+                  <div key={i}>#{e.appId} {e.email ?? ''}: {e.reason}</div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={onSent}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Gotowe
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -715,6 +919,8 @@ function CreateProfileModal({
     displayName:  string;
     skillsCount:  number;
     hasBio:       boolean;
+    emailSent:    boolean;
+    emailError:   string | null;
   } | null>(null);
   const [error, setError]                     = useState<string | null>(null);
   const [copied, setCopied]                   = useState(false);
@@ -754,6 +960,8 @@ function CreateProfileModal({
         displayName:  data.displayName,
         skillsCount:  data.skillsCount ?? 0,
         hasBio:       !!data.hasBio,
+        emailSent:    data.emailSent !== false,
+        emailError:   data.emailError ?? null,
       });
     } catch (e) {
       setError((e as Error).message);
@@ -956,13 +1164,27 @@ function CreateProfileModal({
                 <p>user_id: <code className="text-[10px]">{result.userId}</code></p>
                 <p>keycloak_id: <code className="text-[10px]">{result.keycloakId}</code></p>
                 <p>skills: {result.skillsCount} · bio: {result.hasBio ? 'tak' : 'nie'}</p>
-                <p>email z danymi logowania: wysłany ✓</p>
+                {result.emailSent ? (
+                  <p>email z danymi logowania: <span className="text-emerald-400">wysłany ✓</span></p>
+                ) : (
+                  <p>email z danymi logowania: <span className="text-red-400">NIE WYSŁANY ✗</span></p>
+                )}
               </div>
             </div>
 
+            {!result.emailSent && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <p className="text-sm font-bold text-red-300 mb-1">Email się nie wysłał</p>
+                <p className="text-xs text-red-200/80 leading-relaxed">
+                  {result.emailError || 'Nieznany powód.'} Profil Keycloak został utworzony — skopiuj temp hasło poniżej
+                  i przekaż offline, albo użyj "Wyślij email ponownie" z listy użytkowników po odświeżeniu.
+                </p>
+              </div>
+            )}
+
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
               <p className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
-                Tymczasowe hasło (widoczne raz)
+                Tymczasowe hasło {result.emailSent ? '(fallback — już w emailu)' : '(email nie wyszedł — skopiuj i przekaż)'}
               </p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 bg-black/30 px-3 py-2 rounded text-sm text-white font-mono select-all">
@@ -977,7 +1199,7 @@ function CreateProfileModal({
                 </button>
               </div>
               <p className="text-[11px] text-amber-200/60 mt-2">
-                Wysłaliśmy je w emailu — ten podgląd jest awaryjnym fallbackiem. User będzie musiał zmienić hasło przy pierwszym loginie.
+                User będzie musiał zmienić hasło przy pierwszym loginie (Keycloak wymusi UPDATE_PASSWORD).
               </p>
             </div>
 
@@ -991,6 +1213,101 @@ function CreateProfileModal({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Resend invite result modal ──────────────────────────────────────────────
+// Pokazuje wynik akcji "Wyślij email ponownie / reset hasła" — success status
+// emaila (czy Resend go zaakceptował), nowe temp hasło jako fallback, oraz
+// sugestia "spróbuj ponownie" gdy email się nie wysłał.
+
+function ResendResultModal({
+  result, onClose,
+}: {
+  result: {
+    appId:        number;
+    email:        string;
+    emailSent:    boolean;
+    emailError:   string | null;
+    tempPassword: string;
+  };
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  function copyPassword() {
+    navigator.clipboard.writeText(result.tempPassword).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  return (
+    <div className="fixed inset-0 z-[10000] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-gray-950 border border-white/10 rounded-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Mail className="w-4 h-4 text-indigo-400" />
+            Wyślij email ponownie
+          </h3>
+          <button onClick={onClose} className="p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <div className={`p-3 rounded-lg border ${
+            result.emailSent
+              ? 'bg-emerald-500/10 border-emerald-500/30'
+              : 'bg-red-500/10 border-red-500/30'
+          }`}>
+            <p className={`text-sm font-bold mb-1 ${
+              result.emailSent ? 'text-emerald-300' : 'text-red-300'
+            }`}>
+              {result.emailSent ? '✓ Email wysłany' : '✗ Email NIE wysłany'}
+            </p>
+            <p className={`text-xs leading-relaxed ${
+              result.emailSent ? 'text-emerald-200/80' : 'text-red-200/80'
+            }`}>
+              Adresat: <code>{result.email}</code><br />
+              Hasło tymczasowe ustawione w Keycloak (temporary=true — user musi zmienić przy logowaniu).
+              {!result.emailSent && (
+                <><br /><strong>Powód:</strong> {result.emailError || 'nieznany'}</>
+              )}
+            </p>
+          </div>
+
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+            <p className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
+              Nowe tymczasowe hasło
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 bg-black/30 px-3 py-2 rounded text-sm text-white font-mono select-all">
+                {result.tempPassword}
+              </code>
+              <button
+                onClick={copyPassword}
+                className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs flex items-center gap-1.5"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? 'Skopiowano' : 'Kopiuj'}
+              </button>
+            </div>
+            {!result.emailSent && (
+              <p className="text-[11px] text-amber-200/60 mt-2">
+                Email się nie wysłał — skopiuj hasło i przekaż userowi innym kanałem (Discord, SMS, osobiście).
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end">
+            <button
+              onClick={onClose}
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              Gotowe
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

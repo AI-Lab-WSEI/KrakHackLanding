@@ -9,7 +9,7 @@
  * Fallback link "Zaloguj przez Keycloak SSO" na wypadek Google IdP w przyszłości.
  */
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -162,7 +162,13 @@ export function Logowanie() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-white/10 text-center">
+          <div className="mt-6 pt-6 border-t border-white/10 flex flex-col gap-3 items-center">
+            <Link
+              to="/zapomniane-haslo"
+              className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              Nie pamiętam hasła
+            </Link>
             <button
               type="button"
               onClick={ssoLogin}

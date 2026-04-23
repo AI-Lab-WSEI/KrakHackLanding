@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router';
-import { Search, UserPlus, Edit3, Ban, CheckCircle2, Trash2, X, Save, Loader2 } from 'lucide-react';
+import { Search, UserPlus, Edit3, Ban, CheckCircle2, Trash2, X, Save, Loader2, Mail, Copy, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminFetch } from '@/lib/adminApi';
 import { PanelCard } from '@/app/components/panel/shared/PanelCard';
@@ -33,6 +33,8 @@ interface UserRow {
   onboardingCompleted: boolean;
   isActive: boolean;
   createdAt: string;
+  /** Czy user ma faktyczne konto Keycloak (resend-invite / reset pwd tylko gdy true). */
+  hasKeycloak?: boolean;
 }
 
 interface UserDetail extends UserRow {
@@ -79,6 +81,13 @@ export function AdminUsersPage() {
   const [roleFilter, setRoleFilter]     = useState<'all' | Role>('all');
   const [editingId, setEditingId]       = useState<string | null>(null);
   const [showInvite, setShowInvite]     = useState(false);
+  const [resetResult, setResetResult]   = useState<{
+    email:        string;
+    emailSent:    boolean;
+    emailError:   string | null;
+    tempPassword: string;
+    reason:       string;
+  } | null>(null);
 
   if (!user) return null;
   const canAccess = user.keycloakRoles.includes('admin') || user.keycloakRoles.includes('moderator');
@@ -203,6 +212,7 @@ export function AdminUsersPage() {
                     isAdmin={isAdmin}
                     isCurrentUser={u.id === user.id}
                     onEdit={() => setEditingId(u.id)}
+                    onResetComplete={setResetResult}
                     onReload={load}
                   />
                 ))}
@@ -229,6 +239,10 @@ export function AdminUsersPage() {
           onSent={() => { setShowInvite(false); load(); }}
         />
       )}
+
+      {resetResult && (
+        <PasswordResetResultModal result={resetResult} onClose={() => setResetResult(null)} />
+      )}
     </div>
   );
 }
@@ -236,15 +250,57 @@ export function AdminUsersPage() {
 // ─── User row ─────────────────────────────────────────────────────────────────
 
 function UserRowView({
-  user, isAdmin, isCurrentUser, onEdit, onReload,
+  user, isAdmin, isCurrentUser, onEdit, onReload, onResetComplete,
 }: {
   user: UserRow;
   isAdmin: boolean;
   isCurrentUser: boolean;
   onEdit: () => void;
   onReload: () => void;
+  onResetComplete: (r: {
+    email:        string;
+    emailSent:    boolean;
+    emailError:   string | null;
+    tempPassword: string;
+    reason:       string;
+  }) => void;
 }) {
   const [busyAction, setBusyAction] = useState<string | null>(null);
+
+  /**
+   * Reset password + resend email. Obsługa obu use case'ów:
+   *   - "Wyślij zaproszenie ponownie" (user nie dostał pierwszego emaila)
+   *   - "Zresetuj hasło" (user zapomniał albo admin chce reset)
+   * Backend generuje nowe temp hasło, ustawia w Keycloak (temporary=true)
+   * i wysyła branded email. Jeśli email fail — admin dostaje temp hasło
+   * w modalu i może przekazać offline.
+   */
+  async function resendOrReset(reason: 'resend_invite' | 'admin_reset') {
+    if (!isAdmin) return;
+    const label = reason === 'resend_invite' ? 'ponownie wysłać zaproszenie' : 'zresetować hasło';
+    if (!confirm(`Czy na pewno ${label} dla ${user.email}?\n\nWygeneruje to nowe hasło tymczasowe — aktualne przestanie działać.`)) return;
+    setBusyAction('reset');
+    try {
+      const res = await adminFetch(`/api/panel/users/${user.id}/resend-invite`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.detail || data.error || `HTTP ${res.status}`);
+        return;
+      }
+      onResetComplete({
+        email:        data.email,
+        emailSent:    data.emailSent !== false,
+        emailError:   data.emailError ?? null,
+        tempPassword: data.tempPassword,
+        reason:       data.reason,
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  }
 
   async function toggleRole(role: Role) {
     if (!isAdmin) return;
@@ -345,6 +401,19 @@ function UserRowView({
           </IconButton>
           {isAdmin && (
             <>
+              {/* Reset password / resend invite — tylko dla userów z Keycloak */}
+              {user.hasKeycloak !== false && (
+                <IconButton
+                  onClick={() => resendOrReset('admin_reset')}
+                  disabled={busyAction === 'reset'}
+                  title="Wyślij email z nowym hasłem tymczasowym (resend invite / reset password). User dostanie email z linkiem do logowania — przy pierwszym loginie Keycloak wymusi zmianę hasła."
+                  className="hover:text-indigo-300"
+                >
+                  {busyAction === 'reset'
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Mail className="w-3.5 h-3.5" />}
+                </IconButton>
+              )}
               <IconButton
                 onClick={toggleActive}
                 disabled={busyAction === 'active' || isCurrentUser}
@@ -778,6 +847,105 @@ function InviteModal({ onClose, onSent }: { onClose: () => void; onSent: () => v
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Password reset result modal ─────────────────────────────────────────────
+// Pokazuje wynik "Wyślij email ponownie / zresetuj hasło" — honest email status
+// (wysłany vs nie wysłany) + nowe temp hasło jako fallback.
+
+function PasswordResetResultModal({
+  result, onClose,
+}: {
+  result: {
+    email:        string;
+    emailSent:    boolean;
+    emailError:   string | null;
+    tempPassword: string;
+    reason:       string;
+  };
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  function copyPassword() {
+    navigator.clipboard.writeText(result.tempPassword).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  const reasonLabel =
+    result.reason === 'admin_reset'   ? 'Reset hasła'
+    : result.reason === 'resend_invite' ? 'Ponowne zaproszenie'
+    : 'Nowe hasło';
+
+  return (
+    <div className="fixed inset-0 z-[10000] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-gray-950 border border-white/10 rounded-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Mail className="w-4 h-4 text-indigo-400" />
+            {reasonLabel}
+          </h3>
+          <button onClick={onClose} className="p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <div className={`p-3 rounded-lg border ${
+            result.emailSent
+              ? 'bg-emerald-500/10 border-emerald-500/30'
+              : 'bg-red-500/10 border-red-500/30'
+          }`}>
+            <p className={`text-sm font-bold mb-1 ${
+              result.emailSent ? 'text-emerald-300' : 'text-red-300'
+            }`}>
+              {result.emailSent ? '✓ Email wysłany' : '✗ Email NIE wysłany'}
+            </p>
+            <p className={`text-xs leading-relaxed ${
+              result.emailSent ? 'text-emerald-200/80' : 'text-red-200/80'
+            }`}>
+              Adresat: <code>{result.email}</code><br />
+              Nowe hasło tymczasowe ustawione w Keycloak (temporary=true — wymuszona zmiana przy logowaniu).
+              {!result.emailSent && (
+                <><br /><strong>Powód:</strong> {result.emailError || 'nieznany'}</>
+              )}
+            </p>
+          </div>
+
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+            <p className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
+              Nowe tymczasowe hasło
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 bg-black/30 px-3 py-2 rounded text-sm text-white font-mono select-all">
+                {result.tempPassword}
+              </code>
+              <button
+                onClick={copyPassword}
+                className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs flex items-center gap-1.5"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? 'Skopiowano' : 'Kopiuj'}
+              </button>
+            </div>
+            <p className="text-[11px] text-amber-200/60 mt-2">
+              {result.emailSent
+                ? 'User dostanie to hasło w emailu. Ten podgląd to fallback gdybyś musiał przekazać offline.'
+                : 'Email się nie wysłał — skopiuj i przekaż userowi innym kanałem (Discord, SMS, osobiście).'}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end">
+            <button
+              onClick={onClose}
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              Gotowe
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
