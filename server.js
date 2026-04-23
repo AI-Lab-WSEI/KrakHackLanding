@@ -4300,15 +4300,22 @@ app.get('/api/membership-applications/:id', requireAdmin, async (req, res) => {
 });
 
 // Update membership application status (admin)
+// Akceptuje: status, admin_notes, user_id (link do konta usera, jeśli admin chce
+// manualnie dopiąć aplikację do istniejącego profilu bez tworzenia nowego).
 app.patch('/api/membership-applications/:id', requireAdmin, async (req, res) => {
   try {
-    const { status, admin_notes } = req.body;
+    const { status, admin_notes, user_id } = req.body;
     const updates = [];
     const params = [];
     let paramIdx = 1;
 
     if (status) { updates.push(`status = $${paramIdx++}`); params.push(status); }
     if (admin_notes !== undefined) { updates.push(`admin_notes = $${paramIdx++}`); params.push(admin_notes); }
+    if (user_id !== undefined) {
+      // null explicitly wspierany (odłączenie); UUID walidowany przez pg cast
+      updates.push(`user_id = $${paramIdx++}::uuid`);
+      params.push(user_id);
+    }
     updates.push(`updated_at = NOW()`);
 
     params.push(req.params.id);
