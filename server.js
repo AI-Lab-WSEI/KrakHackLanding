@@ -1206,6 +1206,127 @@ app.patch('/api/panel/users/:id/role', requireRole('admin'), async (req, res) =>
 });
 
 /**
+ * GET /api/panel/users/:id
+ * Pełne dane użytkownika (dla edit modal). Admin/moderator.
+ */
+app.get('/api/panel/users/:id', requireRole('admin', 'moderator'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, email, display_name, avatar_url, role, bio, github_url, linkedin_url,
+              university, graduation_year, skills, is_active, is_public, notify_events,
+              onboarding_completed, profile_slug, created_at, updated_at
+       FROM users WHERE id = $1`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+    const u = result.rows[0];
+    res.json({
+      id:                  u.id,
+      email:               u.email,
+      displayName:         u.display_name,
+      avatarUrl:           u.avatar_url,
+      role:                u.role,
+      bio:                 u.bio,
+      githubUrl:           u.github_url,
+      linkedinUrl:         u.linkedin_url,
+      university:          u.university,
+      graduationYear:      u.graduation_year,
+      skills:              Array.isArray(u.skills) ? u.skills : (u.skills ? JSON.parse(u.skills) : []),
+      isActive:            u.is_active,
+      isPublic:            u.is_public,
+      notifyEvents:        u.notify_events,
+      onboardingCompleted: u.onboarding_completed,
+      profileSlug:         u.profile_slug,
+      createdAt:           u.created_at,
+      updatedAt:           u.updated_at,
+    });
+  } catch (err) {
+    console.error('[/api/panel/users/:id GET] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * PATCH /api/panel/users/:id
+ * Admin edytuje dowolnego usera (oprócz roli — to osobny endpoint /role).
+ * Moderator też może edytować, ale ograniczony: tylko displayName, bio, github,
+ * linkedin, university, graduationYear, skills (brak isActive/isPublic/notifyEvents).
+ *
+ * Body: { displayName?, bio?, githubUrl?, linkedinUrl?, university?, graduationYear?, skills?,
+ *         isActive?, isPublic?, notifyEvents? }
+ */
+app.patch('/api/panel/users/:id', requireRole('admin', 'moderator'), async (req, res) => {
+  const isAdmin = req.kcUser?.isAdmin === true || (req.kcUser?.roles ?? []).includes('admin');
+  const {
+    displayName, bio, githubUrl, linkedinUrl, university, graduationYear, skills,
+    isActive, isPublic, notifyEvents,
+  } = req.body;
+
+  // Moderator nie może zmieniać is_active / is_public / notify_events.
+  const canToggleActive = isAdmin && typeof isActive === 'boolean';
+  const canTogglePublic = isAdmin && typeof isPublic === 'boolean';
+  const canToggleNotify = isAdmin && typeof notifyEvents === 'boolean';
+
+  try {
+    const result = await pool.query(
+      `UPDATE users SET
+         display_name    = COALESCE($2, display_name),
+         bio             = COALESCE($3, bio),
+         github_url      = COALESCE($4, github_url),
+         linkedin_url    = COALESCE($5, linkedin_url),
+         university      = COALESCE($6, university),
+         graduation_year = COALESCE($7, graduation_year),
+         skills          = COALESCE($8, skills),
+         is_active       = COALESCE($9,  is_active),
+         is_public       = COALESCE($10, is_public),
+         notify_events   = COALESCE($11, notify_events),
+         updated_at      = NOW()
+       WHERE id = $1
+       RETURNING id`,
+      [
+        req.params.id,
+        displayName    ?? null,
+        bio            ?? null,
+        githubUrl      ?? null,
+        linkedinUrl    ?? null,
+        university     ?? null,
+        graduationYear ? Number(graduationYear) : null,
+        skills         ? JSON.stringify(skills) : null,
+        canToggleActive ? isActive     : null,
+        canTogglePublic ? isPublic     : null,
+        canToggleNotify ? notifyEvents : null,
+      ]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/panel/users/:id PATCH] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * DELETE /api/panel/users/:id
+ * Admin. Hard delete użytkownika z bazy. Powiązane dane (projekty, team_members,
+ * glosy, claims) kaskadują przez FK ON DELETE CASCADE zdefiniowane w migracjach.
+ *
+ * UWAGA: nieodwracalne. UI musi pokazywać confirm dialog.
+ */
+app.delete('/api/panel/users/:id', requireRole('admin'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM users WHERE id = $1 RETURNING id, email',
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
+    res.json({ ok: true, deleted: result.rows[0] });
+  } catch (err) {
+    console.error('[/api/panel/users/:id DELETE] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
  * PATCH /api/panel/me
  * Aktualizacja własnego profilu przez zalogowanego usera.
  * Body: { displayName?, bio?, githubUrl?, linkedinUrl?, university?, graduationYear?, skills? }
