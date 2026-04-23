@@ -66,13 +66,17 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/panel/glosowanie',    label: 'Głosowanie',     icon: Vote, group: 'user', requiredScopes: ['hackathon', 'scienceclub'] },
 
   // ─── ADMINISTRACJA — ctx: krakhack ──────────────────────────────────────
-  { to: '/panel/admin/krakhack/edycje',       label: 'Edycje',            icon: Calendar,     group: 'admin', ctx: 'krakhack', roles: ['admin'] },
-  { to: '/panel/admin/rejestracje',           label: 'Rejestracje',       icon: FileText,     group: 'admin', ctx: 'krakhack', roles: ['admin', 'moderator'] },
-  { to: '/panel/admin/zespoly',               label: 'Projekty zespołów', icon: Briefcase,    group: 'admin', ctx: 'krakhack', roles: ['admin'] },
-  { to: '/panel/admin/wyniki',                label: 'Wyniki & Jury',     icon: Trophy,       group: 'admin', ctx: 'krakhack', roles: ['admin'] },
-  { to: '/panel/admin/certyfikaty',           label: 'Certyfikaty',       icon: Award,        group: 'admin', ctx: 'krakhack', roles: ['admin'] },
-  { to: '/panel/admin/obecnosc',              label: 'Attendance',        icon: CalendarCheck, group: 'admin', ctx: 'krakhack', roles: ['admin'] },
-  { to: '/panel/admin/galeria',               label: 'Galeria',           icon: ImageIcon,    group: 'admin', ctx: 'krakhack', roles: ['admin'] },
+  // Grupa "Podstawowe" (1:1 port HACKATHON_NAV_GROUPS ze starego admina)
+  { to: '/panel/admin/krakhack/dashboard',    label: 'Dashboard',         icon: LayoutDashboard, group: 'admin', ctx: 'krakhack', roles: ['admin'] },
+  { to: '/panel/admin/krakhack/edycje',       label: 'Edycje',            icon: Calendar,        group: 'admin', ctx: 'krakhack', roles: ['admin'] },
+  { to: '/panel/admin/rejestracje',           label: 'Rejestracje',       icon: FileText,        group: 'admin', ctx: 'krakhack', roles: ['admin', 'moderator'] },
+  { to: '/panel/admin/krakhack/zespoly-view', label: 'Zespoły',           icon: Users2,          group: 'admin', ctx: 'krakhack', roles: ['admin'] },
+  { to: '/panel/admin/obecnosc',              label: 'Attendance',        icon: CalendarCheck,   group: 'admin', ctx: 'krakhack', roles: ['admin'] },
+  // Grupa "Po evencie"
+  { to: '/panel/admin/zespoly',               label: 'Projekty zespołów', icon: Briefcase,       group: 'admin', ctx: 'krakhack', roles: ['admin'] },
+  { to: '/panel/admin/wyniki',                label: 'Wyniki & Jury',     icon: Trophy,          group: 'admin', ctx: 'krakhack', roles: ['admin'] },
+  { to: '/panel/admin/galeria',               label: 'Galeria',           icon: ImageIcon,       group: 'admin', ctx: 'krakhack', roles: ['admin'] },
+  { to: '/panel/admin/certyfikaty',           label: 'Certyfikaty',       icon: Award,           group: 'admin', ctx: 'krakhack', roles: ['admin'] },
 
   // ─── ADMINISTRACJA — ctx: lab ───────────────────────────────────────────
   { to: '/panel/admin/aplikacje',             label: 'Aplikacje do koła', icon: ClipboardList, group: 'admin', ctx: 'lab', roles: ['admin', 'moderator'] },
@@ -86,6 +90,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/panel/admin/team-claims',           label: 'Team claims',       icon: UserCheck,     group: 'admin', ctx: 'system', roles: ['admin', 'moderator'] },
   { to: '/panel/admin/wydarzenia',            label: 'Wydarzenia',        icon: Calendar,      group: 'admin', ctx: 'system', roles: ['admin'] },
   { to: '/panel/admin/mailing',               label: 'Mailing',           icon: Mail,          group: 'admin', ctx: 'system', roles: ['admin'] },
+  { to: '/panel/admin/sms',                   label: 'SMS',               icon: MessageSquare, group: 'admin', ctx: 'system', roles: ['admin'] },
   { to: '/panel/admin/ankiety',               label: 'Ankiety',           icon: BarChart3,     group: 'admin', ctx: 'system', roles: ['admin'] },
 ];
 

@@ -61,6 +61,12 @@ import { AdminContactSubmissionsPage } from '@/app/pages/panel/admin/ContactSubm
 import { AdminCollaborationsPage } from '@/app/pages/panel/admin/CollaborationsPage';
 import { AdminGalleryPage } from '@/app/pages/panel/admin/GalleryPage';
 import { AdminOrgSettingsPage } from '@/app/pages/panel/admin/OrgSettingsPage';
+import { AdminSmsPage } from '@/app/pages/panel/admin/SmsPage';
+import { EditionsPage } from '@/app/pages/panel/admin/krakhack/EditionsPage';
+import { KrakHackDashboardPage } from '@/app/pages/panel/admin/krakhack/DashboardPage';
+import { KrakHackTeamsViewPage } from '@/app/pages/panel/admin/krakhack/TeamsViewPage';
+import { AdminKompasPage } from '@/app/pages/panel/admin/lab/KompasPage';
+import { MojaObecnoscPage } from '@/app/pages/panel/my/AttendancePage';
 
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 import { createElement } from 'react';
@@ -135,6 +141,7 @@ export const router = createBrowserRouter([
           { path: 'projekty/nowy',               Component: ProjectEditPage },
           { path: 'projekty/:id/edytuj',         Component: ProjectEditPage },
           { path: 'moj-zespol',                  Component: TeamClaimPage },
+          { path: 'moja-obecnosc',               Component: guarded(MojaObecnoscPage, ['admin', 'hackathon-participant']) },
           { path: 'zespoly/nowy',                Component: TeamCreatePage },
 
           // ── Legacy moderator alias (zostaje dla starych linków) ──────────
@@ -157,6 +164,15 @@ export const router = createBrowserRouter([
           { path: 'admin/wspolprace',            Component: guarded(AdminCollaborationsPage,    ['admin']) },
           { path: 'admin/galeria',               Component: guarded(AdminGalleryPage,           ['admin']) },
           { path: 'admin/organizacja',           Component: guarded(AdminOrgSettingsPage,       ['admin']) },
+          { path: 'admin/sms',                   Component: guarded(AdminSmsPage,               ['admin']) },
+
+          // ── KrakHack context (ctx=krakhack) — 1:1 port HACKATHON_NAV_GROUPS ──
+          { path: 'admin/krakhack/dashboard',    Component: guarded(KrakHackDashboardPage,      ['admin']) },
+          { path: 'admin/krakhack/edycje',       Component: guarded(EditionsPage,               ['admin']) },
+          { path: 'admin/krakhack/zespoly-view', Component: guarded(KrakHackTeamsViewPage,      ['admin']) },
+
+          // ── AI Lab context (ctx=lab) ─────────────────────────────────────
+          { path: 'admin/lab/kompas',            Component: guarded(AdminKompasPage,            ['admin']) },
         ],
       },
 

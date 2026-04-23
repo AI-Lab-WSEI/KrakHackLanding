@@ -1367,6 +1367,104 @@ app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
  *     }
  *   }
  */
+/**
+ * GET  /api/panel/my-attendance?edition=N
+ *   Zwraca obecny status potwierdzenia usera dla edycji.
+ * POST /api/panel/my-attendance  body: { editionNumber, confirmed, note? }
+ *   Tworzy/aktualizuje potwierdzenie (confirmed=false = soft-delete wiersza).
+ */
+app.get('/api/panel/my-attendance', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const edition = parseInt(req.query.edition ?? '3', 10);
+  if (!Number.isFinite(edition)) return res.status(400).json({ error: 'Nieprawidłowa edycja' });
+  try {
+    const u = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (u.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const r = await pool.query(
+      'SELECT confirmed_at, note FROM attendance_confirmations WHERE user_id = $1 AND edition_number = $2',
+      [u.rows[0].id, edition]
+    );
+    res.json({
+      edition,
+      confirmed:   r.rows.length > 0,
+      confirmedAt: r.rows[0]?.confirmed_at ?? null,
+      note:        r.rows[0]?.note ?? null,
+    });
+  } catch (err) {
+    console.error('[/api/panel/my-attendance GET] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.post('/api/panel/my-attendance', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId } = req.kcUser;
+  const { editionNumber, confirmed, note } = req.body || {};
+  if (!Number.isInteger(editionNumber) || editionNumber <= 0) {
+    return res.status(400).json({ error: 'editionNumber wymagane' });
+  }
+  try {
+    const u = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [keycloakId]);
+    if (u.rows.length === 0) return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+    const userId = u.rows[0].id;
+
+    if (confirmed === false) {
+      // Soft-delete (user cofa potwierdzenie)
+      await pool.query(
+        'DELETE FROM attendance_confirmations WHERE user_id = $1 AND edition_number = $2',
+        [userId, editionNumber]
+      );
+      return res.json({ ok: true, confirmed: false });
+    }
+
+    await pool.query(
+      `INSERT INTO attendance_confirmations (user_id, edition_number, note, confirmed_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (user_id, edition_number) DO UPDATE SET
+         note = EXCLUDED.note,
+         confirmed_at = NOW()`,
+      [userId, editionNumber, note ?? null]
+    );
+    res.json({ ok: true, confirmed: true });
+  } catch (err) {
+    console.error('[/api/panel/my-attendance POST] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/admin/attendance-confirmations/:edition
+ * Admin read-only dashboard: kto potwierdził obecność w danej edycji.
+ */
+app.get('/api/admin/attendance-confirmations/:edition', requireAdmin, async (req, res) => {
+  const edition = parseInt(req.params.edition, 10);
+  if (!Number.isFinite(edition)) return res.status(400).json({ error: 'Nieprawidłowa edycja' });
+  try {
+    const r = await pool.query(
+      `SELECT ac.confirmed_at, ac.note,
+              u.id, u.email, u.display_name, u.profile_slug
+       FROM attendance_confirmations ac
+       JOIN users u ON u.id = ac.user_id
+       WHERE ac.edition_number = $1
+       ORDER BY ac.confirmed_at DESC`,
+      [edition]
+    );
+    res.json({
+      edition,
+      confirmations: r.rows.map(row => ({
+        userId:      row.id,
+        email:       row.email,
+        displayName: row.display_name,
+        profileSlug: row.profile_slug,
+        confirmedAt: row.confirmed_at,
+        note:        row.note,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/admin/attendance-confirmations] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
 app.get('/api/panel/my-stats', verifyKeycloakToken, async (req, res) => {
   const { keycloakId, isAdmin } = req.kcUser;
   try {
@@ -5169,6 +5267,129 @@ app.get('/api/editions/:number/results', async (req, res) => {
 });
 
 // ─── Admin: Edition Config ────────────────────────────────────────────────────
+
+/**
+ * GET /api/editions
+ * Public. Lista edycji (dla frontend dropdowns / edition picker).
+ * Frontend `EDITIONS_META` w `src/data/edition-registry.ts` jest obecnie
+ * hardcoded — ten endpoint pozwala zast\u0105pi\u0107 go dynamiczn\u0105 list\u0105 z DB.
+ */
+app.get('/api/editions', async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT edition_number, name, status, visible_placements, show_scores,
+              max_score_per_category, updated_at
+       FROM edition_config
+       ORDER BY edition_number ASC`
+    );
+    res.json({
+      editions: result.rows.map(r => ({
+        number:                r.edition_number,
+        name:                  r.name,
+        status:                r.status,
+        visiblePlacements:     r.visible_placements,
+        showScores:            r.show_scores,
+        maxScorePerCategory:   r.max_score_per_category,
+        updatedAt:             r.updated_at,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/editions] Error:', err);
+    res.status(500).json({ error: 'B\u0142\u0105d serwera' });
+  }
+});
+
+/**
+ * POST /api/admin/editions
+ * Admin. Tworzy now\u0105 edycj\u0119 z opcjonalnym sklonowaniem configu z istniej\u0105cej.
+ * Body: { number, name, status, cloneFrom? }
+ *   - `cloneFrom`: edition_number z kt\u00f3rej skopiowa\u0107 scoring_categories,
+ *     jury_members (jako stuby \u2014 puste emaile), challenges, max_score, itp.
+ *     Nie klonuje: name, status (admin podaje r\u0119cznie).
+ */
+app.post('/api/admin/editions', requireAdmin, async (req, res) => {
+  const { number, name, status = 'placeholder', cloneFrom } = req.body || {};
+  if (!Number.isInteger(number) || number <= 0) {
+    return res.status(400).json({ error: 'number musi by\u0107 dodatni\u0105 liczb\u0105 ca\u0142kowit\u0105' });
+  }
+  if (!name || typeof name !== 'string') {
+    return res.status(400).json({ error: 'name wymagane' });
+  }
+
+  try {
+    // Sprawd\u017a czy edycja ju\u017c istnieje
+    const existing = await pool.query('SELECT 1 FROM edition_config WHERE edition_number = $1', [number]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: `Edycja #${number} ju\u017c istnieje` });
+    }
+
+    // Opcjonalnie: sklonuj config z istniej\u0105cej edycji
+    let cloneData = null;
+    if (cloneFrom) {
+      const cloneRes = await pool.query(
+        'SELECT challenges, special_mentions, jury_members, scoring_categories, max_score_per_category FROM edition_config WHERE edition_number = $1',
+        [cloneFrom]
+      );
+      if (cloneRes.rows.length === 0) {
+        return res.status(400).json({ error: `Edycja \u017ar\u00f3d\u0142owa #${cloneFrom} nie istnieje` });
+      }
+      cloneData = cloneRes.rows[0];
+      // Wyczy\u015b\u0107 emaile jury member\u00f3w \u2014 ka\u017cda edycja ma w\u0142asnych jurorow
+      if (Array.isArray(cloneData.jury_members)) {
+        cloneData.jury_members = cloneData.jury_members.map(j => ({
+          ...j,
+          email:       '',
+          magic_token: null,
+        }));
+      }
+    }
+
+    const result = await pool.query(
+      `INSERT INTO edition_config
+         (edition_number, name, status, visible_placements, show_scores,
+          challenges, special_mentions, jury_members, scoring_categories,
+          max_score_per_category, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+       RETURNING *`,
+      [
+        number, name, status,
+        cloneData?.visible_placements ?? 2,
+        cloneData?.show_scores ?? true,
+        JSON.stringify(cloneData?.challenges ?? []),
+        JSON.stringify(cloneData?.special_mentions ?? []),
+        JSON.stringify(cloneData?.jury_members ?? []),
+        JSON.stringify(cloneData?.scoring_categories ?? []),
+        cloneData?.max_score_per_category ?? 20,
+      ]
+    );
+    res.status(201).json({ ok: true, edition: result.rows[0] });
+  } catch (err) {
+    console.error('[/api/admin/editions POST] Error:', err);
+    res.status(500).json({ error: 'B\u0142\u0105d serwera', detail: err.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/editions/:number
+ * Admin. Soft-delete \u2014 ustawia status='archive'. Hard-delete wymagaj\u0105cy
+ * r\u0119cznej migracji, bo mog\u0105 by\u0107 FK z team_projects, jury_scores, etc.
+ */
+app.delete('/api/admin/editions/:number', requireAdmin, async (req, res) => {
+  try {
+    const n = parseInt(req.params.number, 10);
+    if (!Number.isFinite(n)) return res.status(400).json({ error: 'nieprawid\u0142owy number' });
+    const result = await pool.query(
+      `UPDATE edition_config SET status = 'archive', updated_at = NOW()
+       WHERE edition_number = $1 RETURNING edition_number`,
+      [n]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono edycji' });
+    res.json({ ok: true, archived: result.rows[0].edition_number });
+  } catch (err) {
+    console.error('[/api/admin/editions DELETE] Error:', err);
+    res.status(500).json({ error: 'B\u0142\u0105d serwera' });
+  }
+});
 
 // GET /api/admin/edition-config/:number
 app.get('/api/admin/edition-config/:number', requireAdmin, async (req, res) => {
