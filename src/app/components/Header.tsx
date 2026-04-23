@@ -152,6 +152,25 @@ export function Header() {
 
         {/* Right side */}
         <div className="flex items-center gap-3 shrink-0">
+          {/* ZAKOMENTOWANE — do odkomentowania po weryfikacji demo:
+              Link "Uczestnicy" to publiczna siatka członków koła + ich portfolio.
+              User explicit poprosił żeby parkować to w navbar, nie wystawiać live.
+          <Link
+            to="/uczestnicy"
+            className="hidden lg:flex items-center gap-1 text-gray-300 hover:text-cyan-400 transition-colors font-medium px-2.5 py-2 rounded-lg hover:bg-white/5 whitespace-nowrap text-[13px]"
+          >
+            Uczestnicy
+          </Link>
+          */}
+
+          {/* Zaloguj się — zawsze widoczny w prawym górnym (Faza 11.5) */}
+          <Link
+            to="/login"
+            className="hidden sm:flex items-center gap-1.5 text-gray-200 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-colors px-3 py-1.5 rounded-lg text-[12px] font-medium"
+          >
+            Zaloguj się
+          </Link>
+
           {/* Edition switcher — only on hackathon pages, never in lab mode */}
           {!isLab && (isHackathonPage || showHackathonNav) && (
             <div className="relative" ref={editionRef}>

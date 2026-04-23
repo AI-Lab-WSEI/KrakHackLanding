@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router';
 // ══ Public + utility pages ═════════════════════════════════════════════════
 import { Layout } from '@/app/Layout';
 import { HomePage } from '@/app/pages/HomePage';
+import { DemoPage } from '@/app/pages/DemoPage';
 import { AuthCallback } from '@/app/pages/AuthCallback';
 import { Logowanie } from '@/app/pages/Logowanie';
 import { Onboarding } from '@/app/pages/Onboarding';
@@ -67,6 +68,8 @@ import { KrakHackDashboardPage } from '@/app/pages/panel/admin/krakhack/Dashboar
 import { KrakHackTeamsViewPage } from '@/app/pages/panel/admin/krakhack/TeamsViewPage';
 import { AdminKompasPage } from '@/app/pages/panel/admin/lab/KompasPage';
 import { MojaObecnoscPage } from '@/app/pages/panel/my/AttendancePage';
+import { MyKompasPage } from '@/app/pages/panel/my/MyKompasPage';
+import { GlosowaniePage } from '@/app/pages/panel/my/GlosowaniePage';
 
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 import { createElement } from 'react';
@@ -83,6 +86,9 @@ export const router = createBrowserRouter([
     children: [
       // ══ Homepage ══════════════════════════════════════════════════════════
       { index: true, Component: HomePage },
+
+      // Faza 11.6 — podgląd nowej strony głównej koła (bez przekierowań, parkowany)
+      { path: 'demo', Component: DemoPage },
 
       // ══ Edition routes (stable permanent links) ══════════════════════════
       {
@@ -142,6 +148,8 @@ export const router = createBrowserRouter([
           { path: 'projekty/:id/edytuj',         Component: ProjectEditPage },
           { path: 'moj-zespol',                  Component: TeamClaimPage },
           { path: 'moja-obecnosc',               Component: guarded(MojaObecnoscPage, ['admin', 'hackathon-participant']) },
+          { path: 'moj-kompas',                  Component: guarded(MyKompasPage,     ['admin', 'scienceclub-participant']) },
+          { path: 'glosowanie',                  Component: GlosowaniePage },
           { path: 'zespoly/nowy',                Component: TeamCreatePage },
 
           // ── Legacy moderator alias (zostaje dla starych linków) ──────────

@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import ReactMarkdown from 'react-markdown';
 
 interface Project {
   id: string;
@@ -111,9 +112,21 @@ export function ParticipantProfile() {
             </div>
           </div>
 
-          {/* Bio */}
+          {/* Bio — Markdown rendered. Estetyka minimalistyczna: nadaje się
+              do wykorzystania jako CV / rekrutacyjne materiał. */}
           {profile.bio && (
-            <p className="text-sm text-gray-300 leading-relaxed">{profile.bio}</p>
+            <div className="prose prose-invert prose-sm max-w-none
+              prose-headings:text-white prose-headings:font-semibold
+              prose-p:text-gray-300 prose-p:leading-relaxed
+              prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline
+              prose-strong:text-white
+              prose-code:text-pink-300 prose-code:bg-white/10 prose-code:px-1 prose-code:rounded prose-code:text-xs
+              prose-li:text-gray-300
+              prose-blockquote:border-l-indigo-500/40 prose-blockquote:text-gray-400
+              prose-ul:my-2 prose-ol:my-2
+            ">
+              <ReactMarkdown>{profile.bio}</ReactMarkdown>
+            </div>
           )}
 
           {/* Skills */}

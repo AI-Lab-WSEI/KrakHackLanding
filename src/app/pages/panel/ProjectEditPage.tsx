@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminFetch } from '@/lib/adminApi';
+import { ProjectUpdatesAdmin } from '@/app/components/project/ProjectUpdatesAdmin';
 
 interface ProjectForm {
   title: string;
@@ -276,6 +277,14 @@ export function ProjectEditPage() {
           </button>
         </div>
       </form>
+
+      {/* Oś czasu — changelog projektu (Faza 11.3).
+          Widoczne tylko dla istniejącego projektu (wymaga UUID). */}
+      {!isNew && id && (
+        <div className="mt-8 pt-8 border-t border-white/10">
+          <ProjectUpdatesAdmin projectId={id} />
+        </div>
+      )}
     </div>
   );
 }

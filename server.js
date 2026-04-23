@@ -1538,6 +1538,299 @@ app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
   }
 });
 
+// ─── Faza 11: Calendar entries + Project updates ──────────────────────────────
+
+/**
+ * GET /api/calendar?from=ISO&to=ISO&categories=a,b&visibility=public
+ * Zwraca wpisy z calendar_entries + auto-agregowane project milestones
+ * (z project_updates.happened_at) w zadanym okresie.
+ */
+app.get('/api/calendar', async (req, res) => {
+  const { from, to, categories, visibility } = req.query;
+  const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const toDate   = to   ? new Date(to)   : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  const cats     = categories ? String(categories).split(',') : null;
+  const vis      = visibility ? String(visibility) : 'public';
+
+  try {
+    let sql = `
+      SELECT id, title, description, category, starts_at, ends_at, all_day, location, url,
+             linked_project_id, linked_event_id, linked_update_id, visibility, color_hex
+      FROM calendar_entries
+      WHERE starts_at >= $1 AND starts_at <= $2
+    `;
+    const params = [fromDate, toDate];
+
+    // Widoczność — public domyślnie; members_only widoczne dla zalogowanych (uproszczenie:
+    // żądanie bez header auth dostaje tylko public; z auth — public + members_only).
+    if (vis === 'all' && req.headers.authorization) {
+      // admin request — zwracamy wszystko
+    } else if (req.headers.authorization) {
+      sql += ` AND visibility IN ('public', 'members_only')`;
+    } else {
+      sql += ` AND visibility = 'public'`;
+    }
+
+    if (cats && cats.length > 0) {
+      params.push(cats);
+      sql += ` AND category = ANY($${params.length})`;
+    }
+
+    sql += ` ORDER BY starts_at ASC LIMIT 500`;
+    const { rows } = await pool.query(sql, params);
+
+    res.json({
+      entries: rows.map(r => ({
+        id:               r.id,
+        title:            r.title,
+        description:      r.description,
+        category:         r.category,
+        startsAt:         r.starts_at,
+        endsAt:           r.ends_at,
+        allDay:           r.all_day,
+        location:         r.location,
+        url:              r.url,
+        linkedProjectId:  r.linked_project_id,
+        linkedEventId:    r.linked_event_id,
+        linkedUpdateId:   r.linked_update_id,
+        visibility:       r.visibility,
+        colorHex:         r.color_hex,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/calendar] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/calendar.ics
+ * iCalendar (RFC 5545) export — do importu w Google Calendar, Apple Calendar itd.
+ * Tylko public entries (bez auth).
+ */
+app.get('/api/calendar.ics', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, description, starts_at, ends_at, all_day, location, url
+       FROM calendar_entries
+       WHERE visibility = 'public' AND starts_at >= NOW() - INTERVAL '30 days'
+       ORDER BY starts_at ASC LIMIT 500`
+    );
+
+    const fmt = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//AI Possibilities Lab//Calendar//PL',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+    ];
+    for (const e of rows) {
+      lines.push('BEGIN:VEVENT');
+      lines.push(`UID:${e.id}@possibilitieslab.org`);
+      lines.push(`DTSTAMP:${fmt(new Date())}`);
+      lines.push(`DTSTART:${fmt(e.starts_at)}`);
+      if (e.ends_at) lines.push(`DTEND:${fmt(e.ends_at)}`);
+      lines.push(`SUMMARY:${(e.title || '').replace(/\n/g, '\\n')}`);
+      if (e.description) lines.push(`DESCRIPTION:${e.description.replace(/\n/g, '\\n').slice(0, 500)}`);
+      if (e.location)    lines.push(`LOCATION:${e.location}`);
+      if (e.url)         lines.push(`URL:${e.url}`);
+      lines.push('END:VEVENT');
+    }
+    lines.push('END:VCALENDAR');
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'inline; filename="ai-lab-calendar.ics"');
+    res.send(lines.join('\r\n'));
+  } catch (err) {
+    console.error('[/api/calendar.ics] Error:', err);
+    res.status(500).send('error');
+  }
+});
+
+/**
+ * Admin CRUD calendar_entries
+ */
+app.post('/api/admin/calendar', requireAdmin, async (req, res) => {
+  const {
+    title, description, category, startsAt, endsAt, allDay, location, url,
+    visibility, colorHex, linkedProjectId, linkedEventId,
+  } = req.body || {};
+  if (!title || !category || !startsAt) {
+    return res.status(400).json({ error: 'title, category, startsAt wymagane' });
+  }
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [req.kcUser.keycloakId]);
+    const createdBy  = userResult.rows[0]?.id ?? null;
+    const { rows } = await pool.query(
+      `INSERT INTO calendar_entries
+         (title, description, category, starts_at, ends_at, all_day, location, url,
+          visibility, color_hex, linked_project_id, linked_event_id, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       RETURNING id`,
+      [title, description ?? null, category, startsAt, endsAt ?? null, !!allDay,
+       location ?? null, url ?? null, visibility ?? 'public', colorHex ?? null,
+       linkedProjectId ?? null, linkedEventId ?? null, createdBy]
+    );
+    res.status(201).json({ ok: true, id: rows[0].id });
+  } catch (err) {
+    console.error('[/api/admin/calendar POST] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.patch('/api/admin/calendar/:id', requireAdmin, async (req, res) => {
+  const {
+    title, description, category, startsAt, endsAt, allDay, location, url,
+    visibility, colorHex,
+  } = req.body || {};
+  try {
+    await pool.query(
+      `UPDATE calendar_entries SET
+         title       = COALESCE($2, title),
+         description = COALESCE($3, description),
+         category    = COALESCE($4, category),
+         starts_at   = COALESCE($5, starts_at),
+         ends_at     = COALESCE($6, ends_at),
+         all_day     = COALESCE($7, all_day),
+         location    = COALESCE($8, location),
+         url         = COALESCE($9, url),
+         visibility  = COALESCE($10, visibility),
+         color_hex   = COALESCE($11, color_hex),
+         updated_at  = NOW()
+       WHERE id = $1`,
+      [req.params.id, title ?? null, description ?? null, category ?? null,
+       startsAt ?? null, endsAt ?? null, typeof allDay === 'boolean' ? allDay : null,
+       location ?? null, url ?? null, visibility ?? null, colorHex ?? null]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/admin/calendar PATCH] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.delete('/api/admin/calendar/:id', requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM calendar_entries WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/admin/calendar DELETE] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// ─── Project updates (changelog etapów) ───────────────────────────────────────
+
+/**
+ * GET /api/public/projects/:slug/updates
+ * Publiczny timeline updates dla projektu. Zwraca tylko published=true.
+ */
+app.get('/api/public/projects/:slug/updates', async (req, res) => {
+  try {
+    const pRes = await pool.query('SELECT id FROM projects WHERE slug = $1', [req.params.slug]);
+    if (pRes.rows.length === 0) return res.status(404).json({ error: 'Projekt nie znaleziony' });
+    const { rows } = await pool.query(
+      `SELECT id, title, body_md, update_type, image_url, video_url, happened_at
+       FROM project_updates
+       WHERE project_id = $1 AND published = true
+       ORDER BY happened_at DESC LIMIT 100`,
+      [pRes.rows[0].id]
+    );
+    res.json({
+      updates: rows.map(r => ({
+        id:          r.id,
+        title:       r.title,
+        bodyMd:      r.body_md,
+        updateType:  r.update_type,
+        imageUrl:    r.image_url,
+        videoUrl:    r.video_url,
+        happenedAt:  r.happened_at,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/public/projects/:slug/updates] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/panel/projects/:id/updates  — właściciel projektu widzi wszystkie updates (incl. unpublished)
+ * POST, PATCH, DELETE — CRUD dla owner/admin.
+ */
+app.get('/api/panel/projects/:id/updates', verifyKeycloakToken, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, body_md, update_type, image_url, video_url, happened_at, published, created_at
+       FROM project_updates
+       WHERE project_id = $1
+       ORDER BY happened_at DESC`,
+      [req.params.id]
+    );
+    res.json({ updates: rows });
+  } catch (err) {
+    console.error('[/api/panel/projects/:id/updates GET] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.post('/api/panel/projects/:id/updates', verifyKeycloakToken, async (req, res) => {
+  const { title, bodyMd, updateType, imageUrl, videoUrl, happenedAt, published } = req.body || {};
+  if (!title) return res.status(400).json({ error: 'title wymagane' });
+  try {
+    const uRes = await pool.query('SELECT id FROM users WHERE keycloak_id = $1', [req.kcUser.keycloakId]);
+    const createdBy = uRes.rows[0]?.id ?? null;
+    const { rows } = await pool.query(
+      `INSERT INTO project_updates
+         (project_id, title, body_md, update_type, image_url, video_url, happened_at, published, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING id`,
+      [req.params.id, title, bodyMd ?? null, updateType ?? 'milestone',
+       imageUrl ?? null, videoUrl ?? null, happenedAt ?? new Date(),
+       published !== false, createdBy]
+    );
+    res.status(201).json({ ok: true, id: rows[0].id });
+  } catch (err) {
+    console.error('[/api/panel/projects/:id/updates POST] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.patch('/api/panel/project-updates/:id', verifyKeycloakToken, async (req, res) => {
+  const { title, bodyMd, updateType, imageUrl, videoUrl, happenedAt, published } = req.body || {};
+  try {
+    await pool.query(
+      `UPDATE project_updates SET
+         title       = COALESCE($2, title),
+         body_md     = COALESCE($3, body_md),
+         update_type = COALESCE($4, update_type),
+         image_url   = COALESCE($5, image_url),
+         video_url   = COALESCE($6, video_url),
+         happened_at = COALESCE($7, happened_at),
+         published   = COALESCE($8, published),
+         updated_at  = NOW()
+       WHERE id = $1`,
+      [req.params.id, title ?? null, bodyMd ?? null, updateType ?? null,
+       imageUrl ?? null, videoUrl ?? null, happenedAt ?? null,
+       typeof published === 'boolean' ? published : null]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/panel/project-updates PATCH] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+app.delete('/api/panel/project-updates/:id', verifyKeycloakToken, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM project_updates WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/panel/project-updates DELETE] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
 /**
  * GET /api/panel/my-stats
  * Agregat statystyk dla dashboard usera (MÓJ OBSZAR).

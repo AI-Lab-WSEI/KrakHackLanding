@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router';
+import { ProjectUpdatesTimeline } from '@/app/components/project/ProjectUpdatesTimeline';
 
 interface PublicProject {
   id: string;
@@ -193,6 +194,9 @@ export function ProjectPublicView() {
           </div>
         </div>
       )}
+
+      {/* Oś czasu projektu — changelog aktualizacji (Faza 11.3) */}
+      <ProjectUpdatesTimeline projectSlug={project.slug} />
     </div>
   );
 }
