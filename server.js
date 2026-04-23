@@ -1,7 +1,12 @@
 import express from 'express';
 import pg from 'pg';
-import crypto from 'crypto';
+import crypto, { webcrypto } from 'crypto';
 import fs from 'fs';
+
+// `jose` uses globalThis.crypto.subtle. Node exposes Web Crypto via
+// `crypto.webcrypto` — expose it on globalThis so JWT verification works
+// regardless of Node version / Railway runtime quirks.
+if (!globalThis.crypto) globalThis.crypto = webcrypto;
 import { fileURLToPath } from 'url';
 import path from 'path';
 import QRCode from 'qrcode';
