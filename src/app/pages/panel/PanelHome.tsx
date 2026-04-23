@@ -15,6 +15,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminFetch } from '@/lib/adminApi';
 import { PanelCard } from '@/app/components/panel/shared/PanelCard';
+import { usePreviewScope } from './usePreviewScope';
 
 const ROLE_LABEL: Record<string, { label: string; cls: string }> = {
   admin:                    { label: 'Admin',      cls: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
@@ -70,11 +71,21 @@ export function PanelHome() {
 
   if (!user) return null;
 
-  const isAdmin           = user.keycloakRoles.includes('admin');
-  const isModerator       = user.keycloakRoles.includes('moderator');
-  const isHackathon       = user.keycloakRoles.includes('hackathon-participant');
-  const isScienceclub     = user.keycloakRoles.includes('scienceclub-participant');
-  const isJury            = user.keycloakRoles.includes('jury');
+  const { previewScope, isPreviewActive } = usePreviewScope();
+
+  const realIsAdmin       = user.keycloakRoles.includes('admin');
+  const realIsModerator   = user.keycloakRoles.includes('moderator');
+  const realIsHackathon   = user.keycloakRoles.includes('hackathon-participant');
+  const realIsScienceclub = user.keycloakRoles.includes('scienceclub-participant');
+  const realIsJury        = user.keycloakRoles.includes('jury');
+
+  // Effective flags — uwzględniają preview scope. Preview DODAJE scope (nie podmienia),
+  // żeby admin w podglądzie widział obie perspektywy (np. admin-shortcut + user-side).
+  const isAdmin           = realIsAdmin;
+  const isModerator       = realIsModerator;
+  const isHackathon       = realIsHackathon   || previewScope === 'hackathon';
+  const isScienceclub     = realIsScienceclub || previewScope === 'scienceclub';
+  const isJury            = realIsJury        || previewScope === 'jury';
   const hasAnyParticipant = isHackathon || isScienceclub || isJury;
   const userSkills        = new Set(user.skills.map(s => s.toLowerCase()));
 

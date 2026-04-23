@@ -122,18 +122,32 @@ function scopesForRoles(keycloakRoles: string[]): Set<UserScope> {
 /**
  * Filtruje NAV_ITEMS po rolach Keycloak + aktualnym ctx + scope uczestnictwa.
  * Zwraca dwie tablice: user (zawsze widoczne po scope filter) i admin (filter po ctx).
+ *
+ * @param previewScope — opcjonalne. Admin preview mode: jeśli ustawione, admin
+ *   widzi user-items tego konkretnego scope'u (np. hackathon → Mój zespół,
+ *   Moja obecność), tak jakby miał rolę uczestnika. Nie wpływa na admin items.
+ *   Ignorowane dla nie-adminów (preview mode jest admin-only).
  */
 export function partitionNav(
   keycloakRoles: string[],
   currentCtx: PanelCtx,
+  previewScope: UserScope | null = null,
 ): { user: NavItem[]; admin: NavItem[] } {
   const userScopes = scopesForRoles(keycloakRoles);
+
+  // Admin preview — dodajemy scope jakby user miał tę rolę (tylko dla admina).
+  // Nie-admin preview jest ignorowany (validator w usePreviewScope to pilnuje,
+  // ale defense-in-depth: dublujemy check tutaj).
+  const isAdmin = keycloakRoles.includes('admin');
+  if (isAdmin && previewScope) {
+    userScopes.add(previewScope);
+  }
 
   const userItems = NAV_ITEMS.filter(item => {
     if (item.group !== 'user') return false;
     // Role-check (jeśli explicit)
     if (item.roles && !item.roles.some(r => keycloakRoles.includes(r))) return false;
-    // Scope-check
+    // Scope-check (uwzględnia preview override)
     if (item.requiredScopes && !item.requiredScopes.some(s => userScopes.has(s))) return false;
     return true;
   });

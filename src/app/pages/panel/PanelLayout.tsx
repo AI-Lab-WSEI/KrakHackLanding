@@ -13,10 +13,11 @@
  */
 import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router';
-import { LogOut, Calendar } from 'lucide-react';
+import { LogOut, Calendar, Eye, X as XIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { partitionNav, type NavItem } from './navConfig';
+import { partitionNav, type NavItem, type UserScope } from './navConfig';
 import { ContextSwitcher, readCtx } from './ContextSwitcher';
+import { usePreviewScope } from './usePreviewScope';
 import { EDITIONS_META, CURRENT_EDITION_NUMBER } from '@/data/edition-registry';
 
 export function PanelLayout() {
@@ -37,7 +38,8 @@ export function PanelLayout() {
   }
 
   const currentCtx                = readCtx(location.search);
-  const { user: userNav, admin: adminNav } = partitionNav(user.keycloakRoles, currentCtx);
+  const { previewScope, setPreviewScope, canUsePreview, isPreviewActive } = usePreviewScope();
+  const { user: userNav, admin: adminNav } = partitionNav(user.keycloakRoles, currentCtx, previewScope);
   const isAdminOrMod              = user.keycloakRoles.includes('admin') || user.keycloakRoles.includes('moderator');
 
   // Edition picker: widoczny tylko gdy ctx=krakhack i user ma admin.
@@ -75,8 +77,22 @@ export function PanelLayout() {
         </div>
 
         <nav className="flex-1 flex flex-col gap-4">
-          {/* MÓJ OBSZAR — scope-aware */}
-          {userNav.length > 0 && <NavGroup label="Mój obszar" items={userNav} />}
+          {/* Admin preview switcher — widoczny tylko dla admina.
+              Pozwala "wejść w buty" uczestnika bez zmiany ról Keycloak. */}
+          {canUsePreview && (
+            <PreviewSwitcher
+              current={previewScope}
+              onChange={setPreviewScope}
+            />
+          )}
+
+          {/* MÓJ OBSZAR — scope-aware (uwzględnia preview scope) */}
+          {userNav.length > 0 && (
+            <NavGroup
+              label={isPreviewActive ? `Mój obszar (podgląd: ${previewScope})` : 'Mój obszar'}
+              items={userNav}
+            />
+          )}
 
           {/* ContextSwitcher — widoczny dla admin/mod */}
           {isAdminOrMod && <ContextSwitcher />}
@@ -134,8 +150,74 @@ export function PanelLayout() {
 
       {/* ── Main content ── */}
       <main className="flex-1 min-w-0 overflow-y-auto">
+        {/* Sticky preview banner — widoczny gdy admin w trybie podglądu. */}
+        {isPreviewActive && (
+          <div className="sticky top-0 z-40 bg-amber-500/15 border-b border-amber-500/40 backdrop-blur px-4 py-2 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-amber-100">
+              <Eye className="w-3.5 h-3.5" />
+              <span>
+                <strong>Podgląd aktywny</strong> — widzisz panel jak użytkownik z rolą{' '}
+                <code className="bg-amber-500/20 px-1.5 py-0.5 rounded">{previewScope}</code>.
+                Akcje nadal wykonują się jako admin.
+              </span>
+            </div>
+            <button
+              onClick={() => setPreviewScope(null)}
+              className="text-[11px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 border border-amber-500/40 px-2 py-1 rounded transition-colors flex items-center gap-1"
+            >
+              <XIcon className="w-3 h-3" />
+              Wyłącz podgląd
+            </button>
+          </div>
+        )}
+
         <Outlet />
       </main>
+    </div>
+  );
+}
+
+/**
+ * PreviewSwitcher — segmented control pozwalający adminowi wybrać widok jako
+ * uczestnik koła / hackathonu / jury. Widoczny TYLKO dla adminów (guardowany
+ * w PanelLayout przez canUsePreview). Stan synchronizowany z URL ?preview=.
+ */
+function PreviewSwitcher({
+  current, onChange,
+}: {
+  current: UserScope | null;
+  onChange: (s: UserScope | null) => void;
+}) {
+  const options: Array<{ value: UserScope | null; label: string; cls: string }> = [
+    { value: null,          label: 'Admin',     cls: 'bg-purple-500/20 text-purple-200 border-purple-500/40' },
+    { value: 'hackathon',   label: 'Hackathon', cls: 'bg-indigo-500/20 text-indigo-200 border-indigo-500/40' },
+    { value: 'scienceclub', label: 'Koło',      cls: 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40' },
+    { value: 'jury',        label: 'Jury',      cls: 'bg-amber-500/20 text-amber-200 border-amber-500/40' },
+  ];
+
+  return (
+    <div className="px-3">
+      <p className="text-[10px] font-medium text-gray-600 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+        <Eye className="w-3 h-3" />
+        Podgląd jako
+      </p>
+      <div className="grid grid-cols-2 gap-1">
+        {options.map(opt => {
+          const active = current === opt.value;
+          return (
+            <button
+              key={String(opt.value)}
+              onClick={() => onChange(opt.value)}
+              className={`text-[11px] px-2 py-1 rounded-md border transition-colors ${
+                active ? opt.cls + ' font-medium' : 'bg-white/5 text-gray-500 border-white/10 hover:text-gray-300 hover:border-white/20'
+              }`}
+              title={opt.value ? `Zobacz panel jako ${opt.label.toLowerCase()}` : 'Wróć do widoku admina'}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
