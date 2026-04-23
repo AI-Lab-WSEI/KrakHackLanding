@@ -151,15 +151,16 @@ export const router = createBrowserRouter([
           { path: 'projekty',                    Component: ProjectsPage },
           { path: 'projekty/nowy',               Component: ProjectEditPage },
           { path: 'projekty/:id/edytuj',         Component: ProjectEditPage },
-          // Strony hackathon-scoped — guard pilnuje żeby czysty scienceclub-participant
-          // ani jury nie wchodzili tu przez URL (w nav już ukryte przez requiredScopes).
-          { path: 'moj-zespol',                  Component: guarded(TeamClaimPage,    ['admin', 'moderator', 'hackathon-participant']) },
+          // Strony hackathon-scoped. Moderator NIE ma tu dostępu — moderator jest
+          // rolą admin-side (zarządzanie aplikacjami/users/claims), nie uczestnikiem.
+          // Admin zostaje w allow-list jako superuser do debug/podglądu.
+          { path: 'moj-zespol',                  Component: guarded(TeamClaimPage,    ['admin', 'hackathon-participant']) },
           { path: 'moja-obecnosc',               Component: guarded(MojaObecnoscPage, ['admin', 'hackathon-participant']) },
-          { path: 'zespoly/nowy',                Component: guarded(TeamCreatePage,   ['admin', 'moderator', 'hackathon-participant']) },
+          { path: 'zespoly/nowy',                Component: guarded(TeamCreatePage,   ['admin', 'hackathon-participant']) },
           // Strona scienceclub-scoped — kompas jest narzędziem koła
           { path: 'moj-kompas',                  Component: guarded(MyKompasPage,     ['admin', 'scienceclub-participant']) },
-          // Głosowanie — dla każdej z ról uczestnika (hackathon + scienceclub głosuje)
-          { path: 'glosowanie',                  Component: guarded(GlosowaniePage,   ['admin', 'moderator', 'hackathon-participant', 'scienceclub-participant']) },
+          // Głosowanie — dla uczestników (nie moderatorów — moderator nie głosuje)
+          { path: 'glosowanie',                  Component: guarded(GlosowaniePage,   ['admin', 'hackathon-participant', 'scienceclub-participant']) },
 
           // ── Legacy moderator alias (zostaje dla starych linków) ──────────
           { path: 'moderator',                   Component: guarded(ModeratorDashboard, ['admin', 'moderator']) },

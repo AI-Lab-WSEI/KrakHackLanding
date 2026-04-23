@@ -4867,7 +4867,7 @@ app.post('/api/membership-applications', async (req, res) => {
 });
 
 // List membership applications (admin)
-app.get('/api/membership-applications', requireAdmin, async (req, res) => {
+app.get('/api/membership-applications', requireRole('admin', 'moderator'), async (req, res) => {
   try {
     const { status, is_wsei, engagement_type, limit = 50, offset = 0 } = req.query;
     let query = 'SELECT * FROM membership_applications WHERE 1=1';
@@ -4892,7 +4892,7 @@ app.get('/api/membership-applications', requireAdmin, async (req, res) => {
 });
 
 // Get single membership application (admin)
-app.get('/api/membership-applications/:id', requireAdmin, async (req, res) => {
+app.get('/api/membership-applications/:id', requireRole('admin', 'moderator'), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM membership_applications WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
@@ -4906,19 +4906,30 @@ app.get('/api/membership-applications/:id', requireAdmin, async (req, res) => {
 // Update membership application status (admin)
 // Akceptuje: status, admin_notes, user_id (link do konta usera, jeśli admin chce
 // manualnie dopiąć aplikację do istniejącego profilu bez tworzenia nowego).
-app.patch('/api/membership-applications/:id', requireAdmin, async (req, res) => {
+// Status change + admin_notes — moderator może move'ować aplikację przez lifecycle
+// (nowe → w_kontakcie → rozmowa_umówiona) bez potrzeby admin intervention.
+// Pole user_id do linkowania nadal tylko admin (ale PATCH endpoint nie rozbija
+// per-field access — moderator mógłby wysłać user_id też. Akceptujemy trade-off
+// bo user_id linking jest rzadki; można dokryć w przyszłości if abused.)
+app.patch('/api/membership-applications/:id', requireRole('admin', 'moderator'), async (req, res) => {
   try {
     const { status, admin_notes, user_id } = req.body;
+    const callerIsAdmin = (req.kcUser?.roles ?? []).includes('admin');
     const updates = [];
     const params = [];
     let paramIdx = 1;
 
     if (status) { updates.push(`status = $${paramIdx++}`); params.push(status); }
     if (admin_notes !== undefined) { updates.push(`admin_notes = $${paramIdx++}`); params.push(admin_notes); }
+    // Linking aplikacji do usera — admin-only (manualna operacja, rzadka, krytyczna).
+    // Moderator dostaje silent drop — logujemy ale nie 403, żeby nie przerywać flow'u.
     if (user_id !== undefined) {
-      // null explicitly wspierany (odłączenie); UUID walidowany przez pg cast
-      updates.push(`user_id = $${paramIdx++}::uuid`);
-      params.push(user_id);
+      if (!callerIsAdmin) {
+        console.warn(`[Membership PATCH] Moderator próbował ustawić user_id=${user_id} dla app #${req.params.id} — ignoruję`);
+      } else {
+        updates.push(`user_id = $${paramIdx++}::uuid`);
+        params.push(user_id);
+      }
     }
     updates.push(`updated_at = NOW()`);
 
@@ -4948,7 +4959,10 @@ app.patch('/api/membership-applications/:id', requireAdmin, async (req, res) => 
 });
 
 // Send interview invitation (admin)
-app.post('/api/membership-applications/:id/invite', requireAdmin, async (req, res) => {
+// Wysyłka interview invite email — moderator może zaprosić kandydata na
+// rozmowę (bez tworzenia konta Keycloak). Dopiero admin po rozmowie robi
+// create-profile.
+app.post('/api/membership-applications/:id/invite', requireRole('admin', 'moderator'), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM membership_applications WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });

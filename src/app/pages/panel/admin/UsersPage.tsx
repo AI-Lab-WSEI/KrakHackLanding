@@ -143,6 +143,19 @@ export function AdminUsersPage() {
         ) : undefined}
       />
 
+      {/* Banner scope — moderator widzi listę + może edytować pola profilu,
+          ale bez role-change / delete / reset-password (admin-only). */}
+      {!isAdmin && (
+        <div className="mb-4 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
+          <p className="text-sm font-semibold text-cyan-200 mb-1">Jesteś moderatorem</p>
+          <p className="text-xs text-cyan-300/80 leading-relaxed">
+            Możesz <strong>edytować profile userów</strong> (bio, linkedin, skills).
+            <strong> Nie możesz</strong>: zmieniać roli, zawieszać/usuwać konta, resetować hasła — te akcje są admin-only.
+            Jeśli user zgłosił problem wymagający reset hasła, przekaż admina.
+          </p>
+        </div>
+      )}
+
       {/* Filters */}
       <PanelCard padding="sm" className="mb-4">
         <div className="flex items-center gap-3 flex-wrap">

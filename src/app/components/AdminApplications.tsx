@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { getAdminToken } from '@/lib/adminApi';
+import { useAuth } from '@/contexts/AuthContext';
 import { CompetencyRadarChart } from './membership/CompetencyRadarChart';
 import {
   STATUS_LABELS,
@@ -68,6 +69,12 @@ async function apiFetch(path: string, options?: RequestInit) {
 const STATUS_ORDER: ApplicationStatus[] = ['nowe', 'w_kontakcie', 'rozmowa_umówiona', 'przyjęty', 'odrzucony'];
 
 export function AdminApplications() {
+  // Role check — moderator widzi ten panel ale nie tworzy kont (backend odrzuci
+  // `create-profile` i `invite/bulk` z 403 requireAdmin). Żeby UX był spójny,
+  // ukrywamy też przyciski które moderator-only user and tak nie wywoła.
+  const { user } = useAuth();
+  const isAdmin  = !!user?.keycloakRoles.includes('admin');
+
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -259,6 +266,19 @@ export function AdminApplications() {
           Aplikacje do koła ({total})
         </h2>
 
+        {/* Role scope banner — moderator widzi panel ale z ograniczonymi akcjami */}
+        {!isAdmin && (
+          <div className="mb-6 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-xl">
+            <p className="text-sm font-semibold text-cyan-200 mb-1">Jesteś moderatorem</p>
+            <p className="text-xs text-cyan-300/80 leading-relaxed">
+              Możesz: <strong>przeglądać aplikacje</strong>, zmieniać status (np. "w kontakcie" → "rozmowa umówiona"),
+              dodawać notatki, wysyłać zaproszenia na rozmowę. <br/>
+              Tworzenie kont w Keycloak (przycisk "Utwórz profil uczestnika") jest <strong>admin-only</strong> —
+              admin zrobi to po Twoim review.
+            </p>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-6">
           <div className="relative flex-1 min-w-[200px]">
@@ -309,7 +329,7 @@ export function AdminApplications() {
             CSV
           </button>
 
-          {selectedIds.size > 0 && (
+          {selectedIds.size > 0 && isAdmin && (
             <button
               onClick={() => setShowBulkInvite(true)}
               className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm uppercase tracking-wider transition-colors flex items-center gap-2"
@@ -513,8 +533,10 @@ export function AdminApplications() {
                           Wyślij zaproszenie na rozmowę
                         </button>
 
-                        {/* Utwórz profil z aplikacji — core feature */}
-                        {app.user_id ? (
+                        {/* Utwórz profil z aplikacji — core feature. Tylko admin;
+                            moderator widzi aplikacje ale nie tworzy kont (stąd i backend
+                            zwraca 403 requireAdmin — tu dopasowujemy UX). */}
+                        {!isAdmin ? null : app.user_id ? (
                           <>
                             <div
                               className="px-4 py-1.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5"
