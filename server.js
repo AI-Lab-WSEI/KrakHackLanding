@@ -7395,11 +7395,11 @@ app.get('/api/public/participants/:slug', async (req, res) => {
 
     const u = userResult.rows[0];
 
-    // Fetch user's public projects
+    // Fetch user's public projects (FK = owner_user_id, nie owner_id)
     const projectsResult = await pool.query(
-      `SELECT id, title, slug, short_description, thumbnail_url, technologies
+      `SELECT id, title, slug, description AS short_description, thumbnail_url, tech_stack AS technologies
        FROM projects
-       WHERE owner_id = $1 AND visibility = 'public'
+       WHERE owner_user_id = $1 AND visibility = 'public'
        ORDER BY created_at DESC
        LIMIT 20`,
       [u.id]
