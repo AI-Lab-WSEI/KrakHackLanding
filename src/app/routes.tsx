@@ -70,6 +70,7 @@ import { KrakHackDashboardPage } from '@/app/pages/panel/admin/krakhack/Dashboar
 import { KrakHackTeamsViewPage } from '@/app/pages/panel/admin/krakhack/TeamsViewPage';
 import { AdminKompasPage } from '@/app/pages/panel/admin/lab/KompasPage';
 import { IntegrationsPage } from '@/app/pages/panel/admin/IntegrationsPage';
+import { AdminCalendarPage } from '@/app/pages/panel/admin/CalendarPage';
 import { MojaObecnoscPage } from '@/app/pages/panel/my/AttendancePage';
 import { MyKompasPage } from '@/app/pages/panel/my/MyKompasPage';
 import { GlosowaniePage } from '@/app/pages/panel/my/GlosowaniePage';
@@ -194,6 +195,7 @@ export const router = createBrowserRouter([
 
           // ── System context (ctx=system) — integracje zewnętrzne ──────────
           { path: 'admin/integracje',            Component: guarded(IntegrationsPage,           ['admin']) },
+          { path: 'admin/kalendarz',             Component: guarded(AdminCalendarPage,          ['admin']) },
         ],
       },
 

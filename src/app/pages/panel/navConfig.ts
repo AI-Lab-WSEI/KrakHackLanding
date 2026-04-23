@@ -89,6 +89,7 @@ export const NAV_ITEMS: NavItem[] = [
   // ─── ADMINISTRACJA — ctx: system ────────────────────────────────────────
   { to: '/panel/admin/uzytkownicy',           label: 'Użytkownicy',       icon: Users,         group: 'admin', ctx: 'system', roles: ['admin', 'moderator'] },
   { to: '/panel/admin/integracje',            label: 'Integracje',        icon: Zap,           group: 'admin', ctx: 'system', roles: ['admin'] },
+  { to: '/panel/admin/kalendarz',             label: 'Kalendarz',         icon: Calendar,      group: 'admin', ctx: 'system', roles: ['admin'] },
   { to: '/panel/admin/team-claims',           label: 'Team claims',       icon: UserCheck,     group: 'admin', ctx: 'system', roles: ['admin', 'moderator'] },
   { to: '/panel/admin/wydarzenia',            label: 'Wydarzenia',        icon: Calendar,      group: 'admin', ctx: 'system', roles: ['admin'] },
   { to: '/panel/admin/mailing',               label: 'Mailing',           icon: Mail,          group: 'admin', ctx: 'system', roles: ['admin'] },

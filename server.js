@@ -2284,6 +2284,48 @@ app.get('/api/calendar.ics', async (_req, res) => {
 /**
  * Admin CRUD calendar_entries
  */
+/**
+ * GET /api/admin/calendar
+ * Admin-only listing wszystkich entries (bez filtra visibility). Publiczny
+ * GET /api/calendar filtruje po visibility=public/members_only — admin chce
+ * widzieć też admin_only entries.
+ */
+app.get('/api/admin/calendar', requireAdmin, async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, description, category, starts_at, ends_at, all_day,
+              location, url, visibility, color_hex, linked_project_id,
+              linked_event_id, linked_update_id, created_at, updated_at
+       FROM calendar_entries
+       ORDER BY starts_at DESC
+       LIMIT 500`
+    );
+    res.json({
+      entries: rows.map(r => ({
+        id:                r.id,
+        title:             r.title,
+        description:       r.description,
+        category:          r.category,
+        startsAt:          r.starts_at,
+        endsAt:            r.ends_at,
+        allDay:            r.all_day,
+        location:          r.location,
+        url:               r.url,
+        visibility:        r.visibility,
+        colorHex:          r.color_hex,
+        linkedProjectId:   r.linked_project_id,
+        linkedEventId:     r.linked_event_id,
+        linkedUpdateId:    r.linked_update_id,
+        createdAt:         r.created_at,
+        updatedAt:         r.updated_at,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/admin/calendar GET] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
 app.post('/api/admin/calendar', requireAdmin, async (req, res) => {
   const {
     title, description, category, startsAt, endsAt, allDay, location, url,
