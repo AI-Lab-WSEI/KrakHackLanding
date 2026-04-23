@@ -1473,16 +1473,53 @@ app.patch('/api/panel/users/:id', requireRole('admin', 'moderator'), async (req,
  * UWAGA: nieodwracalne. UI musi pokazywać confirm dialog.
  */
 app.delete('/api/panel/users/:id', requireRole('admin'), async (req, res) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
-      'DELETE FROM users WHERE id = $1 RETURNING id, email',
+    await client.query('BEGIN');
+
+    // 1. Null-out referencje żeby nie zostawiać orphaned user_id w membership_applications
+    //    (brak FK constraint ale semantycznie trzeba wyczyścić — inaczej endpoint
+    //    create-profile odmówi 409 "Profil już utworzony" na skasowanego usera).
+    await client.query(
+      'UPDATE membership_applications SET user_id = NULL WHERE user_id = $1',
       [req.params.id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
-    res.json({ ok: true, deleted: result.rows[0] });
+
+    // 2. Fetch user żeby mieć keycloak_id do usunięcia konta Keycloak
+    const userRes = await client.query(
+      'SELECT id, email, keycloak_id FROM users WHERE id = $1',
+      [req.params.id]
+    );
+    if (userRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Nie znaleziono użytkownika' });
+    }
+    const u = userRes.rows[0];
+
+    // 3. DELETE z users
+    await client.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    await client.query('COMMIT');
+
+    // 4. Keycloak cleanup (poza transakcją — jeśli failuje, baza już czysta)
+    if (u.keycloak_id) {
+      try {
+        const kcToken = await getKeycloakAdminToken();
+        await fetch(`${KEYCLOAK_URL}/admin/realms/${KEYCLOAK_REALM}/users/${u.keycloak_id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${kcToken}` },
+        });
+      } catch (kcErr) {
+        console.warn(`[users DELETE] Keycloak cleanup failed for ${u.keycloak_id}: ${kcErr.message}`);
+      }
+    }
+
+    res.json({ ok: true, deleted: { id: u.id, email: u.email } });
   } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
     console.error('[/api/panel/users/:id DELETE] Error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
+  } finally {
+    client.release();
   }
 });
 
@@ -4373,11 +4410,22 @@ app.post('/api/membership-applications/:id/create-profile', requireAdmin, async 
     const application = appRes.rows[0];
 
     if (application.user_id) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({
-        error: 'Profil już utworzony',
-        detail: `Aplikacja #${appId} jest już powiązana z userem ${application.user_id}. Jeśli chcesz re-invite — użyj zakładki Użytkownicy → wyślij nowy link.`,
-      });
+      // Defensive: sprawdź czy powiązany user nadal istnieje. Jeśli został
+      // usunięty (np. admin przez /api/panel/users/:id DELETE), traktujemy
+      // jako "nieutworzony" i pozwalamy na ponowne utworzenie. Bez tego
+      // orphaned user_id blokuje ponowne zaproszenie tej samej aplikacji.
+      const refUser = await client.query('SELECT 1 FROM users WHERE id = $1', [application.user_id]);
+      if (refUser.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Profil już utworzony',
+          detail: `Aplikacja #${appId} jest już powiązana z userem ${application.user_id}. Jeśli chcesz re-invite — użyj zakładki Użytkownicy → wyślij nowy link.`,
+        });
+      }
+      // User usunięty — czyścimy referencję i kontynuujemy tworzenie nowego
+      console.log(`[create-profile] Application #${appId} has orphan user_id ${application.user_id}; clearing and proceeding.`);
+      await client.query('UPDATE membership_applications SET user_id = NULL WHERE id = $1', [appId]);
+      application.user_id = null;
     }
 
     const email = String(application.email || '').toLowerCase().trim();

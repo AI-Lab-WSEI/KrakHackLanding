@@ -22,6 +22,8 @@ export function Logowanie() {
   const [showPassword, setShow] = useState(false);
   const [submitting, setSubmit] = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  /** Pokaż dedykowany banner z CTA do SSO gdy user ma temp password / required action. */
+  const [needsSsoSetup, setNeedsSsoSetup] = useState(false);
 
   // Already logged in — bounce to panel
   useEffect(() => {
@@ -37,11 +39,21 @@ export function Logowanie() {
     }
     setSubmit(true);
     setError(null);
+    setNeedsSsoSetup(false);
     try {
       await loginWithPassword(email.trim(), password);
       navigate('/panel', { replace: true });
     } catch (err) {
-      setError((err as Error).message || 'Nieprawidłowy email lub hasło');
+      const msg = (err as Error).message || 'Nieprawidłowy email lub hasło';
+      // Keycloak zwraca "Account is not fully set up" gdy user ma required
+      // action (np. UPDATE_PASSWORD po create-profile / bulk invite). ROPC nie
+      // wspiera tych akcji — musimy przekierować do Keycloak UI (PKCE flow).
+      if (/not fully set up/i.test(msg) || /update.?password/i.test(msg)) {
+        setNeedsSsoSetup(true);
+        setError(null);
+      } else {
+        setError(msg);
+      }
       setPassword('');
     } finally {
       setSubmit(false);
@@ -121,6 +133,23 @@ export function Logowanie() {
             {error && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 text-center">
                 {error}
+              </div>
+            )}
+
+            {needsSsoSetup && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-300 space-y-2">
+                <p className="font-medium text-amber-200">Pierwsze logowanie — ustaw własne hasło</p>
+                <p className="text-amber-300/80 leading-relaxed">
+                  Twoje konto jest nowe i ma hasło tymczasowe. Kliknij poniżej, żeby przejść do Keycloaka
+                  i ustawić własne hasło. To jednorazowa operacja — potem możesz logować się stąd.
+                </p>
+                <button
+                  type="button"
+                  onClick={ssoLogin}
+                  className="w-full mt-2 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-lg text-amber-200 text-xs font-medium transition-colors"
+                >
+                  Przejdź do Keycloak i ustaw hasło →
+                </button>
               </div>
             )}
 
