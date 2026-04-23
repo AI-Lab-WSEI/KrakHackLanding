@@ -20,6 +20,8 @@ import {
   Send,
   MessageSquare,
   Download,
+  UserPlus,
+  X,
 } from 'lucide-react';
 
 interface ApplicationRow {
@@ -66,6 +68,16 @@ export function AdminApplications() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingNotes, setEditingNotes] = useState<{ id: number; notes: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkInvite, setShowBulkInvite] = useState(false);
+
+  function toggleSelected(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   const apiBase = import.meta.env.DEV ? 'http://localhost:3000' : '';
 
@@ -240,6 +252,16 @@ export function AdminApplications() {
             <Download className="w-4 h-4" />
             CSV
           </button>
+
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => setShowBulkInvite(true)}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium text-sm transition-colors flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Zaproś zaznaczonych ({selectedIds.size})
+            </button>
+          )}
         </div>
 
         {error && (
@@ -261,10 +283,23 @@ export function AdminApplications() {
               return (
                 <div key={app.id} className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
                   {/* Row */}
+                  <div className="w-full flex items-center gap-4 p-4 hover:bg-white/5 transition-colors">
+                    <label
+                      className="shrink-0 cursor-pointer p-1"
+                      onClick={e => e.stopPropagation()}
+                      title="Zaznacz do bulk invite"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(app.id)}
+                        onChange={() => toggleSelected(app.id)}
+                        className="w-4 h-4 accent-emerald-500 cursor-pointer"
+                      />
+                    </label>
                   <button
                     type="button"
                     onClick={() => setExpandedId(isExpanded ? null : app.id)}
-                    className="w-full flex items-center gap-4 p-4 text-left hover:bg-white/5 transition-colors"
+                    className="flex-1 flex items-center gap-4 text-left"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -291,6 +326,7 @@ export function AdminApplications() {
                       {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
                     </div>
                   </button>
+                  </div>
 
                   {/* Expanded Detail */}
                   {isExpanded && (
@@ -420,6 +456,131 @@ export function AdminApplications() {
           </div>
         )}
       </div>
+
+      {showBulkInvite && (
+        <BulkInviteModal
+          emails={filtered.filter(a => selectedIds.has(a.id)).map(a => a.email)}
+          onClose={() => setShowBulkInvite(false)}
+          onSent={() => { setShowBulkInvite(false); setSelectedIds(new Set()); fetchApplications(); }}
+        />
+      )}
     </motion.div>
+  );
+}
+
+// ─── Bulk invite modal ────────────────────────────────────────────────────────
+
+function BulkInviteModal({
+  emails, onClose, onSent,
+}: {
+  emails: string[];
+  onClose: () => void;
+  onSent: () => void;
+}) {
+  const [role, setRole]       = useState<'scienceclub-participant' | 'hackathon-participant'>('scienceclub-participant');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [result, setResult]   = useState<{ sent: number; errors: Array<{ email: string; reason: string }> } | null>(null);
+
+  async function handleSubmit() {
+    if (sending) return;
+    setSending(true);
+    try {
+      const { adminFetch } = await import('@/lib/adminApi');
+      const res  = await adminFetch('/api/invite/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ emails, role, message: message.trim() || undefined }),
+      });
+      const data = await res.json();
+      setResult({ sent: data.sent ?? 0, errors: data.errors ?? [] });
+      if (data.sent > 0) setTimeout(onSent, 1500);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[10000] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-950 border border-white/10 rounded-2xl w-full max-w-xl my-8">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h3 className="text-lg font-semibold text-white">Bulk invite — {emails.length} os.</h3>
+          <button onClick={onClose} className="p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300">
+            <strong>Co się stanie:</strong> dla każdego emaila utworzymy konto Keycloak z tymczasowym hasłem,
+            przypiszemy rolę <code>{role}</code> i wyślemy email z danymi do logowania. Przy pierwszym loginie
+            user jest zmuszony zmienić hasło.
+          </div>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-400 uppercase tracking-wider">Rola docelowa</span>
+            <select
+              value={role}
+              onChange={e => setRole(e.target.value as typeof role)}
+              className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/30"
+            >
+              <option value="scienceclub-participant">scienceclub-participant (członek koła)</option>
+              <option value="hackathon-participant">hackathon-participant (uczestnik hackathonu)</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-gray-400 uppercase tracking-wider">Własna wiadomość (opcjonalna)</span>
+            <textarea
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              rows={3}
+              placeholder="Np. 'Witaj! Zostałeś przyjęty/a do koła. Pierwsze spotkanie w piątek…'"
+              className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/30 resize-none"
+            />
+          </label>
+
+          <div className="max-h-40 overflow-y-auto bg-white/5 border border-white/10 rounded-lg p-3">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Odbiorcy ({emails.length})</p>
+            <div className="flex flex-wrap gap-1.5">
+              {emails.map(e => (
+                <span key={e} className="text-[11px] bg-white/10 text-gray-300 px-2 py-0.5 rounded-full">{e}</span>
+              ))}
+            </div>
+          </div>
+
+          {result && (
+            <div className={`p-3 rounded-lg text-xs ${result.errors.length > 0 ? 'bg-amber-500/10 border border-amber-500/20 text-amber-300' : 'bg-green-500/10 border border-green-500/20 text-green-300'}`}>
+              <strong>Wysłano: {result.sent}.</strong>
+              {result.errors.length > 0 && (
+                <div className="mt-2 space-y-0.5">
+                  {result.errors.map((e, i) => (
+                    <div key={i} className="text-[10px]">• {e.email}: {e.reason}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={sending}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+            >
+              Anuluj
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={sending || emails.length === 0}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            >
+              {sending ? 'Wysyłam…' : `Wyślij zaproszenia (${emails.length})`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

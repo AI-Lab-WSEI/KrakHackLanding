@@ -977,6 +977,200 @@ app.post('/api/auth/sync-user', verifyKeycloakToken, async (req, res) => {
  * Wymagana rola: admin lub moderator.
  * Body: { email, displayName? }
  */
+/**
+ * Keycloak Admin API helpers (dla bulk-invite flow).
+ * Wymaga env: KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD, KEYCLOAK_URL, KEYCLOAK_REALM.
+ */
+let _kcAdminToken = null;
+let _kcAdminTokenExp = 0;
+
+async function getKeycloakAdminToken() {
+  // Cache 50 sek (master token żyje 60s domyślnie)
+  if (_kcAdminToken && Date.now() < _kcAdminTokenExp) return _kcAdminToken;
+  const user = process.env.KEYCLOAK_ADMIN;
+  const pass = process.env.KEYCLOAK_ADMIN_PASSWORD;
+  if (!user || !pass || !KEYCLOAK_URL) throw new Error('Keycloak admin credentials not configured');
+
+  const res = await fetch(`${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'password',
+      client_id:  'admin-cli',
+      username:   user,
+      password:   pass,
+    }),
+  });
+  if (!res.ok) throw new Error(`Keycloak admin login failed: ${res.status}`);
+  const data = await res.json();
+  _kcAdminToken    = data.access_token;
+  _kcAdminTokenExp = Date.now() + (data.expires_in ?? 60) * 1000 - 10_000;
+  return _kcAdminToken;
+}
+
+/**
+ * Tworzy usera w Keycloaku + ustawia temp password + przypisuje rolę.
+ * Zwraca Keycloak user UUID. Idempotent — jeśli user istnieje (409), zwraca istniejący UUID.
+ */
+async function createKeycloakUser({ email, firstName, lastName, tempPassword, role }) {
+  const token = await getKeycloakAdminToken();
+
+  // Create user
+  const createRes = await fetch(`${KEYCLOAK_URL}/admin/realms/${KEYCLOAK_REALM}/users`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username:      email,
+      email,
+      firstName:     firstName || '',
+      lastName:      lastName  || '',
+      enabled:       true,
+      emailVerified: true,
+    }),
+  });
+
+  let userId;
+  if (createRes.status === 201 || createRes.status === 409) {
+    // Get user by email (find UUID whether just created or already existed)
+    const findRes = await fetch(
+      `${KEYCLOAK_URL}/admin/realms/${KEYCLOAK_REALM}/users?email=${encodeURIComponent(email)}&exact=true`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    const arr = await findRes.json();
+    if (!Array.isArray(arr) || arr.length === 0) throw new Error(`Keycloak user ${email} not found after create`);
+    userId = arr[0].id;
+  } else {
+    throw new Error(`Keycloak create user failed: ${createRes.status}`);
+  }
+
+  // Set temp password (temporary=true forces change on first login)
+  await fetch(`${KEYCLOAK_URL}/admin/realms/${KEYCLOAK_REALM}/users/${userId}/reset-password`, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'password', value: tempPassword, temporary: true }),
+  });
+
+  // Assign realm role (idempotent)
+  if (role) {
+    const roleRes = await fetch(`${KEYCLOAK_URL}/admin/realms/${KEYCLOAK_REALM}/roles/${role}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (roleRes.ok) {
+      const roleData = await roleRes.json();
+      await fetch(`${KEYCLOAK_URL}/admin/realms/${KEYCLOAK_REALM}/users/${userId}/role-mappings/realm`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify([roleData]),
+      });
+    }
+  }
+
+  return userId;
+}
+
+function buildBulkInviteEmail(firstName, email, tempPassword, loginUrl, customMessage) {
+  const greeting = firstName ? `Cześć ${firstName}!` : 'Cześć!';
+  const intro = customMessage && customMessage.trim()
+    ? `<p style="color:#4b5563;line-height:1.6">${customMessage.replace(/\n/g, '<br/>')}</p>`
+    : '<p style="color:#4b5563;line-height:1.6">Zostałeś/aś zaproszony/a do naszego systemu. Poniżej znajdziesz dane do pierwszego logowania.</p>';
+  return `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1f2937">
+      <h2 style="color:#4f46e5">${greeting}</h2>
+      ${intro}
+      <div style="background:#f3f4f6;border-radius:8px;padding:20px;margin:20px 0">
+        <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280">Email do logowania:</p>
+        <p style="margin:0 0 16px 0;font-weight:600">${email}</p>
+        <p style="margin:0 0 4px 0;font-size:13px;color:#6b7280">Tymczasowe hasło:</p>
+        <p style="margin:0;font-family:monospace;font-size:16px;font-weight:600;color:#4f46e5">${tempPassword}</p>
+      </div>
+      <p style="margin:24px 0">
+        <a href="${loginUrl}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+          Zaloguj się →
+        </a>
+      </p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:32px">
+        Przy pierwszym logowaniu zostaniesz poproszony/a o zmianę hasła na własne.
+        Jeśli nie spodziewałeś/aś się tego zaproszenia — zignoruj tę wiadomość.
+      </p>
+    </div>
+  `;
+}
+
+/**
+ * POST /api/invite/bulk
+ * Admin. Tworzy wielu userów w Keycloaku + DB + wysyła emaile z temp password.
+ * Body: { emails: string[], role?: 'scienceclub-participant' | 'hackathon-participant',
+ *         message?: string, sourceIds?: { applicationIds?: number[], submissionIds?: number[] } }
+ *
+ * Flow per-user:
+ *   1. Sprawdź czy email już w users — jeśli tak i has keycloak_id → skip (invited wcześniej)
+ *   2. Generuj temp password (base64 8 bytes)
+ *   3. Keycloak: create user z temp password (temporary=true wymusza zmianę)
+ *   4. DB: upsert users row z keycloak_id
+ *   5. Email: temp password + link /login
+ *
+ * Zwraca: { sent: N, skipped: [...], errors: [...] }
+ */
+app.post('/api/invite/bulk', requireRole('admin'), async (req, res) => {
+  const { emails, role, message } = req.body || {};
+  if (!Array.isArray(emails) || emails.length === 0) {
+    return res.status(400).json({ error: 'emails[] wymagane' });
+  }
+  const targetRole = role === 'scienceclub-participant' || role === 'hackathon-participant'
+    ? role
+    : 'scienceclub-participant';
+
+  const results = { sent: 0, skipped: [], errors: [] };
+  const loginUrl = process.env.FRONTEND_URL || 'https://krakhack.info';
+
+  for (const rawEmail of emails) {
+    const email = String(rawEmail).toLowerCase().trim();
+    if (!email || !email.includes('@')) {
+      results.errors.push({ email: rawEmail, reason: 'nieprawidłowy email' });
+      continue;
+    }
+
+    try {
+      // Try to prefill firstName/lastName z membership_applications
+      const appResult = await pool.query(
+        'SELECT first_name, last_name FROM membership_applications WHERE email = $1 LIMIT 1',
+        [email]
+      );
+      const firstName = appResult.rows[0]?.first_name ?? '';
+      const lastName  = appResult.rows[0]?.last_name ?? '';
+
+      const tempPassword = crypto.randomBytes(6).toString('base64url') + '!A1';
+
+      await createKeycloakUser({ email, firstName, lastName, tempPassword, role: targetRole });
+
+      // Upsert DB
+      await pool.query(
+        `INSERT INTO users (email, display_name, role, is_active, onboarding_completed, created_at, updated_at)
+         VALUES ($1, $2, $3, true, false, NOW(), NOW())
+         ON CONFLICT (email) DO UPDATE
+           SET role = EXCLUDED.role,
+               display_name = COALESCE(EXCLUDED.display_name, users.display_name),
+               updated_at = NOW()`,
+        [email, `${firstName} ${lastName}`.trim() || null, targetRole]
+      );
+
+      // Email
+      await sendResendEmail(
+        email,
+        'Zaproszenie do AI Possibilities Lab / Krak Hack',
+        buildBulkInviteEmail(firstName, email, tempPassword, loginUrl + '/login', message),
+      );
+
+      results.sent++;
+    } catch (err) {
+      console.error(`[bulk-invite] Failed for ${email}:`, err.message);
+      results.errors.push({ email, reason: err.message });
+    }
+  }
+
+  res.json(results);
+});
+
 app.post('/api/invite/send', requireRole('admin', 'moderator'), async (req, res) => {
   const { email, displayName } = req.body;
   if (!email || typeof email !== 'string') {

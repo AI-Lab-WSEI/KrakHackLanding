@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminFetch } from '@/lib/adminApi';
+import { InfoBar } from '@/app/components/panel/shared/InfoBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -312,6 +313,24 @@ function ClaimsTab({ token, isAdmin }: { token: string | null; isAdmin: boolean 
 
   return (
     <div className="flex flex-col gap-4">
+      {isAdmin && (
+        <InfoBar
+          title="Team claims — jak działa backfill"
+          description={
+            <>
+              Team claim = user zgłasza przynależność do istniejącego zespołu ze
+              starego systemu (tabela <code>team_claims</code>). Po confirm klikiem
+              admin przenosi go do <code>team_members</code>. Jeśli claim został
+              potwierdzony zanim została utworzona teams-row (legacy data) — klik
+              "🔗 Backfill members" dolinkuje wszystkich zaległych.{' '}
+              <strong>"Dolinkowano 0"</strong> = wszyscy confirmed claimowie są już
+              w team_members (brak pracy do zrobienia).
+            </>
+          }
+          tone="info"
+        />
+      )}
+
       {/* Filter toggle + admin-only backfill */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex gap-2">
