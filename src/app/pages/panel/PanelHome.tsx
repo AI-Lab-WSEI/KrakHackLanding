@@ -2,30 +2,79 @@
  * PanelHome — /panel landing dla zalogowanego usera.
  *
  * Widok "MÓJ OBSZAR" — welcome + role badges + onboarding nudge + skróty.
- * Jeśli user ma rolę admin/moderator — dodatkowo button "Przejdź do panelu administracyjnego".
+ * + analityka BI (skille ja vs koło, stats tiles, nadchodzące wydarzenia).
+ * Admin dostaje dodatkowo KPI panelu administracyjnego.
  */
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { FolderKanban, Users2, Calendar, Award, Shield } from 'lucide-react';
+import {
+  FolderKanban, Users2, Calendar, Award, Shield,
+  TrendingUp, ClipboardList, UserCheck, MessageSquare,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { adminFetch } from '@/lib/adminApi';
 import { PanelCard } from '@/app/components/panel/shared/PanelCard';
 
 const ROLE_LABEL: Record<string, { label: string; cls: string }> = {
-  admin:                    { label: 'Admin',               cls: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
-  moderator:                { label: 'Moderator',           cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' },
-  'hackathon-participant':  { label: 'Hackathon',           cls: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' },
-  'scienceclub-participant':{ label: 'Koło',                cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
-  jury:                     { label: 'Jury',                cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  admin:                    { label: 'Admin',      cls: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
+  moderator:                { label: 'Moderator',  cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' },
+  'hackathon-participant':  { label: 'Hackathon',  cls: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' },
+  'scienceclub-participant':{ label: 'Koło',       cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+  jury:                     { label: 'Jury',       cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
 };
 
+interface Stats {
+  myProjects:    number;
+  myTeams:       number;
+  myVotes:       number;
+  mySkillsCount: number;
+  clubSize:      number;
+  clubAvgSkills: number;
+  topClubSkills: { skill: string; count: number }[];
+  upcomingEvents: {
+    id:        string;
+    title:     string;
+    startsAt:  string;
+    eventType: string | null;
+  }[];
+  adminKpis?: {
+    applicationsNew: number;
+    claimsPending:   number;
+    certsDraft:      number;
+    contactNew:      number;
+  };
+}
+
 export function PanelHome() {
-  const { user } = useAuth();
+  const { user }             = useAuth();
+  const [stats, setStats]    = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await adminFetch('/api/panel/my-stats');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const d = await res.json();
+        if (!cancelled) setStats(d);
+      } catch {
+        // soft fail — dashboard pokazuje się bez stats
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   if (!user) return null;
 
   const isAdmin     = user.keycloakRoles.includes('admin');
   const isModerator = user.keycloakRoles.includes('moderator');
+  const userSkills  = new Set(user.skills.map(s => s.toLowerCase()));
 
   return (
-    <div className="p-6 sm:p-8 max-w-4xl mx-auto flex flex-col gap-6">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto flex flex-col gap-6">
       {/* Welcome */}
       <PanelCard padding="md">
         <h1 className="text-2xl font-semibold text-white">
@@ -51,7 +100,7 @@ export function PanelHome() {
         <PanelCard padding="md" className="!bg-amber-500/10 !border-amber-500/30">
           <p className="text-amber-300 font-medium text-sm">Uzupełnij swój profil</p>
           <p className="text-amber-200/70 text-xs mt-1">
-            Twój profil jest niekompletny. Dodaj bio, GitHub i umiejętności, żeby pojawić się w katalogu uczestników.
+            Dodaj bio, GitHub i umiejętności, żeby pojawić się w katalogu uczestników.
           </p>
           <Link
             to="/panel/profil"
@@ -85,16 +134,130 @@ export function PanelHome() {
         </PanelCard>
       )}
 
+      {/* Admin KPI tiles (tylko admin, tylko jeśli są liczby) */}
+      {isAdmin && stats?.adminKpis && (
+        <div>
+          <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Administracja — pending</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <AdminKpi
+              label="Aplikacje nowe"
+              value={stats.adminKpis.applicationsNew}
+              href="/panel/admin/aplikacje"
+              icon={ClipboardList}
+            />
+            <AdminKpi
+              label="Claims pending"
+              value={stats.adminKpis.claimsPending}
+              href="/panel/admin/team-claims"
+              icon={UserCheck}
+            />
+            <AdminKpi
+              label="Certyfikaty draft"
+              value={stats.adminKpis.certsDraft}
+              href="/panel/admin/certyfikaty"
+              icon={Award}
+            />
+            <AdminKpi
+              label="Zapytania nowe"
+              value={stats.adminKpis.contactNew}
+              href="/panel/admin/zapytania"
+              icon={MessageSquare}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* My stats — widoczne dla wszystkich zalogowanych */}
+      {stats && (
+        <div>
+          <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Twoje statystyki</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <MyStatTile label="Moje projekty"  value={stats.myProjects}    icon={FolderKanban} />
+            <MyStatTile label="Moje zespoły"   value={stats.myTeams}       icon={Users2} />
+            <MyStatTile label="Oddany głos"    value={stats.myVotes}       icon={TrendingUp} />
+            <MyStatTile label="Umiejętności"   value={stats.mySkillsCount} icon={Award} />
+          </div>
+        </div>
+      )}
+
+      {/* Skills: ty vs koło */}
+      {stats && stats.topClubSkills.length > 0 && (
+        <PanelCard padding="md">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-medium text-white">Ty vs koło — umiejętności</h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Top 8 skilli w kole ({stats.clubSize} aktywnych userów). Podświetlone = masz je w profilu.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {stats.topClubSkills.map(sk => {
+              const iHave = userSkills.has(sk.skill.toLowerCase());
+              const pct   = stats.clubSize > 0 ? Math.min(100, Math.round((sk.count / stats.clubSize) * 100)) : 0;
+              return (
+                <div key={sk.skill} className="flex items-center gap-3">
+                  <div className={`text-xs w-40 shrink-0 truncate ${iHave ? 'text-indigo-300 font-medium' : 'text-gray-400'}`}>
+                    {iHave && <span className="mr-1">✓</span>}
+                    {sk.skill}
+                  </div>
+                  <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${iHave ? 'bg-indigo-400' : 'bg-white/30'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500 w-16 text-right">{sk.count} · {pct}%</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[10px] text-gray-600 mt-4">
+            Średnia ilość skilli / user w kole: {stats.clubAvgSkills}.
+            {stats.mySkillsCount < stats.clubAvgSkills && (
+              <> Ty masz {stats.mySkillsCount} — warto dopisać więcej w profilu.</>
+            )}
+          </p>
+        </PanelCard>
+      )}
+
+      {/* Upcoming events */}
+      {stats && stats.upcomingEvents.length > 0 && (
+        <PanelCard padding="md">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-white">Nadchodzące wydarzenia</h3>
+            <Link to="/wydarzenia" className="text-xs text-gray-400 hover:text-white transition-colors">
+              Zobacz wszystkie →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {stats.upcomingEvents.map(ev => (
+              <div key={ev.id} className="flex items-center gap-3 px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
+                <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white truncate">{ev.title}</p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(ev.startsAt).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {ev.eventType && <> · {ev.eventType}</>}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </PanelCard>
+      )}
+
       {/* Quick links */}
       <div>
-        <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Mój obszar</p>
+        <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Szybki dostęp</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Mój profil',     icon: Users2,       href: '/panel/profil' },
             { label: 'Moje projekty',  icon: FolderKanban, href: '/panel/projekty' },
             { label: 'Mój zespół',     icon: Users2,       href: '/panel/moj-zespol' },
             { label: 'Wydarzenia',     icon: Calendar,     href: '/wydarzenia' },
-            { label: 'Certyfikaty',    icon: Award,        href: '/verify' },
           ].map(l => (
             <Link
               key={l.href}
@@ -107,6 +270,48 @@ export function PanelHome() {
           ))}
         </div>
       </div>
+
+      {loading && !stats && (
+        <p className="text-xs text-gray-600 text-center py-4">Ładowanie statystyk…</p>
+      )}
     </div>
+  );
+}
+
+function AdminKpi({
+  label, value, href, icon: Icon,
+}: {
+  label: string;
+  value: number;
+  href: string;
+  icon: typeof ClipboardList;
+}) {
+  return (
+    <Link
+      to={href}
+      className="group bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 transition-colors"
+    >
+      <div className="flex items-start justify-between mb-2">
+        <Icon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+      </div>
+      <p className="text-2xl font-bold text-white tabular-nums">{value}</p>
+      <p className="text-[11px] text-gray-400 mt-0.5 truncate">{label}</p>
+    </Link>
+  );
+}
+
+function MyStatTile({
+  label, value, icon: Icon,
+}: {
+  label: string;
+  value: number;
+  icon: typeof ClipboardList;
+}) {
+  return (
+    <PanelCard padding="sm">
+      <Icon className="w-4 h-4 text-gray-500 mb-2" />
+      <p className="text-2xl font-bold text-white tabular-nums">{value}</p>
+      <p className="text-[11px] text-gray-400 mt-0.5 truncate">{label}</p>
+    </PanelCard>
   );
 }

@@ -69,9 +69,6 @@ function slugify(text) {
     .replace(/^-+|-+$/g, '');
 }
 
-// Admin session tokens (in-memory, cleared on restart — admin just re-logs in)
-const adminTokens = new Set();
-
 // Survey IP rate limiting — max 1 survey per IP per 24h
 const surveyIpMap = new Map(); // ip -> timestamp
 
@@ -675,14 +672,8 @@ function formatValue(value) {
 }
 
 /**
- * Dual-auth admin gate.
- *
- *   • Keycloak JWT  (Bearer <jwt>)  →  verified against JWKS; requires realm role `admin`.
- *   • Legacy UUID   (Bearer <uuid>) →  accepted only when LEGACY_ADMIN_LOGIN=true
- *                                       (emergency backdoor for post-Keycloak outages).
- *
- * Distinguishes by token shape: JWTs are `xxx.yyy.zzz`, legacy tokens are plain UUIDs.
- * Populates `req.kcUser` when JWT path matches, so downstream handlers may inspect roles.
+ * Admin gate — wyłącznie Keycloak JWT z rolą `admin`.
+ * Populates `req.kcUser` ze wszystkimi flagami ról dla downstream handlers.
  */
 async function requireAdmin(req, res, next) {
   const auth = req.headers.authorization;
@@ -690,40 +681,30 @@ async function requireAdmin(req, res, next) {
     return res.status(401).json({ error: 'Brak autoryzacji' });
   }
   const token = auth.slice(7);
-
-  // ── Keycloak JWT path ──────────────────────────────────────────────
-  if (token.split('.').length === 3) {
-    const jwks = getJWKS();
-    if (!jwks) return res.status(503).json({ error: 'Auth service not configured' });
-    try {
-      const { payload } = await jwtVerify(token, jwks, {
-        issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
-      });
-      const roles = payload.realm_access?.roles ?? [];
-      if (!roles.includes('admin')) {
-        return res.status(403).json({ error: 'Brak uprawnień admin' });
-      }
-      req.kcUser = {
-        keycloakId: payload.sub,
-        email: payload.email,
-        roles,
-        isAdmin: true,
-        isModerator: roles.includes('moderator'),
-        isHackathonParticipant: roles.includes('hackathon-participant'),
-        isScienceclubParticipant: roles.includes('scienceclub-participant'),
-        isJury: roles.includes('jury'),
-      };
-      return next();
-    } catch (err) {
-      return res.status(401).json({ error: 'Invalid or expired token', detail: err.message });
+  const jwks  = getJWKS();
+  if (!jwks) return res.status(503).json({ error: 'Auth service not configured' });
+  try {
+    const { payload } = await jwtVerify(token, jwks, {
+      issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
+    });
+    const roles = payload.realm_access?.roles ?? [];
+    if (!roles.includes('admin')) {
+      return res.status(403).json({ error: 'Brak uprawnień admin' });
     }
+    req.kcUser = {
+      keycloakId: payload.sub,
+      email: payload.email,
+      roles,
+      isAdmin: true,
+      isModerator: roles.includes('moderator'),
+      isHackathonParticipant: roles.includes('hackathon-participant'),
+      isScienceclubParticipant: roles.includes('scienceclub-participant'),
+      isJury: roles.includes('jury'),
+    };
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token', detail: err.message });
   }
-
-  // ── Legacy UUID path (gated by env flag; default OFF) ─────────────
-  if (process.env.LEGACY_ADMIN_LOGIN === 'true' && adminTokens.has(token)) {
-    return next();
-  }
-  return res.status(401).json({ error: 'Nieprawidłowy token' });
 }
 
 // ─── Keycloak JWT Auth (Faza 1) ────────────────────────────
@@ -884,24 +865,9 @@ app.post('/api/auth/refresh', async (req, res) => {
   }
 });
 
-// Legacy admin login (password-only /admin panel — kept as backdoor for ops)
-app.post('/api/admin/login', (req, res) => {
-  const { password } = req.body;
-  const adminPassword = process.env.ADMIN_PASSWORD || 'MakaPaka2026';
-
-  if (password === adminPassword) {
-    const token = crypto.randomUUID();
-    adminTokens.add(token);
-    res.json({ success: true, token });
-  } else {
-    res.status(401).json({ error: 'Nieprawidłowe hasło' });
-  }
-});
-
-// Verify admin token
-app.get('/api/admin/verify', requireAdmin, (req, res) => {
-  res.json({ valid: true });
-});
+// Legacy /api/admin/login + /api/admin/verify + password backdoor usunięte (Faza D).
+// Auth wyłącznie przez Keycloak (POST /api/auth/login ROPC lub redirect flow).
+// Jeśli kiedykolwiek potrzebny by był backdoor — wróci za env flag LEGACY_ADMIN_LOGIN.
 
 // ─── Auth / User endpoints (Faza 1) ───────────────────────
 
@@ -1374,6 +1340,127 @@ app.patch('/api/panel/me', verifyKeycloakToken, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[/api/panel/me] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
+ * GET /api/panel/my-stats
+ * Agregat statystyk dla dashboard usera (MÓJ OBSZAR).
+ * Dla admina dorzuca adminKpis (pending counts z różnych tabel).
+ *
+ * Zwraca:
+ *   {
+ *     myProjects:        INT,
+ *     myTeams:           INT,
+ *     myVotes:           INT (0/1 — jedna edycja = jeden głos),
+ *     mySkillsCount:     INT,
+ *     clubSize:          INT (aktywni userzy z onboardingiem),
+ *     clubAvgSkills:     FLOAT,
+ *     topClubSkills:     [{ skill, count }] (top 8 w kole),
+ *     upcomingEvents:    [{ id, title, starts_at, event_type }] (next 3 public),
+ *     adminKpis?: {          -- tylko dla admina
+ *       applicationsNew: INT,
+ *       claimsPending:   INT,
+ *       certsDraft:      INT,
+ *       contactNew:      INT,
+ *     }
+ *   }
+ */
+app.get('/api/panel/my-stats', verifyKeycloakToken, async (req, res) => {
+  const { keycloakId, isAdmin } = req.kcUser;
+  try {
+    // Resolve user row + skills
+    const meResult = await pool.query(
+      'SELECT id, skills FROM users WHERE keycloak_id = $1',
+      [keycloakId]
+    );
+    if (meResult.rows.length === 0) return res.status(404).json({ error: 'Nie znaleziono' });
+    const me = meResult.rows[0];
+    const mySkills = Array.isArray(me.skills) ? me.skills : (me.skills ? JSON.parse(me.skills) : []);
+
+    // Execute all aggregates w paraleli
+    const [
+      myProjectsRes,
+      myTeamsRes,
+      myVotesRes,
+      clubSizeRes,
+      clubSkillsRes,
+      upcomingEventsRes,
+      adminKpisRes,
+    ] = await Promise.all([
+      pool.query('SELECT COUNT(*)::int AS n FROM projects WHERE owner_user_id = $1', [me.id]),
+      pool.query('SELECT COUNT(*)::int AS n FROM team_members WHERE user_id = $1', [me.id]),
+      pool.query('SELECT COUNT(*)::int AS n FROM participant_votes WHERE user_id = $1', [me.id]),
+      pool.query(`SELECT COUNT(*)::int AS n FROM users WHERE is_active = true AND onboarding_completed = true`),
+      pool.query(`
+        SELECT skill, COUNT(*)::int AS n
+        FROM users, jsonb_array_elements_text(
+          CASE
+            WHEN skills IS NULL                          THEN '[]'::jsonb
+            WHEN jsonb_typeof(skills::jsonb) = 'array'   THEN skills::jsonb
+            ELSE '[]'::jsonb
+          END
+        ) AS skill
+        WHERE is_active = true AND onboarding_completed = true
+        GROUP BY skill
+        ORDER BY n DESC
+        LIMIT 8
+      `).catch(() => ({ rows: [] })),  // skills mogą być text/jsonb — jeśli parse fail, zwracamy []
+      pool.query(`
+        SELECT id, title, starts_at, event_type
+        FROM events
+        WHERE visibility = 'public' AND starts_at > NOW()
+        ORDER BY starts_at ASC
+        LIMIT 3
+      `),
+      isAdmin
+        ? Promise.all([
+            pool.query(`SELECT COUNT(*)::int AS n FROM membership_applications WHERE status = 'nowe'`),
+            pool.query(`SELECT COUNT(*)::int AS n FROM team_claims WHERE status = 'pending'`),
+            pool.query(`SELECT COUNT(*)::int AS n FROM certificates WHERE status = 'draft'`)
+              .catch(() => ({ rows: [{ n: 0 }] })),
+            pool.query(`SELECT COUNT(*)::int AS n FROM submissions WHERE type = 'org_contact' AND status = 'new'`)
+              .catch(() => ({ rows: [{ n: 0 }] })),
+          ])
+        : Promise.resolve(null),
+    ]);
+
+    const clubSize    = clubSizeRes.rows[0].n;
+    const topSkills   = clubSkillsRes.rows.map(r => ({ skill: r.skill, count: r.n }));
+    // Average skills-per-user w kole (suma n / clubSize) — heurystyka top-8, nie globalna, ale OK
+    const clubAvgSkills = clubSize > 0
+      ? +(topSkills.reduce((s, r) => s + r.count, 0) / clubSize).toFixed(1)
+      : 0;
+
+    const response = {
+      myProjects:    myProjectsRes.rows[0].n,
+      myTeams:       myTeamsRes.rows[0].n,
+      myVotes:       myVotesRes.rows[0].n,
+      mySkillsCount: mySkills.length,
+      clubSize,
+      clubAvgSkills,
+      topClubSkills: topSkills,
+      upcomingEvents: upcomingEventsRes.rows.map(e => ({
+        id:         e.id,
+        title:      e.title,
+        startsAt:   e.starts_at,
+        eventType:  e.event_type,
+      })),
+    };
+
+    if (isAdmin && adminKpisRes) {
+      response.adminKpis = {
+        applicationsNew: adminKpisRes[0].rows[0].n,
+        claimsPending:   adminKpisRes[1].rows[0].n,
+        certsDraft:      adminKpisRes[2].rows[0].n,
+        contactNew:      adminKpisRes[3].rows[0].n,
+      };
+    }
+
+    res.json(response);
+  } catch (err) {
+    console.error('[/api/panel/my-stats] Error:', err);
     res.status(500).json({ error: 'Błąd serwera' });
   }
 });

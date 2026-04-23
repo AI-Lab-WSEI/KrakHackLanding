@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router';
-import { AdminAuth, getAdminToken } from './AdminAuth';
+import { getAdminToken } from '@/lib/adminApi';
 import { AdminAttendance } from '@/app/pages/AdminAttendance';
 import { AdminCertificates } from './AdminCertificates';
 import { motion, AnimatePresence } from 'motion/react';
@@ -799,11 +799,9 @@ export function AdminDashboard({ embeddedTab, embeddedDomain }: AdminDashboardPr
     </div>
   );
 
-  // Embedded: outer wrapper ensures layout integrates with PanelLayout;
-  // AdminAuth + internal sidebar + topbar are skipped entirely.
-  const OuterShell = embedded
-    ? ({ children }: { children: React.ReactNode }) => <>{children}</>
-    : AdminAuth;
+  // Wrapper — standalone branch nie jest już dostępny (/admin redirectuje do /panel/admin).
+  // Pozostawiam Fragment tylko dla zgodności z resztą JSX poniżej.
+  const OuterShell = ({ children }: { children: React.ReactNode }) => <>{children}</>;
 
   return (
     <OuterShell>
