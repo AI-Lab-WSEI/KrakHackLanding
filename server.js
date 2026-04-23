@@ -2422,17 +2422,19 @@ app.post('/api/admin/sms/send', requireAdmin, async (req, res) => {
 // Attendance Endpoints
 app.get('/api/attendance', requireAdmin, async (req, res) => {
   try {
+    // UWAGA: parentheses wokół (data->>'firstName') — bez nich `||` łączy wartości
+    // jsonb z textem w złym kolejności i Postgres rzuca operator-error.
     const result = await pool.query(`
-      SELECT 
+      SELECT
         a.*,
         (
-          SELECT jsonb_agg(DISTINCT (data->>'firstName' || ' ' || data->>'lastName'))
-          FROM submissions s 
+          SELECT jsonb_agg(DISTINCT COALESCE((data->>'firstName'), '') || ' ' || COALESCE((data->>'lastName'), ''))
+          FROM submissions s
           WHERE s.data->>'teamName' = a.team_name AND s.type = 'participant'
         ) as members,
         (
           SELECT data->>'email'
-          FROM submissions s 
+          FROM submissions s
           WHERE s.data->>'teamName' = a.team_name AND s.type = 'participant'
           LIMIT 1
         ) as contact_email
@@ -2442,7 +2444,7 @@ app.get('/api/attendance', requireAdmin, async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('[API] Fetch attendance error:', err);
-    res.status(500).json({ error: 'Błąd serwera' });
+    res.status(500).json({ error: 'Błąd serwera', detail: err.message });
   }
 });
 
@@ -5518,6 +5520,9 @@ app.get('/api/platform-screenshots', async (req, res) => {
 app.get('/api/admin/gallery/:edition', requireAdmin, async (req, res) => {
   try {
     const edition = parseInt(req.params.edition);
+    if (!Number.isFinite(edition) || edition <= 0) {
+      return res.status(400).json({ error: 'Nieprawidłowa edycja', got: req.params.edition });
+    }
 
     const cfgResult = await pool.query(
       'SELECT cloudinary_collection_url, cloudinary_folder FROM edition_config WHERE edition_number = $1',
