@@ -275,33 +275,10 @@ function ProjectsShowcase() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/public/participants')
+    // Jeden fetch zamiast kaskady przez /participants/:slug.
+    fetch('/api/public/projects?limit=6')
       .then(r => r.json())
-      .then(d => {
-        // Agreguj projekty ze wszystkich uczestników (via /api/public/participants/:slug
-        // zwracającego też projects — alternatywa: stub showcase projektów)
-        const allSlugs = (d.participants ?? []).slice(0, 10).map((p: Participant) => p.profileSlug);
-        return Promise.all(
-          allSlugs.map((slug: string) =>
-            fetch(`/api/public/participants/${slug}`).then(r => r.ok ? r.json() : null).catch(() => null)
-          )
-        );
-      })
-      .then((results: unknown[]) => {
-        const seen = new Set<string>();
-        const projects: Project[] = [];
-        for (const r of results) {
-          if (!r) continue;
-          const profile = r as { projects?: Project[] };
-          for (const p of profile.projects ?? []) {
-            if (!seen.has(p.slug)) {
-              seen.add(p.slug);
-              projects.push(p);
-            }
-          }
-        }
-        setItems(projects.slice(0, 6));
-      })
+      .then(d => setItems(d.projects ?? []))
       .catch(() => { /* soft-fail */ })
       .finally(() => setLoading(false));
   }, []);

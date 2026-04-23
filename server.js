@@ -2319,6 +2319,59 @@ app.delete('/api/panel/projects/:id', verifyKeycloakToken, async (req, res) => {
 });
 
 /**
+ * GET /api/public/projects
+ * Publiczna lista projektów (dla demo page, public gallery).
+ * Filtry query: ?edition=N, ?limit=N (default 20), ?status=active|published|maintained
+ */
+app.get('/api/public/projects', async (req, res) => {
+  const limit   = Math.min(100, parseInt(req.query.limit ?? '20', 10) || 20);
+  const edition = req.query.edition ? parseInt(String(req.query.edition), 10) : null;
+  const status  = req.query.status ? String(req.query.status) : null;
+  try {
+    let sql = `
+      SELECT p.id, p.slug, p.title, p.description, p.thumbnail_url, p.tech_stack,
+             p.status, p.edition_number, p.created_at,
+             u.display_name AS owner_display_name, u.profile_slug AS owner_profile_slug
+      FROM projects p
+      LEFT JOIN users u ON u.id = p.owner_user_id
+      WHERE p.visibility = 'public'
+    `;
+    const params = [];
+    if (edition && Number.isFinite(edition)) {
+      params.push(edition);
+      sql += ` AND p.edition_number = $${params.length}`;
+    }
+    if (status) {
+      params.push(status);
+      sql += ` AND p.status = $${params.length}`;
+    }
+    params.push(limit);
+    sql += ` ORDER BY p.created_at DESC LIMIT $${params.length}`;
+
+    const { rows } = await pool.query(sql, params);
+    res.json({
+      projects: rows.map(p => ({
+        id:            p.id,
+        slug:          p.slug,
+        title:         p.title,
+        description:   p.description,
+        thumbnailUrl:  p.thumbnail_url,
+        technologies:  Array.isArray(p.tech_stack) ? p.tech_stack : (p.tech_stack ? JSON.parse(p.tech_stack) : []),
+        status:        p.status,
+        editionNumber: p.edition_number,
+        owner: p.owner_display_name ? {
+          displayName:  p.owner_display_name,
+          profileSlug:  p.owner_profile_slug,
+        } : null,
+      })),
+    });
+  } catch (err) {
+    console.error('[/api/public/projects] Error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+/**
  * GET /api/public/projects/:slug
  * Public project view — no auth required.
  * Only returns projects with visibility = 'public'.
