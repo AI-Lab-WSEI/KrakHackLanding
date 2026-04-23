@@ -1,28 +1,27 @@
 /**
  * Logowanie — /login (alias: /logowanie)
  *
- * Customowa strona logowania w stylu /admin.
- * - Email + hasło → POST /api/auth/login → Keycloak ROPC → token do sessionStorage
- * - Opcjonalnie Keycloak SSO (redirect) — np. dla Google IdP w przyszłości
+ * Prosta karta z email+hasłem. Styl spójny z resztą panelu:
+ *   bg-gray-950 shell · bg-white/5 + border-white/10 karta · lucide input ikony
+ *   żadnych gradient hero, żadnych Lock-in-circle dekoracji
  *
- * Dlaczego nie hosted Keycloak login? Bo klient chciał formularz "u nas"
- * w stylu legacy /admin — spójny brand, żadnego redirect-bounce.
+ * Auth flow: POST /api/auth/login → Keycloak ROPC → token → /panel.
+ * Fallback link "Zaloguj przez Keycloak SSO" na wypadek Google IdP w przyszłości.
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { motion } from 'motion/react';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function Logowanie() {
   const { user, loading, loginWithPassword, login: ssoLogin } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail]         = useState('');
-  const [password, setPassword]   = useState('');
-  const [showPassword, setShow]   = useState(false);
-  const [submitting, setSubmit]   = useState(false);
-  const [error, setError]         = useState<string | null>(null);
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShow] = useState(false);
+  const [submitting, setSubmit] = useState(false);
+  const [error, setError]       = useState<string | null>(null);
 
   // Already logged in — bounce to panel
   useEffect(() => {
@@ -51,154 +50,104 @@ export function Logowanie() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full"
-        />
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
       </div>
     );
   }
 
+  const inputCls =
+    'w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white ' +
+    'placeholder-gray-500 focus:outline-none focus:border-white/30 transition-colors';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex items-center justify-center p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        <div className="bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl p-8 shadow-2xl">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
-              className="w-16 h-16 bg-gradient-to-br from-purple-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4"
-            >
-              <Lock className="w-8 h-8 text-white" />
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent"
-            >
-              Logowanie
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-muted-foreground mt-2"
-            >
-              Dostęp do panelu uczestnika
-            </motion.p>
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+          <div className="mb-6">
+            <h1 className="text-xl font-semibold text-white">Zaloguj się</h1>
+            <p className="text-sm text-gray-400 mt-1">Dostęp do panelu uczestnika</p>
           </div>
 
-          {/* Form */}
-          <motion.form
-            onSubmit={handleSubmit}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="space-y-5"
-          >
-            {/* Email */}
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-foreground">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-xs text-gray-400 uppercase tracking-wider">
                 Email
               </label>
               <div className="relative">
-                <Mail className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
-                  type="email"
                   id="email"
+                  type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   autoFocus
                   autoComplete="email"
                   required
                   placeholder="jan.kowalski@example.com"
-                  className="w-full pl-11 pr-4 py-3 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
+                  className={inputCls}
                 />
               </div>
             </div>
 
-            {/* Password */}
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-xs text-gray-400 uppercase tracking-wider">
                 Hasło
               </label>
               <div className="relative">
-                <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
-                  type={showPassword ? 'text' : 'password'}
                   id="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   autoComplete="current-password"
                   required
                   placeholder="Wprowadź hasło"
-                  className="w-full pl-11 pr-12 py-3 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
+                  className={inputCls + ' pr-10'}
                 />
                 <button
                   type="button"
                   onClick={() => setShow(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                   tabIndex={-1}
+                  aria-label={showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
             {error && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm text-center"
-              >
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 text-center">
                 {error}
-              </motion.div>
+              </div>
             )}
 
-            <motion.button
+            <button
               type="submit"
               disabled={submitting}
-              whileHover={{ scale: submitting ? 1 : 1.02 }}
-              whileTap={{ scale: submitting ? 1 : 0.98 }}
-              className="w-full py-3 bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-cyan-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
             >
               {submitting ? 'Logowanie…' : 'Zaloguj się'}
-            </motion.button>
-          </motion.form>
+            </button>
+          </form>
 
-          {/* Divider + SSO (redirect to Keycloak — kept as fallback for Google IdP etc.) */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="mt-6 pt-6 border-t border-border/50 text-center"
-          >
+          <div className="mt-6 pt-6 border-t border-white/10 text-center">
             <button
               type="button"
               onClick={ssoLogin}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
             >
               Zaloguj się przez Keycloak SSO →
             </button>
-          </motion.div>
+          </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Nie masz jeszcze konta? Skontaktuj się z administratorem.
+        <p className="text-center text-xs text-gray-500 mt-4">
+          Nie masz konta? Skontaktuj się z administratorem.
         </p>
-      </motion.div>
+      </div>
     </div>
   );
 }

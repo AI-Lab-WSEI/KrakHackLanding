@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAdminToken } from './AdminAuth';
+import { getAdminToken } from '@/lib/adminApi';
 import { motion } from 'motion/react';
 import {
   Trophy, Settings, RefreshCw, Save, AlertCircle, CheckCircle,

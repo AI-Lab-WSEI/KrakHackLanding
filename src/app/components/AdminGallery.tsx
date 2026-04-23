@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Images, Loader2, Star, EyeOff, Eye, AlertCircle, RefreshCw, ExternalLink, Save, Bug, Folder, FolderOpen, ChevronDown, ChevronUp } from 'lucide-react';
-import { getAdminToken } from './AdminAuth';
+import { getAdminToken } from '@/lib/adminApi';
 
 function adminFetch(path: string, options?: RequestInit) {
   const token = getAdminToken();

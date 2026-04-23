@@ -440,11 +440,16 @@ function ClaimsTab({ token, isAdmin }: { token: string | null; isAdmin: boolean 
 
 type ActiveTab = 'users' | 'claims';
 
-export function ModeratorDashboard() {
+interface ModeratorDashboardProps {
+  /** Gdy podane — wymusza konkretny tab i ukrywa tab-nav (dla wrapperów /panel/admin/*). */
+  lockTab?: ActiveTab;
+}
+
+export function ModeratorDashboard({ lockTab }: ModeratorDashboardProps = {}) {
   const { user, token } = useAuth();
   const [showInvite, setShowInvite] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<ActiveTab>('users');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(lockTab ?? 'users');
   const { users, loading, error, reload } = useUsers(token);
 
   if (!user) return null;
@@ -477,21 +482,23 @@ export function ModeratorDashboard() {
         )}
       </div>
 
-      {/* Tab nav */}
-      <div className="flex gap-2 border-b border-gray-800 pb-0">
-        {([['users', 'Użytkownicy'], ['claims', 'Team Claims']] as [ActiveTab, string][]).map(([tab, label]) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium transition-colors -mb-px border-b-2
-              ${activeTab === tab
-                ? 'text-white border-indigo-500'
-                : 'text-gray-500 border-transparent hover:text-gray-300'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Tab nav — hidden when tab is locked (embedded as /panel/admin/* page) */}
+      {!lockTab && (
+        <div className="flex gap-2 border-b border-gray-800 pb-0">
+          {([['users', 'Użytkownicy'], ['claims', 'Team Claims']] as [ActiveTab, string][]).map(([tab, label]) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 text-sm font-medium transition-colors -mb-px border-b-2
+                ${activeTab === tab
+                  ? 'text-white border-indigo-500'
+                  : 'text-gray-500 border-transparent hover:text-gray-300'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Users tab ── */}
       {activeTab === 'users' && (

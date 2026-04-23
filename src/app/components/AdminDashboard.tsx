@@ -91,10 +91,10 @@ async function apiFetch(path: string) {
 }
 
 // Sidebar nav definition
-type AdminDomain = 'hackathon' | 'labhub';
+export type AdminDomain = 'hackathon' | 'labhub';
 type HackathonTabId = 'regs' | 'surveys' | 'teams' | 'participants' | 'mailing' | 'sms' | 'attendance' | 'certificates' | 'projekty' | 'wyniki' | 'galeria';
 type LabHubTabId = 'applications' | 'collaborations' | 'contact_submissions' | 'org_settings' | 'kompas';
-type TabId = HackathonTabId | LabHubTabId;
+export type TabId = HackathonTabId | LabHubTabId;
 
 interface NavGroup { label: string; items: { id: TabId; label: string; icon: any }[] }
 
@@ -168,7 +168,21 @@ function getBreadcrumb(activeTab: TabId): { group: string; page: string } {
   return { group: '', page: '' };
 }
 
-export function AdminDashboard() {
+interface AdminDashboardProps {
+  /**
+   * Gdy podane — komponent renderuje się w trybie "embedded":
+   *   • bez AdminAuth wrappera (auth gated przez ProtectedRoute wyżej),
+   *   • bez własnego sidebara + topbara (zastępuje go PanelLayout),
+   *   • activeTab ustawiony na tę wartość + ukryty wewnętrzny picker.
+   * Używany przez route wrappery /panel/admin/rejestracje itd.
+   */
+  embeddedTab?: TabId;
+  /** Domain kontekst dla embedded mode (hackathon vs labhub). Default: hackathon. */
+  embeddedDomain?: AdminDomain;
+}
+
+export function AdminDashboard({ embeddedTab, embeddedDomain }: AdminDashboardProps = {}) {
+  const embedded = embeddedTab !== undefined;
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [surveys, setSurveys] = useState<SurveyData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -182,8 +196,8 @@ export function AdminDashboard() {
       task: ''
     }
   });
-  const [domain, setDomain] = useState<AdminDomain>('hackathon');
-  const [activeTab, setActiveTab] = useState<TabId>('regs');
+  const [domain, setDomain] = useState<AdminDomain>(embeddedDomain ?? 'hackathon');
+  const [activeTab, setActiveTab] = useState<TabId>(embeddedTab ?? 'regs');
   const [selectedEdition, setSelectedEdition] = useState(CURRENT_EDITION_NUMBER);
   const [roleFilter, setRoleFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -767,16 +781,24 @@ export function AdminDashboard() {
     </div>
   );
 
-  return (
-    <AdminAuth>
-      <div className="flex min-h-screen bg-black text-white">
-        {/* Desktop sidebar */}
-        <aside className="hidden md:flex flex-col w-56 min-h-screen bg-gray-950 border-r border-white/5 fixed top-0 left-0 z-40">
-          <SidebarContent />
-        </aside>
+  // Embedded: outer wrapper ensures layout integrates with PanelLayout;
+  // AdminAuth + internal sidebar + topbar are skipped entirely.
+  const OuterShell = embedded
+    ? ({ children }: { children: React.ReactNode }) => <>{children}</>
+    : AdminAuth;
 
-        {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
+  return (
+    <OuterShell>
+      <div className={embedded ? 'bg-gray-950 text-white min-h-[calc(100vh-4rem)]' : 'flex min-h-screen bg-black text-white'}>
+        {/* Desktop sidebar — only in standalone /admin mode */}
+        {!embedded && (
+          <aside className="hidden md:flex flex-col w-56 min-h-screen bg-gray-950 border-r border-white/5 fixed top-0 left-0 z-40">
+            <SidebarContent />
+          </aside>
+        )}
+
+        {/* Mobile sidebar overlay — only in standalone /admin mode */}
+        {!embedded && sidebarOpen && (
           <div className="fixed inset-0 z-50 md:hidden">
             <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
             <aside className="relative w-56 h-full bg-gray-950 border-r border-white/5">
@@ -786,36 +808,38 @@ export function AdminDashboard() {
         )}
 
         {/* Main content area */}
-        <div className="flex-1 flex flex-col md:ml-56 min-h-screen">
-          {/* Top bar */}
-          <header className="h-14 border-b border-white/5 flex items-center px-6 gap-4 sticky top-0 bg-black/80 backdrop-blur z-30">
-            <button
-              className="md:hidden p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
-              <span className="uppercase tracking-widest">{breadcrumb.group}</span>
-              {breadcrumb.group && <span className="text-gray-700">›</span>}
-              <span className="text-white uppercase tracking-widest">{breadcrumb.page}</span>
-            </div>
-            <div className="ml-auto flex items-center gap-3">
-              <span className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] font-black uppercase tracking-widest rounded-full">
-                Admin
-              </span>
+        <div className={embedded ? 'flex-1 flex flex-col min-h-[calc(100vh-4rem)]' : 'flex-1 flex flex-col md:ml-56 min-h-screen'}>
+          {/* Top bar — only in standalone /admin mode */}
+          {!embedded && (
+            <header className="h-14 border-b border-white/5 flex items-center px-6 gap-4 sticky top-0 bg-black/80 backdrop-blur z-30">
               <button
-                onClick={() => {
-                  localStorage.removeItem('admin_api_token');
-                  window.dispatchEvent(new Event('admin-logout'));
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                className="md:hidden p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                onClick={() => setSidebarOpen(true)}
               >
-                <LogOut className="w-3.5 h-3.5" />
-                Wyloguj
+                <Menu className="w-5 h-5" />
               </button>
-            </div>
-          </header>
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                <span className="uppercase tracking-widest">{breadcrumb.group}</span>
+                {breadcrumb.group && <span className="text-gray-700">›</span>}
+                <span className="text-white uppercase tracking-widest">{breadcrumb.page}</span>
+              </div>
+              <div className="ml-auto flex items-center gap-3">
+                <span className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] font-black uppercase tracking-widest rounded-full">
+                  Admin
+                </span>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('admin_api_token');
+                    window.dispatchEvent(new Event('admin-logout'));
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Wyloguj
+                </button>
+              </div>
+            </header>
+          )}
 
           {/* Page content */}
           <main className="flex-1 p-6 md:p-10 space-y-8">
@@ -1512,6 +1536,6 @@ export function AdminDashboard() {
           onSaved={() => fetchData()}
         />
       )}
-    </AdminAuth>
+    </OuterShell>
   );
 }

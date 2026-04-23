@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save, Users } from 'lucide-react';
-import { getAdminToken } from './AdminAuth';
+import { getAdminToken } from '@/lib/adminApi';
 
 interface ParticipantData {
   id: string;

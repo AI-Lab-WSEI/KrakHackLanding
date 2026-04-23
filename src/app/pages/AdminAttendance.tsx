@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { getAttendanceData, Team } from '@/data/attendance';
 import { cn } from '@/app/components/ui/utils';
+import { getAdminToken } from '@/lib/adminApi';
 
 export function AdminAttendance() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -18,7 +19,7 @@ export function AdminAttendance() {
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('admin_api_token');
+    const token = getAdminToken();
     getAttendanceData(token || undefined).then(setTeams);
   }, []);
 

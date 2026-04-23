@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAdminToken } from './AdminAuth';
+import { getAdminToken } from '@/lib/adminApi';
 import { motion } from 'motion/react';
 import { Settings, Save, Plus, X, Linkedin, Mail, Phone, MapPin, Globe, MessageCircle } from 'lucide-react';
 

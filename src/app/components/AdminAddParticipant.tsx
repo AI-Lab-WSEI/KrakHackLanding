@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, UserPlus, Save } from 'lucide-react';
-import { getAdminToken } from './AdminAuth';
+import { getAdminToken } from '@/lib/adminApi';
 
 interface AdminAddParticipantProps {
   onClose: () => void;

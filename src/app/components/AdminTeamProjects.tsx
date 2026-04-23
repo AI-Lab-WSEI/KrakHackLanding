@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAdminToken } from './AdminAuth';
+import { getAdminToken } from '@/lib/adminApi';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   FolderEdit,

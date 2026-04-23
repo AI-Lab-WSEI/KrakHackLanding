@@ -674,16 +674,56 @@ function formatValue(value) {
   return String(value || '-');
 }
 
-function requireAdmin(req, res, next) {
+/**
+ * Dual-auth admin gate.
+ *
+ *   • Keycloak JWT  (Bearer <jwt>)  →  verified against JWKS; requires realm role `admin`.
+ *   • Legacy UUID   (Bearer <uuid>) →  accepted only when LEGACY_ADMIN_LOGIN=true
+ *                                       (emergency backdoor for post-Keycloak outages).
+ *
+ * Distinguishes by token shape: JWTs are `xxx.yyy.zzz`, legacy tokens are plain UUIDs.
+ * Populates `req.kcUser` when JWT path matches, so downstream handlers may inspect roles.
+ */
+async function requireAdmin(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Brak autoryzacji' });
   }
-  const token = auth.split(' ')[1];
-  if (!adminTokens.has(token)) {
-    return res.status(401).json({ error: 'Nieprawidłowy token' });
+  const token = auth.slice(7);
+
+  // ── Keycloak JWT path ──────────────────────────────────────────────
+  if (token.split('.').length === 3) {
+    const jwks = getJWKS();
+    if (!jwks) return res.status(503).json({ error: 'Auth service not configured' });
+    try {
+      const { payload } = await jwtVerify(token, jwks, {
+        issuer: `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
+      });
+      const roles = payload.realm_access?.roles ?? [];
+      if (!roles.includes('admin')) {
+        return res.status(403).json({ error: 'Brak uprawnień admin' });
+      }
+      req.kcUser = {
+        keycloakId: payload.sub,
+        email: payload.email,
+        roles,
+        isAdmin: true,
+        isModerator: roles.includes('moderator'),
+        isHackathonParticipant: roles.includes('hackathon-participant'),
+        isScienceclubParticipant: roles.includes('scienceclub-participant'),
+        isJury: roles.includes('jury'),
+      };
+      return next();
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid or expired token', detail: err.message });
+    }
   }
-  next();
+
+  // ── Legacy UUID path (gated by env flag; default OFF) ─────────────
+  if (process.env.LEGACY_ADMIN_LOGIN === 'true' && adminTokens.has(token)) {
+    return next();
+  }
+  return res.status(401).json({ error: 'Nieprawidłowy token' });
 }
 
 // ─── Keycloak JWT Auth (Faza 1) ────────────────────────────

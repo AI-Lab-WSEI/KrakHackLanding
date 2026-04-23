@@ -28,7 +28,7 @@ import {
   Send,
   Map,
 } from 'lucide-react';
-import { getAdminToken } from '../AdminAuth';
+import { getAdminToken } from '@/lib/adminApi';
 import { COMPETENCY_LABELS, STATUS_LABELS, ENGAGEMENT_TYPE_LABELS } from '@/types/membership';
 import type { CompetencyProfile, ApplicationStatus, EngagementType } from '@/types/membership';
 
