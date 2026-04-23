@@ -22,6 +22,10 @@ import {
   Download,
   UserPlus,
   X,
+  UserCheck,
+  Copy,
+  Check,
+  Sparkles,
 } from 'lucide-react';
 
 interface ApplicationRow {
@@ -45,6 +49,8 @@ interface ApplicationRow {
   admin_notes: string | null;
   created_at: string;
   updated_at: string;
+  /** UUID usera, jeśli admin już utworzył profil z tej aplikacji. */
+  user_id: string | null;
 }
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -70,6 +76,7 @@ export function AdminApplications() {
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkInvite, setShowBulkInvite] = useState(false);
+  const [createProfileApp, setCreateProfileApp] = useState<ApplicationRow | null>(null);
 
   function toggleSelected(id: number) {
     setSelectedIds(prev => {
@@ -447,6 +454,27 @@ export function AdminApplications() {
                           <Send className="w-3 h-3" />
                           Wyślij zaproszenie na rozmowę
                         </button>
+
+                        {/* Utwórz profil z aplikacji — core feature */}
+                        {app.user_id ? (
+                          <div
+                            className="px-4 py-1.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5"
+                            title={`Profil utworzony (user id: ${app.user_id}). Powiązany przez membership_applications.user_id.`}
+                          >
+                            <UserCheck className="w-3 h-3" />
+                            Profil utworzony
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setCreateProfileApp(app)}
+                            disabled={actionLoading === app.id}
+                            className="px-4 py-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-emerald-500/30 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                            title="Utwórz konto Keycloak + profil uczestnika z danych tej aplikacji, wyślij email z hasłem."
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            Utwórz profil uczestnika
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -462,6 +490,14 @@ export function AdminApplications() {
           emails={filtered.filter(a => selectedIds.has(a.id)).map(a => a.email)}
           onClose={() => setShowBulkInvite(false)}
           onSent={() => { setShowBulkInvite(false); setSelectedIds(new Set()); fetchApplications(); }}
+        />
+      )}
+
+      {createProfileApp && (
+        <CreateProfileModal
+          application={createProfileApp}
+          onClose={() => setCreateProfileApp(null)}
+          onCreated={() => { setCreateProfileApp(null); fetchApplications(); }}
         />
       )}
     </motion.div>
@@ -580,6 +616,354 @@ function BulkInviteModal({
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Create profile from application modal ───────────────────────────────────
+//
+// Single-aplicantowa wersja BulkInviteModal — ale wykorzystuje dedykowany
+// endpoint `POST /api/membership-applications/:id/create-profile` który
+// pre-filluje users row pełnymi danymi z aplikacji (bio z markdown, skills
+// z competencies + engagement_types, university) zamiast tylko email + nazwisko.
+//
+// Endpoint zwraca temp password — admin widzi go raz w UI (z opcją "Kopiuj"),
+// do momentu zamknięcia modalu.
+
+type TargetRole = 'scienceclub-participant' | 'hackathon-participant' | 'moderator' | 'admin';
+
+const ROLE_OPTIONS: { value: TargetRole; label: string; hint: string }[] = [
+  {
+    value: 'scienceclub-participant',
+    label: 'Członek koła',
+    hint:  'Domyślna rola dla aplikacji z tego formularza. Widzi "MÓJ OBSZAR" + Kompas kompetencji.',
+  },
+  {
+    value: 'hackathon-participant',
+    label: 'Uczestnik hackathonu',
+    hint:  'Widzi "Mój zespół" + głosowanie + moja obecność. Alternatywa jeśli osoba jest z edycji hackathonu.',
+  },
+  {
+    value: 'moderator',
+    label: 'Moderator',
+    hint:  'Dostęp do zarządzania członkami, team claims, aplikacjami. Nie widzi CRUD edycji.',
+  },
+  {
+    value: 'admin',
+    label: 'Admin',
+    hint:  'Pełny dostęp (wszystkie panele, CRUD edycji, bulk invite). Uprawnienie krytyczne — tylko dla zaufanych.',
+  },
+];
+
+interface CompetencySummary {
+  competencies:     CompetencyProfile;
+  engagementTypes:  string[];
+}
+
+function buildPreviewSkills({ competencies, engagementTypes }: CompetencySummary): string[] {
+  const compLabels: Record<keyof CompetencyProfile, string> = {
+    programming:  'Programowanie',
+    analytics:    'Analityka / Data Science',
+    softSkills:   'Umiejętności miękkie',
+    organization: 'Organizacja',
+    creativity:   'Kreatywność / Design',
+    marketing:    'Marketing / PR',
+  };
+  const engLabels: Record<string, string> = {
+    technical_projects:    'Projekty techniczne',
+    discussions_research:  'Research i dyskusje',
+    marketing_pr:          'Marketing i PR',
+    organization:          'Koordynacja wydarzeń',
+    academic_path:         'Ścieżka naukowa',
+  };
+  const fromComp = (Object.keys(compLabels) as (keyof CompetencyProfile)[])
+    .filter(k => Number(competencies?.[k] || 0) >= 5)
+    .map(k => compLabels[k]);
+  const fromEng = (engagementTypes || [])
+    .map(t => engLabels[t])
+    .filter(Boolean) as string[];
+  return Array.from(new Set([...fromComp, ...fromEng]));
+}
+
+function CreateProfileModal({
+  application, onClose, onCreated,
+}: {
+  application: ApplicationRow;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [role, setRole]                       = useState<TargetRole>('scienceclub-participant');
+  const [customMessage, setCustomMessage]     = useState('');
+  const [overrideExisting, setOverrideExisting] = useState(false);
+  const [submitting, setSubmitting]           = useState(false);
+  const [result, setResult]                   = useState<{
+    userId:       string;
+    keycloakId:   string;
+    tempPassword: string;
+    displayName:  string;
+    skillsCount:  number;
+    hasBio:       boolean;
+  } | null>(null);
+  const [error, setError]                     = useState<string | null>(null);
+  const [copied, setCopied]                   = useState(false);
+
+  const previewSkills = buildPreviewSkills({
+    competencies:    application.competencies,
+    engagementTypes: application.engagement_types,
+  });
+  const hasBioSource =
+    !!application.what_you_bring ||
+    !!application.expectations ||
+    !!application.values_resonance;
+
+  async function handleSubmit() {
+    if (submitting || result) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      const { adminFetch } = await import('@/lib/adminApi');
+      const res = await adminFetch(`/api/membership-applications/${application.id}/create-profile`, {
+        method: 'POST',
+        body: JSON.stringify({
+          role,
+          customMessage: customMessage.trim() || undefined,
+          overrideExisting,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || data.error || `HTTP ${res.status}`);
+        return;
+      }
+      setResult({
+        userId:       data.userId,
+        keycloakId:   data.keycloakId,
+        tempPassword: data.tempPassword,
+        displayName:  data.displayName,
+        skillsCount:  data.skillsCount ?? 0,
+        hasBio:       !!data.hasBio,
+      });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleClose() {
+    // Jeśli user został utworzony, refresh list zanim zamkniemy — żeby "Profil
+    // utworzony" badge się pojawił.
+    if (result) onCreated();
+    else onClose();
+  }
+
+  function copyPassword() {
+    if (!result) return;
+    navigator.clipboard.writeText(result.tempPassword).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[10000] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-950 border border-white/10 rounded-2xl w-full max-w-xl my-8">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <div>
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              Utwórz profil uczestnika
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Z aplikacji #{application.id} · {application.first_name} {application.last_name}
+            </p>
+          </div>
+          <button onClick={handleClose} className="p-2 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {!result ? (
+          <div className="px-6 py-5 space-y-4">
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 leading-relaxed">
+              <strong className="block mb-1">Co się wydarzy:</strong>
+              1. Konto Keycloak z tymczasowym hasłem (wymuszana zmiana przy pierwszym logowaniu)<br />
+              2. Wpis w users: display_name, university, bio (markdown z "co wnoszę / oczekiwania / wartości"), skills z kompetencji i typów zaangażowania<br />
+              3. Link aplikacja → user (status "przyjęty", user_id ustawione)<br />
+              4. Email do <code>{application.email}</code> z hasłem i linkiem do logowania
+            </div>
+
+            {/* Preview section */}
+            <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
+              <p className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Podgląd profilu</p>
+              <div className="text-sm text-gray-300 space-y-1">
+                <p><span className="text-gray-500">display_name:</span> {application.first_name} {application.last_name}</p>
+                <p><span className="text-gray-500">email:</span> {application.email}</p>
+                {application.university && (
+                  <p><span className="text-gray-500">university:</span> {application.university}</p>
+                )}
+                <p>
+                  <span className="text-gray-500">skills ({previewSkills.length}):</span>{' '}
+                  {previewSkills.length === 0 ? (
+                    <span className="text-gray-600 italic">brak (wszystkie kompetencje poniżej 5/10)</span>
+                  ) : (
+                    previewSkills.map(s => (
+                      <span key={s} className="inline-block bg-white/10 text-gray-300 px-2 py-0.5 rounded-full text-[10px] mr-1 mb-1">
+                        {s}
+                      </span>
+                    ))
+                  )}
+                </p>
+                <p>
+                  <span className="text-gray-500">bio:</span>{' '}
+                  {hasBioSource ? (
+                    <span className="text-emerald-400">✓ markdown z 3 sekcji aplikacji</span>
+                  ) : (
+                    <span className="text-gray-600 italic">pusto (aplikacja bez tekstów)</span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Role selector */}
+            <div className="flex flex-col gap-2">
+              <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Rola docelowa</span>
+              <div className="grid grid-cols-1 gap-2">
+                {ROLE_OPTIONS.map(opt => (
+                  <label
+                    key={opt.value}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      role === opt.value
+                        ? 'bg-emerald-500/10 border-emerald-500/40'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="role"
+                      value={opt.value}
+                      checked={role === opt.value}
+                      onChange={() => setRole(opt.value)}
+                      className="mt-1 accent-emerald-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${role === opt.value ? 'text-emerald-300' : 'text-white'}`}>
+                        {opt.label}
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">{opt.hint}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom message */}
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Własna wiadomość (opcjonalna)</span>
+              <textarea
+                value={customMessage}
+                onChange={e => setCustomMessage(e.target.value)}
+                rows={3}
+                placeholder="Np. 'Witaj! Zostałeś przyjęty/a do koła. Pierwsze spotkanie w piątek…'"
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/30 resize-none"
+              />
+            </label>
+
+            <label className="flex items-start gap-2 text-xs text-gray-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={overrideExisting}
+                onChange={e => setOverrideExisting(e.target.checked)}
+                className="mt-0.5 accent-emerald-500"
+              />
+              <span>
+                <span className="text-gray-300 font-medium">Podepnij jeśli user już istnieje</span><br />
+                Jeśli email ma już konto Keycloak — zamiast 409, dopełnij istniejący profil (skills, bio), zaktualizuj rolę i ustaw link aplikacji. Użyj ostrożnie.
+              </span>
+            </label>
+
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-300">
+                <strong>Błąd:</strong> {error}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={submitting}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              >
+                Anuluj
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50"
+              >
+                {submitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Tworzę profil…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Utwórz profil + wyślij email
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        ) : (
+          // SUCCESS SCREEN — pokazuje temp password (jednorazowo) + next steps
+          <div className="px-6 py-5 space-y-4">
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+              <p className="text-sm font-bold text-emerald-300 flex items-center gap-2 mb-2">
+                <UserCheck className="w-4 h-4" />
+                Profil utworzony
+              </p>
+              <div className="text-xs text-emerald-200/80 space-y-0.5">
+                <p><strong>{result.displayName}</strong> · <code>{application.email}</code></p>
+                <p>user_id: <code className="text-[10px]">{result.userId}</code></p>
+                <p>keycloak_id: <code className="text-[10px]">{result.keycloakId}</code></p>
+                <p>skills: {result.skillsCount} · bio: {result.hasBio ? 'tak' : 'nie'}</p>
+                <p>email z danymi logowania: wysłany ✓</p>
+              </div>
+            </div>
+
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+              <p className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
+                Tymczasowe hasło (widoczne raz)
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 bg-black/30 px-3 py-2 rounded text-sm text-white font-mono select-all">
+                  {result.tempPassword}
+                </code>
+                <button
+                  onClick={copyPassword}
+                  className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs flex items-center gap-1.5"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? 'Skopiowano' : 'Kopiuj'}
+                </button>
+              </div>
+              <p className="text-[11px] text-amber-200/60 mt-2">
+                Wysłaliśmy je w emailu — ten podgląd jest awaryjnym fallbackiem. User będzie musiał zmienić hasło przy pierwszym loginie.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={handleClose}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Gotowe
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

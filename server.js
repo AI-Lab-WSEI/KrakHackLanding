@@ -4325,6 +4325,228 @@ app.post('/api/membership-applications/:id/invite', requireAdmin, async (req, re
   }
 });
 
+/**
+ * POST /api/membership-applications/:id/create-profile
+ * Admin. Tworzy pełny profil uczestnika z danych aplikacji:
+ *   1. Keycloak user + temp password (z `role` wybraną przez admina)
+ *   2. Users row (pre-filled: display_name, bio, skills, university, keycloak_id, membership_app_id)
+ *   3. Application UPDATE: status='przyjęty', user_id=nowy user id
+ *   4. Email z danymi do logowania
+ *
+ * Body: {
+ *   role?: 'scienceclub-participant' | 'hackathon-participant' | 'moderator' | 'admin',
+ *   customMessage?: string,
+ *   overrideExisting?: boolean   // jeśli email już w users bez keycloak_id — dopełnij profil zamiast 409
+ * }
+ *
+ * Idempotency: jeśli `membership_applications.user_id` już ustawiony → 409.
+ *
+ * Mapowanie danych:
+ *   first_name + last_name           → display_name
+ *   email                             → email
+ *   university                        → university
+ *   competencies (jsonb 6 keys)       → skills[] (labele PL dla rating >= 5)
+ *   engagement_types[]                → dołączone do skills (opis PL)
+ *   what_you_bring + expectations +   → bio (markdown)
+ *   values_resonance
+ */
+app.post('/api/membership-applications/:id/create-profile', requireAdmin, async (req, res) => {
+  const appId = req.params.id;
+  const { role, customMessage, overrideExisting } = req.body || {};
+
+  const ALLOWED_ROLES = ['scienceclub-participant', 'hackathon-participant', 'moderator', 'admin'];
+  const targetRole = ALLOWED_ROLES.includes(role) ? role : 'scienceclub-participant';
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Fetch application + lock
+    const appRes = await client.query(
+      'SELECT * FROM membership_applications WHERE id = $1 FOR UPDATE',
+      [appId]
+    );
+    if (appRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Aplikacja nie znaleziona' });
+    }
+    const application = appRes.rows[0];
+
+    if (application.user_id) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'Profil już utworzony',
+        detail: `Aplikacja #${appId} jest już powiązana z userem ${application.user_id}. Jeśli chcesz re-invite — użyj zakładki Użytkownicy → wyślij nowy link.`,
+      });
+    }
+
+    const email = String(application.email || '').toLowerCase().trim();
+    if (!email) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Aplikacja nie zawiera adresu email' });
+    }
+
+    // 2. Check existing user
+    const existingUserRes = await client.query(
+      'SELECT id, keycloak_id, role FROM users WHERE email = $1 LIMIT 1',
+      [email]
+    );
+    const existingUser = existingUserRes.rows[0];
+    if (existingUser && existingUser.keycloak_id && !overrideExisting) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'Użytkownik istnieje',
+        detail: `Email ${email} ma już konto (user id ${existingUser.id}, rola ${existingUser.role}). Użyj "overrideExisting=true" żeby tylko podpiąć aplikację.`,
+        userId: existingUser.id,
+      });
+    }
+
+    // 3. Build profile data from application
+    const firstName   = application.first_name || '';
+    const lastName    = application.last_name  || '';
+    const displayName = `${firstName} ${lastName}`.trim() || email;
+
+    // Skills: competencies z rating >= 5 + typy zaangażowania
+    const competencyLabels = {
+      programming:  'Programowanie',
+      analytics:    'Analityka / Data Science',
+      softSkills:   'Umiejętności miękkie',
+      organization: 'Organizacja',
+      creativity:   'Kreatywność / Design',
+      marketing:    'Marketing / PR',
+    };
+    const engagementLabels = {
+      technical_projects:    'Projekty techniczne',
+      discussions_research:  'Research i dyskusje',
+      marketing_pr:          'Marketing i PR',
+      organization:          'Koordynacja wydarzeń',
+      academic_path:         'Ścieżka naukowa',
+    };
+
+    const competencies = typeof application.competencies === 'string'
+      ? JSON.parse(application.competencies || '{}')
+      : (application.competencies || {});
+    const skillsFromComp = Object.entries(competencyLabels)
+      .filter(([key]) => Number(competencies[key] || 0) >= 5)
+      .map(([, label]) => label);
+    const skillsFromEng = (application.engagement_types || [])
+      .map(t => engagementLabels[t])
+      .filter(Boolean);
+    const skills = Array.from(new Set([...skillsFromComp, ...skillsFromEng]));
+
+    // Bio (markdown)
+    const bioParts = [];
+    if (application.what_you_bring)   bioParts.push(`## Co wnoszę do koła\n${application.what_you_bring}`);
+    if (application.expectations)     bioParts.push(`## Moje oczekiwania\n${application.expectations}`);
+    if (application.values_resonance) bioParts.push(`## Co mi rezonuje\n${application.values_resonance}`);
+    const bio = bioParts.join('\n\n') || null;
+
+    // 4. Keycloak user (idempotent — 409 dla istniejącego maila zwraca istniejący UUID)
+    const tempPassword = crypto.randomBytes(6).toString('base64url') + '!A1';
+    let keycloakId;
+    try {
+      keycloakId = await createKeycloakUser({ email, firstName, lastName, tempPassword, role: targetRole });
+    } catch (kcErr) {
+      await client.query('ROLLBACK');
+      console.error('[create-profile] Keycloak error:', kcErr.message);
+      return res.status(502).json({ error: 'Błąd Keycloak', detail: kcErr.message });
+    }
+
+    // 5. Users row — insert or update (COALESCE, nigdy nie nadpisujemy wypełnionych pól)
+    let userId;
+    if (existingUser) {
+      // Link kierunku: membership_applications.user_id → users.id (jedna strona).
+      // Kolumna users.membership_app_id jest UUID (legacy), ale nasze app id jest
+      // integerem — pomijamy ten link, wystarczy relacja odwrotna.
+      const updRes = await client.query(
+        `UPDATE users SET
+            keycloak_id        = COALESCE(users.keycloak_id, $1),
+            display_name       = COALESCE(NULLIF(users.display_name, ''), $2),
+            bio                = COALESCE(NULLIF(users.bio, ''), $3),
+            university         = COALESCE(NULLIF(users.university, ''), $4),
+            skills             = CASE
+              WHEN jsonb_array_length(COALESCE(users.skills, '[]'::jsonb)) = 0 THEN $5::jsonb
+              ELSE users.skills
+            END,
+            role               = $6::user_role,
+            is_active          = true,
+            updated_at         = NOW()
+         WHERE id = $7
+         RETURNING id`,
+        [
+          keycloakId,
+          displayName,
+          bio,
+          application.university || null,
+          JSON.stringify(skills),
+          targetRole,
+          existingUser.id,
+        ]
+      );
+      userId = updRes.rows[0].id;
+    } else {
+      const insRes = await client.query(
+        `INSERT INTO users (
+            keycloak_id, email, display_name, bio, university, skills, role,
+            is_active, onboarding_completed, created_at, updated_at
+         )
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::user_role, true, false, NOW(), NOW())
+         RETURNING id`,
+        [
+          keycloakId,
+          email,
+          displayName,
+          bio,
+          application.university || null,
+          JSON.stringify(skills),
+          targetRole,
+        ]
+      );
+      userId = insRes.rows[0].id;
+    }
+
+    // 6. Link application → user, status=przyjęty
+    await client.query(
+      `UPDATE membership_applications
+         SET user_id = $1, status = 'przyjęty', updated_at = NOW()
+       WHERE id = $2`,
+      [userId, appId]
+    );
+
+    await client.query('COMMIT');
+
+    // 7. Email (poza transakcją — failure nie powinien rollbackować profilu)
+    const loginUrl = process.env.FRONTEND_URL || 'https://krakhack.info';
+    try {
+      await sendResendEmail(
+        email,
+        'Twój profil w AI Possibilities Lab jest gotowy',
+        buildBulkInviteEmail(firstName, email, tempPassword, loginUrl + '/login', customMessage),
+      );
+    } catch (emailErr) {
+      console.error('[create-profile] Email error (non-fatal):', emailErr.message);
+    }
+
+    res.json({
+      success:       true,
+      userId,
+      keycloakId,
+      tempPassword,
+      role:          targetRole,
+      displayName,
+      skillsCount:   skills.length,
+      hasBio:        !!bio,
+      emailSent:     true,
+    });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error('[create-profile] Error:', err);
+    res.status(500).json({ error: 'Błąd tworzenia profilu', detail: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // Send survey invitation to multiple (admin)
 app.post('/api/membership-applications/survey-invite', requireAdmin, async (req, res) => {
   try {
