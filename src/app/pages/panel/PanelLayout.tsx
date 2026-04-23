@@ -1,18 +1,22 @@
 /**
  * PanelLayout — sidebar layout dla wszystkich stron /panel/*.
  *
- * Dwie supersekcje w sidebarze:
- *   • MÓJ OBSZAR — dla każdego zalogowanego (dashboard, profil, projekty, zespół)
- *   • ADMINISTRACJA — admin/moderator (15 sekcji przeportowanych ze starego /admin)
- *     + picker edycji hackathonu nad sekcją administracji (URL search param `?edition=N`)
+ * Struktura sidebara:
+ *   • Brand + user identity + role badges
+ *   • MÓJ OBSZAR (scope-aware per Keycloak role)
+ *   • ContextSwitcher (tylko admin/mod) — przełącza ADMINISTRACJA między
+ *     krakhack / lab / system.
+ *   • Edition picker (tylko gdy ctx=krakhack) — dla sekcji per-edycja.
+ *   • ADMINISTRACJA (filtrowane po ctx + roli)
  *
- * Style = stary panel admina: bg-gray-950 + bg-white/5 + border-white/10 + lucide ikony.
+ * Styl = stary admin: bg-gray-950 + bg-white/5 + border-white/10 + lucide ikony.
  */
 import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router';
 import { LogOut, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { partitionNav, type NavItem } from './navConfig';
+import { ContextSwitcher, readCtx } from './ContextSwitcher';
 import { EDITIONS_META, CURRENT_EDITION_NUMBER } from '@/data/edition-registry';
 
 export function PanelLayout() {
@@ -32,19 +36,21 @@ export function PanelLayout() {
     );
   }
 
-  const { user: userNav, admin: adminNav } = partitionNav(user.keycloakRoles);
+  const currentCtx                = readCtx(location.search);
+  const { user: userNav, admin: adminNav } = partitionNav(user.keycloakRoles, currentCtx);
+  const isAdminOrMod              = user.keycloakRoles.includes('admin') || user.keycloakRoles.includes('moderator');
 
-  // Edycja z URL search param ?edition=N, domyślnie CURRENT_EDITION_NUMBER
-  const params          = new URLSearchParams(location.search);
-  const currentEdition  = parseInt(params.get('edition') ?? String(CURRENT_EDITION_NUMBER), 10) || CURRENT_EDITION_NUMBER;
+  // Edition picker: widoczny tylko gdy ctx=krakhack i user ma admin.
+  const showEditionPicker  = isAdminOrMod && currentCtx === 'krakhack';
+  const params             = new URLSearchParams(location.search);
+  const currentEdition     = parseInt(params.get('edition') ?? String(CURRENT_EDITION_NUMBER), 10) || CURRENT_EDITION_NUMBER;
+  const availableEditions  = EDITIONS_META.filter(e => e.status !== 'placeholder');
 
   function onEditionChange(newEdition: number) {
     const next = new URLSearchParams(location.search);
     next.set('edition', String(newEdition));
     navigate(`${location.pathname}?${next.toString()}`, { replace: true });
   }
-
-  const availableEditions = EDITIONS_META.filter(e => e.status !== 'placeholder');
 
   return (
     <div className="bg-gray-950 text-white flex min-h-[calc(100vh-4rem)]">
@@ -68,36 +74,48 @@ export function PanelLayout() {
           )}
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 flex flex-col gap-4">
-          <NavGroup label="Mój obszar" items={userNav} />
+          {/* MÓJ OBSZAR — scope-aware */}
+          {userNav.length > 0 && <NavGroup label="Mój obszar" items={userNav} />}
+
+          {/* ContextSwitcher — widoczny dla admin/mod */}
+          {isAdminOrMod && <ContextSwitcher />}
+
+          {/* Administracja — items filtrowane po ctx */}
           {adminNav.length > 0 && (
             <div>
               <p className="px-3 text-[10px] font-medium text-gray-600 uppercase tracking-widest mb-2">
                 Administracja
               </p>
-              {/* Edition picker — widoczny tylko dla admina, steruje kontekstem edycji
-                  dla sekcji hackathonowych (rejestracje, wyniki, galeria, certyfikaty itp.) */}
-              <div className="px-3 mb-3">
-                <label className="flex items-center gap-2 text-[10px] text-gray-500 uppercase tracking-widest mb-1">
-                  <Calendar className="w-3 h-3" />
-                  Edycja
-                </label>
-                <select
-                  value={currentEdition}
-                  onChange={e => onEditionChange(parseInt(e.target.value, 10))}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-white/30"
-                >
-                  {availableEditions.map(e => (
-                    <option key={e.number} value={e.number}>
-                      #{e.number} · {e.year}{e.status === 'active' ? ' · aktywna' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+              {/* Edition picker — widoczny tylko dla ctx=krakhack */}
+              {showEditionPicker && (
+                <div className="px-3 mb-3">
+                  <label className="flex items-center gap-2 text-[10px] text-gray-500 uppercase tracking-widest mb-1">
+                    <Calendar className="w-3 h-3" />
+                    Edycja
+                  </label>
+                  <select
+                    value={currentEdition}
+                    onChange={e => onEditionChange(parseInt(e.target.value, 10))}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-white/30"
+                  >
+                    {availableEditions.map(e => (
+                      <option key={e.number} value={e.number}>
+                        #{e.number} · {e.year}{e.status === 'active' ? ' · aktywna' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="flex flex-col gap-0.5">
                 {adminNav.map(item => (
-                  <AdminNavLink key={item.to} item={item} edition={currentEdition} />
+                  <AdminNavLink
+                    key={item.to}
+                    item={item}
+                    currentSearch={location.search}
+                  />
                 ))}
               </div>
             </div>
@@ -151,15 +169,29 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
 }
 
 /**
- * Sub-admin NavLink — propaguje `?edition=N` do URL wszystkich linków admin.
- * Dzięki temu kliknięcie w np. "Wyniki" z picker'em ustawionym na edycję 2
- * przerzuci do `/panel/admin/wyniki?edition=2` (a nie gubi kontekstu).
+ * AdminNavLink — propaguje ctx + edition query params do linków admin.
+ * Dzięki temu kliknięcie w "Wyniki" z ctx=krakhack + edition=2 prowadzi
+ * do /panel/admin/wyniki?ctx=krakhack&edition=2 (nie gubi kontekstu).
  */
-function AdminNavLink({ item, edition }: { item: NavItem; edition: number }) {
-  const target = `${item.to}?edition=${edition}`;
+function AdminNavLink({
+  item, currentSearch,
+}: {
+  item: NavItem;
+  currentSearch: string;
+}) {
+  const params = new URLSearchParams(currentSearch);
+  // Zachowujemy tylko ctx i edition (żeby nie propagować np. ?tab=... z innej strony)
+  const propagated = new URLSearchParams();
+  const ctx  = params.get('ctx');
+  const edt  = params.get('edition');
+  if (ctx) propagated.set('ctx', ctx);
+  if (edt) propagated.set('edition', edt);
+  const qs   = propagated.toString();
+  const to   = qs ? `${item.to}?${qs}` : item.to;
+
   return (
     <NavLink
-      to={target}
+      to={to}
       end={item.end}
       className={({ isActive }) =>
         `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors
