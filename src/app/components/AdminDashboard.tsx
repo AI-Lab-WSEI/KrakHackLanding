@@ -76,16 +76,11 @@ interface SurveyData {
   };
 }
 
+// Używa wspólnego lib/adminApi.adminFetch — ma auto-refresh tokena na 401.
 async function apiFetch(path: string) {
-  const token = getAdminToken();
-  const res = await fetch(path, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  if (res.status === 401) {
-    localStorage.removeItem('admin_api_token');
-    window.dispatchEvent(new Event('admin-logout'));
-    throw new Error('Sesja wygasła — zaloguj się ponownie');
-  }
+  const { adminFetch } = await import('@/lib/adminApi');
+  const res = await adminFetch(path);
+  if (res.status === 401) throw new Error('Sesja wygasła — zaloguj się ponownie');
   if (!res.ok) throw new Error('Błąd API');
   return res.json();
 }

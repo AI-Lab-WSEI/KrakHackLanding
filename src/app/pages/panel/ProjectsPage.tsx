@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { adminFetch } from '@/lib/adminApi';
 
 interface Project {
   id: string;
@@ -47,9 +48,7 @@ export function ProjectsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/panel/projects', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch('/api/panel/projects');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setProjects(data.projects ?? []);
@@ -65,10 +64,7 @@ export function ProjectsPage() {
   async function handleDelete(id: string) {
     if (!token || !confirm('Usunąć projekt? Tej operacji nie można cofnąć.')) return;
     try {
-      const res = await fetch(`/api/panel/projects/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/panel/projects/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Błąd usuwania');
       await load();
     } catch (e) {

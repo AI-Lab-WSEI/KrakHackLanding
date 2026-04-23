@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { adminFetch } from '@/lib/adminApi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,9 +55,7 @@ function useUsers(token: string | null) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/panel/users', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch('/api/panel/users');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setUsers(data.users ?? []);
@@ -87,12 +86,8 @@ function InviteModal({ onClose, onSent }: { onClose: () => void; onSent: () => v
     setSending(true);
     setResult(null);
     try {
-      const res = await fetch('/api/invite/send', {
+      const res = await adminFetch('/api/invite/send', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ email: email.trim(), displayName: name.trim() || undefined }),
       });
       const data = await res.json();
@@ -177,12 +172,8 @@ function RoleSelect({ user, isAdmin, token, onUpdated }: {
     if (!token || !isAdmin) return;
     setUpdating(true);
     try {
-      const res = await fetch(`/api/panel/users/${user.id}/role`, {
+      const res = await adminFetch(`/api/panel/users/${user.id}/role`, {
         method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ role: newRole }),
       });
       if (!res.ok) throw new Error('Błąd zmiany roli');
@@ -240,9 +231,7 @@ function useClaims(token: string | null, status?: string) {
     setError(null);
     try {
       const qs  = status ? `?status=${status}` : '';
-      const res = await fetch(`/api/panel/claims${qs}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/panel/claims${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setClaims(
@@ -283,9 +272,8 @@ function ClaimsTab({ token, isAdmin }: { token: string | null; isAdmin: boolean 
     if (!token || acting) return;
     setActing(id);
     try {
-      await fetch(`/api/panel/claims/${id}`, {
+      await adminFetch(`/api/panel/claims/${id}`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
       reload();
@@ -299,10 +287,7 @@ function ClaimsTab({ token, isAdmin }: { token: string | null; isAdmin: boolean 
     setBackfilling(true);
     setBackfillMsg(null);
     try {
-      const res = await fetch('/api/panel/claims/backfill', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch('/api/panel/claims/backfill', { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         setBackfillMsg(`OK — dolinkowano ${data.linked ?? 0} członków zespołów.`);

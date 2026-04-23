@@ -49,15 +49,8 @@ interface Certificate {
 }
 
 async function certFetch(path: string, options?: RequestInit) {
-  const token = getAdminToken();
-  const res = await fetch(path, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
+  const { adminFetch } = await import('@/lib/adminApi');
+  const res = await adminFetch(path, options);
   if (!res.ok) {
     const data = await res.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(data.error || 'API error');

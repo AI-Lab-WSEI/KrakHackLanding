@@ -5,6 +5,7 @@
  */
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { adminFetch } from '@/lib/adminApi';
 
 export function ProfilePage() {
   const { user, token, refreshUser } = useAuth();
@@ -47,12 +48,8 @@ export function ProfilePage() {
         isPublic,
         notifyEvents,
       };
-      const res = await fetch('/api/panel/me', {
+      const res = await adminFetch('/api/panel/me', {
         method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {

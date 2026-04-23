@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAdminToken } from '@/lib/adminApi';
+import { adminFetch as rawAdminFetch } from '@/lib/adminApi';
 import { motion } from 'motion/react';
 import {
   Trophy, Settings, RefreshCw, Save, AlertCircle, CheckCircle,
@@ -48,16 +48,8 @@ interface EditionConfig {
 }
 
 function adminFetch(path: string, options?: RequestInit) {
-  const token = getAdminToken();
-  return fetch(path, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      ...(options?.headers || {}),
-    },
-  }).then(async r => {
-    if (!r.ok) throw new Error((await r.json()).error || `HTTP ${r.status}`);
+  return rawAdminFetch(path, options).then(async r => {
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
     return r.json();
   });
 }

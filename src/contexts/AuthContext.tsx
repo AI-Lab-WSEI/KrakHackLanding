@@ -88,9 +88,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = useCallback(async (accessToken: string) => {
     try {
-      const res = await fetch('/api/me', {
+      let res = await fetch('/api/me', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+
+      // 401 → try refresh + retry once before giving up
+      if (res.status === 401) {
+        const refreshToken = sessionStorage.getItem(REFRESH_TOKEN_KEY);
+        if (refreshToken) {
+          try {
+            const refreshRes = await fetch('/api/auth/refresh', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken }),
+            });
+            if (refreshRes.ok) {
+              const rdata = await refreshRes.json();
+              if (rdata.accessToken) {
+                sessionStorage.setItem(TOKEN_KEY, rdata.accessToken);
+                if (rdata.refreshToken) sessionStorage.setItem(REFRESH_TOKEN_KEY, rdata.refreshToken);
+                setToken(rdata.accessToken);
+                res = await fetch('/api/me', {
+                  headers: { Authorization: `Bearer ${rdata.accessToken}` },
+                });
+              }
+            }
+          } catch {
+            // refresh itself failed — fall through to hard-logout below
+          }
+        }
+      }
+
       if (!res.ok) throw new Error(`/api/me returned ${res.status}`);
       const data = await res.json();
       setUser(data);

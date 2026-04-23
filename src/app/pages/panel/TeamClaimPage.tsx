@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { adminFetch } from '@/lib/adminApi';
 
 interface LegacyTeam {
   id: number;
@@ -46,10 +47,8 @@ export function TeamClaimPage() {
     setLoading(true);
     try {
       const [teamsRes, claimsRes] = await Promise.all([
-        fetch('/api/hackathon/teams?edition=3'),
-        fetch('/api/hackathon/my-claims', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetch('/api/hackathon/teams?edition=3'),     // public endpoint, no auth
+        adminFetch('/api/hackathon/my-claims'),
       ]);
       const teamsData  = await teamsRes.json();
       const claimsData = await claimsRes.json();
@@ -66,12 +65,8 @@ export function TeamClaimPage() {
     if (!token) return;
     setClaiming(slug);
     try {
-      const res = await fetch('/api/hackathon/teams/claim', {
+      const res = await adminFetch('/api/hackathon/teams/claim', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ teamSlug: slug, editionNumber: 3 }),
       });
       if (!res.ok) throw new Error('Błąd zgłoszenia');
@@ -87,12 +82,8 @@ export function TeamClaimPage() {
     if (!token || !confirm('Cofnąć zgłoszenie?')) return;
     setClaiming(slug);
     try {
-      await fetch('/api/hackathon/teams/claim', {
+      await adminFetch('/api/hackathon/teams/claim', {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ teamSlug: slug, editionNumber: 3 }),
       });
       await load();

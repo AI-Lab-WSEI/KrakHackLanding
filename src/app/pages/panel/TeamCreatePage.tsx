@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { adminFetch } from '@/lib/adminApi';
 
 const CURRENT_EDITION = 3;
 
@@ -35,12 +36,8 @@ export function TeamCreatePage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch('/api/hackathon/teams', {
+      const res = await adminFetch('/api/hackathon/teams', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           name:          name.trim(),
           description:   description.trim() || undefined,

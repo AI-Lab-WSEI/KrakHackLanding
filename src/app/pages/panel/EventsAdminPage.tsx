@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { adminFetch } from '@/lib/adminApi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,9 +58,7 @@ function useEvents(token: string | null) {
     if (!token) return;
     setLoading(true);
     try {
-      const res  = await fetch('/api/events?all=1', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res  = await adminFetch('/api/events?all=1');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setEvents(
@@ -110,9 +109,8 @@ function AddEventForm({ token, onAdded }: { token: string; onAdded: () => void }
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/events', {
+      const res = await adminFetch('/api/events', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title:       form.title.trim(),
           eventType:   form.eventType,
@@ -230,9 +228,8 @@ export function EventsAdminPage() {
     setNotifying(ev.id);
     setNotifyMsg(null);
     try {
-      const res = await fetch(`/api/events/${ev.id}/notify`, {
+      const res = await adminFetch(`/api/events/${ev.id}/notify`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ force }),
       });
       const data = await res.json();
@@ -255,9 +252,8 @@ export function EventsAdminPage() {
     const next = ev.visibility === 'public' ? 'admin_only' : 'public';
     setToggling(ev.id);
     try {
-      await fetch(`/api/events/${ev.id}`, {
+      await adminFetch(`/api/events/${ev.id}`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ visibility: next }),
       });
       reload();
@@ -270,10 +266,7 @@ export function EventsAdminPage() {
     if (!token || !confirm('Usunąć wydarzenie?')) return;
     setDeleting(id);
     try {
-      await fetch(`/api/events/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await adminFetch(`/api/events/${id}`, { method: 'DELETE' });
       reload();
     } finally {
       setDeleting(null);

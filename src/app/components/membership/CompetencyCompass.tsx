@@ -63,20 +63,9 @@ const CHART_COLORS = ['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#e
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function apiFetch(path: string, options?: RequestInit) {
-  const token = getAdminToken();
-  const res = await fetch(path, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(options?.headers || {}),
-    },
-  });
-  if (res.status === 401) {
-    localStorage.removeItem('admin_api_token');
-    window.dispatchEvent(new Event('admin-logout'));
-    throw new Error('Sesja wygasła');
-  }
+  const { adminFetch } = await import('@/lib/adminApi');
+  const res = await adminFetch(path, options);
+  if (res.status === 401) throw new Error('Sesja wygasła');
   if (!res.ok) throw new Error('Błąd API');
   return res.json();
 }

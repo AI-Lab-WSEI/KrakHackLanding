@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { adminFetch } from '@/lib/adminApi';
 
 interface ProjectForm {
   title: string;
@@ -58,9 +59,7 @@ export function ProjectEditPage() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/panel/projects/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await adminFetch(`/api/panel/projects/${id}`);
         if (!res.ok) throw new Error(`Nie znaleziono projektu (${res.status})`);
         const p = await res.json();
         setForm({
@@ -104,12 +103,8 @@ export function ProjectEditPage() {
       const url    = isNew ? '/api/panel/projects' : `/api/panel/projects/${id}`;
       const method = isNew ? 'POST' : 'PATCH';
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {

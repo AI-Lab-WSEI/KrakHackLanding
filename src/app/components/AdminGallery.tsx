@@ -1,18 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Images, Loader2, Star, EyeOff, Eye, AlertCircle, RefreshCw, ExternalLink, Save, Bug, Folder, FolderOpen, ChevronDown, ChevronUp } from 'lucide-react';
-import { getAdminToken } from '@/lib/adminApi';
+import { adminFetch as rawAdminFetch } from '@/lib/adminApi';
 
 function adminFetch(path: string, options?: RequestInit) {
-  const token = getAdminToken();
-  return fetch(path, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      ...(options?.headers || {}),
-    },
-  }).then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error || 'Błąd')));
+  return rawAdminFetch(path, options)
+    .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e.error || 'Błąd')));
 }
 
 interface GalleryPhoto {
