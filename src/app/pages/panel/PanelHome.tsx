@@ -136,8 +136,9 @@ export function PanelHome() {
         </div>
       </PanelCard>
 
-      {/* Onboarding nudge */}
-      {!user.onboardingCompleted && (
+      {/* Onboarding nudge — tylko dla participantów. Admin/moderator nie muszą
+           mieć publicznego bio — mają inne odpowiedzialności. */}
+      {!user.onboardingCompleted && hasAnyParticipant && (
         <PanelCard padding="md" className="!bg-amber-500/10 !border-amber-500/30">
           <p className="text-amber-300 font-medium text-sm">Uzupełnij swój profil</p>
           <p className="text-amber-200/70 text-xs mt-1">
@@ -176,15 +177,30 @@ export function PanelHome() {
         </PanelCard>
       )}
 
-      {/* Jury-only welcome — kierujemy do magic linka */}
+      {/* Jury-only welcome — kierujemy do magic linka. Dajmy CTA do admina
+          jeśli jury zgubił link. */}
       {isJury && !isAdmin && !isModerator && (
         <PanelCard padding="md" className="!bg-amber-500/5 !border-amber-500/20">
           <p className="text-sm font-medium text-amber-200 mb-1">Jesteś jurorem — użyj magic linka</p>
           <p className="text-xs text-amber-200/70 leading-relaxed">
-            Panel oceny projektów jest na osobnym URL-u, który dostałeś/aś emailem
-            (<code>/jury/&lt;token&gt;</code>). Ten panel nie jest potrzebny do oceny —
-            możesz zignorować jeśli nie szukasz czegoś specjalnego.
+            Panel oceny projektów jest na osobnym URL-u (<code>/jury/&lt;token&gt;</code>),
+            który dostałeś/aś mailem od organizatorów. Ten panel główny nie jest potrzebny
+            do oceny projektów.
           </p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <a
+              href="mailto:knai@wsei.edu.pl?subject=Zgubiłem%20magic%20link%20jury%20%E2%80%94%20AI%20Krak%20Hack&body=Cześć,%0A%0AZgubiłem/am%20magic%20link%20do%20panelu%20jury.%20Poproszę%20o%20ponowne%20wysłanie.%0A%0AMój%20email%20konta%3A%20..."
+              className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Poproś admina o nowy link →
+            </a>
+            <Link
+              to="/wyniki/3"
+              className="text-xs bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Zobacz wyniki edycji (publiczne)
+            </Link>
+          </div>
         </PanelCard>
       )}
 
