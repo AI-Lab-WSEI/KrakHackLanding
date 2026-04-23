@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router';
 import { AdminAuth, getAdminToken } from './AdminAuth';
 import { AdminAttendance } from '@/app/pages/AdminAttendance';
 import { AdminCertificates } from './AdminCertificates';
@@ -178,6 +179,16 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ embeddedTab, embeddedDomain }: AdminDashboardProps = {}) {
   const embedded = embeddedTab !== undefined;
+  // W embedded mode edycja pochodzi z URL (picker z PanelLayout sidebar).
+  // W standalone mode defaultujemy do CURRENT_EDITION_NUMBER.
+  const initialEdition = (() => {
+    if (embedded && typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      const n = parseInt(p.get('edition') ?? '', 10);
+      if (!Number.isNaN(n) && n > 0) return n;
+    }
+    return CURRENT_EDITION_NUMBER;
+  })();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [surveys, setSurveys] = useState<SurveyData[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -193,7 +204,19 @@ export function AdminDashboard({ embeddedTab, embeddedDomain }: AdminDashboardPr
   });
   const [domain, setDomain] = useState<AdminDomain>(embeddedDomain ?? 'hackathon');
   const [activeTab, setActiveTab] = useState<TabId>(embeddedTab ?? 'regs');
-  const [selectedEdition, setSelectedEdition] = useState(CURRENT_EDITION_NUMBER);
+  const [selectedEdition, setSelectedEdition] = useState(initialEdition);
+
+  // W embedded mode reaguj na zmianę `?edition=N` w URL (picker z PanelLayout)
+  const location = useLocation();
+  useEffect(() => {
+    if (!embedded) return;
+    const p = new URLSearchParams(location.search);
+    const n = parseInt(p.get('edition') ?? '', 10);
+    if (!Number.isNaN(n) && n > 0 && n !== selectedEdition) {
+      setSelectedEdition(n);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, embedded]);
   const [roleFilter, setRoleFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
