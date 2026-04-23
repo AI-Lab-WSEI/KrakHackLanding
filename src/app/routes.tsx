@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import { Layout } from '@/app/Layout';
 import { HomePage } from '@/app/pages/HomePage';
 import { DemoPage } from '@/app/pages/DemoPage';
+import { NotFoundPage } from '@/app/pages/NotFoundPage';
 import { AuthCallback } from '@/app/pages/AuthCallback';
 import { Logowanie } from '@/app/pages/Logowanie';
 import { Onboarding } from '@/app/pages/Onboarding';
@@ -190,6 +191,10 @@ export const router = createBrowserRouter([
       { path: 'uczestnicy',                      Component: ParticipantsPage },
       { path: 'uczestnicy/:slug',                Component: ParticipantProfile },
       { path: 'wyniki/:edition',                 Component: JuryResultsPage },
+
+      // Catch-all — wszystkie nieznane ścieżki pod Layout.
+      // Bez tego React Router pokazuje default "Hey developer 👋" 404 UI.
+      { path: '*', Component: NotFoundPage },
     ],
   },
 
