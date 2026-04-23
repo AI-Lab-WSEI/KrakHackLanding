@@ -4,6 +4,7 @@
  *
  * Domyślnie pokazuje 5 najbliższych wydarzeń publicznych.
  */
+import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 import { getCategoryMeta } from './categories';
@@ -19,8 +20,11 @@ interface Props {
 }
 
 export function CalendarMini({ limit = 5, title = 'Nadchodzące wydarzenia', seeAllHref = '/demo#calendar' }: Props) {
-  const from = new Date();
-  const to   = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  // Stabilize Date instances at mount — bez tego `new Date()` każdego rendera
+  // generuje nowy ISO string (milliseconds), co tworzy nieskończoną pętlę
+  // useCallback → useEffect w useCalendar.
+  const from = useMemo(() => new Date(), []);
+  const to   = useMemo(() => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), []);
   const { entries, loading } = useCalendar({ from, to });
   const visible = entries.slice(0, limit);
 

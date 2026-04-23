@@ -13,15 +13,20 @@ import { adminFetch } from '@/lib/adminApi';
 import { PanelCard } from '@/app/components/panel/shared/PanelCard';
 import { PanelSectionHeader } from '@/app/components/panel/shared/PanelSectionHeader';
 
+// Uwaga: backend zwraca `status` jako jeden z kilku wariantów:
+//   'active' | 'archive' | 'archived' | 'placeholder' | (ewentualnie inny string).
+// Trzymamy `string` + tolerancję w StatusBadge, żeby nie crashować na nowych wartościach.
 interface Edition {
   number:               number;
   name:                 string;
-  status:               'active' | 'archive' | 'placeholder';
+  status:               string;
   visiblePlacements:    number;
   showScores:           boolean;
   maxScorePerCategory:  number;
   updatedAt:            string;
 }
+
+type EditionStatus = 'active' | 'archive' | 'archived' | 'placeholder';
 
 export function EditionsPage() {
   const [editions, setEditions] = useState<Edition[]>([]);
@@ -141,13 +146,15 @@ export function EditionsPage() {
   );
 }
 
-function StatusBadge({ status }: { status: Edition['status'] }) {
-  const map = {
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<EditionStatus, { cls: string; label: string }> = {
     active:      { cls: 'bg-green-500/15 text-green-300 border-green-500/30',  label: 'Aktywna' },
     archive:     { cls: 'bg-gray-500/15 text-gray-300 border-gray-500/30',     label: 'Archiwum' },
+    archived:    { cls: 'bg-gray-500/15 text-gray-300 border-gray-500/30',     label: 'Archiwum' },
     placeholder: { cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30',  label: 'Placeholder' },
-  } as const;
-  const m = map[status];
+  };
+  const fallback = { cls: 'bg-white/5 text-gray-400 border-white/10', label: status || '—' };
+  const m = map[status as EditionStatus] ?? fallback;
   return (
     <span className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full border ${m.cls}`}>
       {m.label}
@@ -171,7 +178,7 @@ function CreateEditionModal({
   const [form, setForm] = useState({
     number:    String(nextNumber),
     name:      '',
-    status:    'placeholder' as Edition['status'],
+    status:    'placeholder' as EditionStatus,
     cloneFrom: '',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -244,7 +251,7 @@ function CreateEditionModal({
               <span className="text-xs text-gray-400 uppercase tracking-wider">Status</span>
               <select
                 value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value as Edition['status'] }))}
+                onChange={e => setForm(f => ({ ...f, status: e.target.value as EditionStatus }))}
                 className={inputCls}
               >
                 <option value="placeholder">placeholder (draft)</option>
