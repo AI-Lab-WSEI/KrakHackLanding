@@ -3398,6 +3398,258 @@ app.get('/api/surveys', requireAdmin, async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════════
+//  Quiz wiedzy o AI — /api/quiz/*
+//  Tabela: quiz_attempts (migracja 0021). Anonimowy zapis w /attempt
+//  (zaraz po ostatnim pytaniu) + opcjonalny upgrade z emailem w /send-results
+//  (tylko po jawnej zgodzie RODO). Resend wysyła pełny raport per pytanie.
+// ══════════════════════════════════════════════════════════════════════════
+
+const QUIZ_LEVELS = new Set(['easy', 'mid', 'hard']);
+const QUIZ_DIFFS = new Set(['easy', 'mid', 'expert']);
+const QUIZ_DIFF_LABEL = { easy: 'Łatwe', mid: 'Średnie', expert: 'Trudne' };
+const QUIZ_LEVEL_LABEL = { easy: 'Łatwy', mid: 'Średni', hard: 'Trudny' };
+
+function quizIpHash(req) {
+  const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim()
+    || req.socket.remoteAddress
+    || 'unknown');
+  return crypto.createHash('sha256').update('aipl-quiz:' + ip).digest('hex').slice(0, 32);
+}
+
+function escQuizHtml(s) {
+  return String(s ?? '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+function validateQuizBreakdown(breakdown, totalExpected) {
+  if (!Array.isArray(breakdown)) return 'breakdown must be array';
+  let sum = 0;
+  for (const b of breakdown) {
+    if (!b || typeof b !== 'object') return 'malformed breakdown row';
+    if (!QUIZ_DIFFS.has(b.difficulty)) return 'bad breakdown difficulty';
+    if (typeof b.correct !== 'number' || typeof b.total !== 'number') return 'bad breakdown counts';
+    if (b.correct < 0 || b.correct > b.total) return 'breakdown out of range';
+    sum += b.total;
+  }
+  if (sum !== totalExpected) return 'breakdown total mismatch';
+  return null;
+}
+
+async function quizCohortStats(level, myPercent) {
+  const agg = await pool.query(
+    `SELECT
+       COUNT(*)::int AS cohort_size,
+       COALESCE(ROUND(AVG(percent)::numeric, 0), 0)::int AS avg_percent,
+       COALESCE(ROUND(100.0 * SUM(CASE WHEN percent < $2 THEN 1 ELSE 0 END)
+                       / NULLIF(COUNT(*), 0), 0), 0)::int AS percentile
+     FROM quiz_attempts WHERE level = $1`,
+    [level, myPercent]
+  );
+  const dist = await pool.query(
+    `SELECT LEAST(9, FLOOR(percent::float / 10))::int AS bin, COUNT(*)::int AS n
+     FROM quiz_attempts WHERE level = $1
+     GROUP BY bin ORDER BY bin`,
+    [level]
+  );
+  const distribution = Array(10).fill(0);
+  for (const row of dist.rows) distribution[row.bin] = row.n;
+  const a = agg.rows[0] || { cohort_size: 0, avg_percent: 0, percentile: 0 };
+  return {
+    cohortSize: a.cohort_size,
+    avgPercent: a.avg_percent,
+    percentile: a.percentile,
+    distribution,
+  };
+}
+
+// POST /api/quiz/attempt — anonimowo zapisz wynik + zwróć kohortę
+app.post('/api/quiz/attempt', async (req, res) => {
+  try {
+    const { level, correct, total, percent, breakdown, durationMs } = req.body || {};
+    if (!QUIZ_LEVELS.has(level)) return res.status(400).json({ error: 'bad level' });
+    if (typeof total !== 'number' || total <= 0 || total > 50) return res.status(400).json({ error: 'bad total' });
+    if (typeof correct !== 'number' || correct < 0 || correct > total) return res.status(400).json({ error: 'bad correct' });
+    if (typeof percent !== 'number' || percent < 0 || percent > 100) return res.status(400).json({ error: 'bad percent' });
+    // Server-side recompute — nie ufamy klienta przy liczeniu kohorty.
+    const safePercent = Math.round((correct / total) * 100);
+    const breakdownErr = validateQuizBreakdown(breakdown, total);
+    if (breakdownErr) return res.status(400).json({ error: breakdownErr });
+
+    const ipHash = quizIpHash(req);
+    const inserted = await pool.query(
+      `INSERT INTO quiz_attempts
+         (level, total, correct, percent, breakdown, duration_ms, ip_hash)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+       RETURNING id`,
+      [
+        level, total, correct, safePercent,
+        JSON.stringify(breakdown),
+        Number.isFinite(durationMs) ? Math.max(0, Math.min(1_800_000, durationMs | 0)) : null,
+        ipHash,
+      ]
+    );
+
+    const stats = await quizCohortStats(level, safePercent);
+    res.json({ attemptId: inserted.rows[0].id, ...stats });
+  } catch (err) {
+    console.error('[API] /api/quiz/attempt error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
+// HTML report dla emaila — dark theme matching site palette.
+function renderQuizEmailHtml(payload) {
+  const { score, breakdown, answers, level } = payload;
+  const labUrl = process.env.LAB_URL || 'https://ai.possibilitieslab.org';
+  const labHost = labUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const headline =
+    score.percent === 100 ? 'Mistrz AI! 🏆'
+    : score.percent >= 85 ? 'Genialny wynik!'
+    : score.percent >= 70 ? 'Świetny wynik!'
+    : score.percent >= 50 ? 'Solidnie!'
+    : score.percent >= 25 ? 'Jest nad czym popracować.'
+    : 'Spróbuj jeszcze raz.';
+
+  const breakdownRows = breakdown.map((b) => `
+    <tr>
+      <td style="padding:6px 12px;color:#8b8e99;font-size:13px;">${QUIZ_DIFF_LABEL[b.difficulty]}</td>
+      <td style="padding:6px 12px;color:#f4f4f6;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right;">
+        ${b.correct} / ${b.total}
+      </td>
+    </tr>`).join('');
+
+  const answerCards = (Array.isArray(answers) ? answers : []).map((a, i) => {
+    const ok = !!a.isCorrect;
+    const stripe = ok ? '#22c55e' : '#ef4444';
+    const status = ok ? '✓ Poprawnie' : a.timedOut ? '✗ Czas minął' : '✗ Niepoprawnie';
+    const opts = Object.entries(a.options || {}).map(([letter, text]) => {
+      const isCorrect = letter === a.correct;
+      const isPicked = letter === a.picked;
+      let bg = '#16181d', color = '#c7c9d1', badge = '';
+      if (isCorrect) { bg = 'rgba(34,197,94,.10)'; color = '#f4f4f6'; badge = ' ← poprawna'; }
+      if (isPicked && !isCorrect) { bg = 'rgba(239,68,68,.10)'; color = '#f4f4f6'; badge = ' ← Twoja odpowiedź'; }
+      return `<div style="padding:8px 12px;background:${bg};border:1px solid #25272f;border-radius:6px;margin-bottom:4px;color:${color};font-size:13px;line-height:1.5;">
+        <strong style="font-family:'JetBrains Mono',monospace;color:#8b8e99;">${letter}.</strong>
+        ${escQuizHtml(text)}<em style="color:#8b8e99;">${badge}</em>
+      </div>`;
+    }).join('');
+    return `<div style="background:#0f1014;border:1px solid #25272f;border-left:3px solid ${stripe};border-radius:10px;padding:16px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;font-size:12px;color:#8b8e99;">
+        <span>Pytanie ${i + 1} · ${QUIZ_DIFF_LABEL[a.difficulty] || ''}</span>
+        <span style="color:${stripe};font-weight:600;">${status}</span>
+      </div>
+      <div style="font-size:15px;font-weight:600;color:#f4f4f6;line-height:1.4;margin-bottom:12px;">${escQuizHtml(a.question)}</div>
+      ${opts}
+    </div>`;
+  }).join('');
+
+  return `<!doctype html><html lang="pl"><head><meta charset="utf-8"/><title>Twój raport — Quiz AI</title></head>
+<body style="margin:0;padding:32px 16px;background:#08090b;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#f4f4f6;">
+  <div style="max-width:600px;margin:0 auto;">
+    <div style="text-align:center;padding:24px;background:#0f1014;border:1px solid #25272f;border-radius:14px;margin-bottom:16px;">
+      <div style="display:inline-block;padding:4px 10px;background:rgba(124,92,255,.14);border:1px solid rgba(124,92,255,.35);border-radius:999px;font-size:11px;color:#a78bff;letter-spacing:.04em;text-transform:uppercase;margin-bottom:16px;">
+        AI Possibilities Lab · ${QUIZ_LEVEL_LABEL[level] || level}
+      </div>
+      <h1 style="margin:0 0 8px;font-size:28px;font-weight:700;letter-spacing:-0.02em;">${headline}</h1>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;background:linear-gradient(135deg,#fff,#a78bff);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;margin:8px 0;">
+        ${score.correct}/${score.total}
+      </div>
+      <div style="color:#8b8e99;font-size:14px;font-family:'JetBrains Mono',monospace;">${score.percent}%</div>
+    </div>
+    <div style="background:#0f1014;border:1px solid #25272f;border-radius:14px;padding:16px 8px;margin-bottom:24px;">
+      <table style="width:100%;border-collapse:collapse;">${breakdownRows}</table>
+    </div>
+    <h2 style="font-size:16px;font-weight:600;color:#f4f4f6;margin:0 0 12px;">Odpowiedzi szczegółowe</h2>
+    ${answerCards}
+    <p style="color:#5b5e68;font-size:12px;text-align:center;margin-top:32px;line-height:1.6;">
+      Quiz rozwiązany na <a href="${labUrl}/quiz" style="color:#7c5cff;text-decoration:none;">${labHost}/quiz</a>.<br/>
+      Aby usunąć swoje dane lub zrezygnować z newslettera — odpisz na tego maila.
+    </p>
+  </div>
+</body></html>`;
+}
+
+// POST /api/quiz/send-results — email + pełny raport (po zgodzie RODO)
+app.post('/api/quiz/send-results', async (req, res) => {
+  try {
+    const { attemptId, email, consents, level, score, breakdown, answers, durationMs } = req.body || {};
+
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'invalid email' });
+    }
+    if (!consents || consents.rodo !== true) {
+      return res.status(400).json({ error: 'RODO consent required' });
+    }
+    if (!QUIZ_LEVELS.has(level)) return res.status(400).json({ error: 'bad level' });
+    if (!score || typeof score.correct !== 'number' || typeof score.total !== 'number' || score.total <= 0
+        || score.correct < 0 || score.correct > score.total) {
+      return res.status(400).json({ error: 'invalid score' });
+    }
+    if (!Array.isArray(answers) || answers.length === 0 || answers.length > 50) {
+      return res.status(400).json({ error: 'invalid answers' });
+    }
+    const breakdownErr = validateQuizBreakdown(breakdown, score.total);
+    if (breakdownErr) return res.status(400).json({ error: breakdownErr });
+
+    const safePercent = Math.round((score.correct / score.total) * 100);
+    const emailPayload = {
+      level,
+      score: { correct: score.correct, total: score.total, percent: safePercent },
+      breakdown,
+      answers,
+    };
+
+    // Persist: update istniejącego attempt jeśli mamy id, w innym wypadku świeży insert.
+    let row;
+    if (typeof attemptId === 'string' && attemptId.length >= 16) {
+      const upd = await pool.query(
+        `UPDATE quiz_attempts
+           SET email = $1,
+               consent_rodo = $2,
+               consent_newsletter = $3,
+               answers = $4::jsonb,
+               emailed_at = NOW()
+         WHERE id = $5
+         RETURNING id`,
+        [email, true, !!consents.newsletter, JSON.stringify(answers), attemptId]
+      );
+      row = upd.rows[0];
+    }
+    if (!row) {
+      const ins = await pool.query(
+        `INSERT INTO quiz_attempts
+           (level, total, correct, percent, breakdown, answers, email,
+            consent_rodo, consent_newsletter, duration_ms, ip_hash, emailed_at)
+         VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8,$9,$10,$11,NOW())
+         RETURNING id`,
+        [
+          level, score.total, score.correct, safePercent,
+          JSON.stringify(breakdown), JSON.stringify(answers),
+          email, true, !!consents.newsletter,
+          Number.isFinite(durationMs) ? Math.max(0, Math.min(1_800_000, durationMs | 0)) : null,
+          quizIpHash(req),
+        ]
+      );
+      row = ins.rows[0];
+    }
+
+    const subject = `Twój wynik: ${score.correct}/${score.total} (${QUIZ_LEVEL_LABEL[level]}) — Quiz AI Possibilities Lab`;
+    const html = renderQuizEmailHtml(emailPayload);
+    const sent = await sendResendEmail(email, subject, html, 'lab');
+    if (!sent) {
+      // Nie blokujemy klienta — wynik mamy w bazie, można retry'ować z admin panelu.
+      console.warn('[API] /api/quiz/send-results: Resend failed for', email);
+    }
+
+    res.json({ ok: true, attemptId: row?.id || null, emailed: !!sent });
+  } catch (err) {
+    console.error('[API] /api/quiz/send-results error:', err);
+    res.status(500).json({ error: 'Błąd serwera' });
+  }
+});
+
 // Site mode config (public — tells frontend which mode we're in)
 app.get('/api/config/site', (req, res) => {
   res.json({

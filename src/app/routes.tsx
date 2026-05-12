@@ -21,6 +21,7 @@ import { GalleryPage } from '@/app/pages/GalleryPage';
 import { PlatformPage } from '@/app/pages/PlatformPage';
 import { Forms } from '@/app/pages/Forms';
 import { Survey } from '@/app/pages/Survey';
+import { QuizPage } from '@/app/pages/QuizPage';
 import { UnsubscribeConfirmation } from '@/app/pages/UnsubscribeConfirmation';
 import { ConfirmAttendance } from '@/app/pages/ConfirmAttendance';
 import { CertificateVerify } from '@/app/pages/CertificateVerify';
@@ -121,6 +122,7 @@ export const router = createBrowserRouter([
       { path: 'confirm/:id',                     Component: ConfirmAttendance },
       { path: 'feedback',                        Component: Survey },
       { path: 'survey',                          Component: Survey },
+      { path: 'quiz',                            Component: QuizPage },
       { path: 'verify',                          Component: CertificateVerify },
       { path: 'verify/:hash',                    Component: CertificateView },
       { path: 'unsubscribe-confirmation',        Component: UnsubscribeConfirmation },
