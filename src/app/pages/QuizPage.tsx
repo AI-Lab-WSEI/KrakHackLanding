@@ -122,13 +122,30 @@ function pickFrom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function headlineFor(percent: number): string {
-  if (percent === 100) return 'MISTRZ AI!';
-  if (percent >= 85) return 'GENIALNY WYNIK';
-  if (percent >= 70) return 'ŚWIETNY WYNIK';
-  if (percent >= 50) return 'SOLIDNIE';
-  if (percent >= 25) return 'JEST NAD CZYM POPRACOWAĆ';
-  return 'SPRÓBUJ JESZCZE RAZ';
+// Result copy — pełna gradacja od „masz to" w górze, po healthy trolling
+// w dolnych progach. Trolling AI-themed, nigdy obraźliwy, zawsze z hookiem
+// motywacyjnym. Dyskretne odniesienia do tematyki (GPT-2, halucynacje,
+// random baseline 25% na 4 opcjach) — uderza tylko w tych, którzy łapią.
+function resultCopy(percent: number, level: LevelKey): { headline: string; sub: string } {
+  if (percent === 100) {
+    if (level === 'hard') {
+      return { headline: 'PERFEKT NA TRUDNYM', sub: '10/10 na expercie — przyjdź do Koła, potrzebujemy cię.' };
+    }
+    if (level === 'easy') {
+      return { headline: 'MASZ TO — ŁATWY ZALICZONY', sub: 'Czyste 10/10 na rozgrzewce. Spróbuj średniego albo trudnego — tam się okaże.' };
+    }
+    return { headline: 'MASZ TO!', sub: 'Czysta robota. AI by się od ciebie uczyło.' };
+  }
+  if (percent >= 90) return { headline: 'ROZWALASZ', sub: 'Jedna pułapka i tyle. Kozak.' };
+  if (percent >= 80) return { headline: 'MOCNO!', sub: 'Solidne osiem trafień — wiedza nieprzypadkowa.' };
+  if (percent >= 70) return { headline: 'ŚWIETNIE!', sub: 'Lepiej niż większość. W temat siedzisz.' };
+  if (percent >= 60) return { headline: 'OK, DAJESZ RADĘ', sub: 'Wiedza jest, kilka luk do załatania.' };
+  if (percent >= 50) return { headline: 'POŁOWA NA POŁOWĘ', sub: 'Coś wiesz, coś nie — klasyk. Wiemy, że stać cię na więcej.' };
+  if (percent >= 40) return { headline: 'MOŻESZ LEPIEJ', sub: 'Trochę zgadywania, trochę wiedzy. Wpadnij na warsztaty Koła — pomożemy.' };
+  if (percent >= 30) return { headline: 'GPT-2 ENERGY', sub: 'Pamiętasz GPT-2? Bywał bełkotliwy. Spróbuj jeszcze raz — masz to w sobie.' };
+  if (percent >= 20) return { headline: 'AI HALUCYNUJE — TY TROCHĘ TEŻ', sub: 'Temat duży, spokojnie. Każdy się uczy, jeszcze cię ogarnie.' };
+  if (percent >= 10) return { headline: 'LOSOWANIE BIJE TEN WYNIK', sub: 'Serio: 4 opcje × 25% = 25%. Wierzymy w twój comeback — spróbuj jeszcze raz.' };
+  return { headline: 'RESPECT ZA UKOŃCZENIE', sub: 'Zero trafień to też wynik — każdy gdzieś zaczynał. Dołącz do Koła, nauczymy razem.' };
 }
 
 function isValidEmail(s: string): boolean {
@@ -827,20 +844,28 @@ function ResultPanel({ screen, onReplay }: { screen: ResultScreen; onReplay: () 
       <EmailSentBanner email={form.email} emailed={stats?.emailed ?? null} statsError={statsError} />
 
       {/* Score header */}
-      <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-6 sm:p-8 text-center">
-        <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-1">
-          Zakończone · {QUIZ_LEVELS[level].label} · {mode === 'timed' ? 'z czasem' : 'bez limitu'}
-          {mode === 'timed' && durationMs > 0 ? ` · ${fmtDuration(durationMs)}` : ''}
-        </div>
-        <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4 inline-flex items-center gap-2">
-          {percent >= 70 && <Trophy className="w-7 h-7 text-amber-400" />}
-          {headlineFor(percent)}
-        </h2>
-        <div className="font-mono text-5xl sm:text-6xl font-black tracking-tighter bg-gradient-to-br from-white to-purple-400 bg-clip-text text-transparent leading-none">
-          {correct}<span className="text-gray-700 mx-1">/</span>{total}
-        </div>
-        <div className="font-mono text-sm text-gray-500 mt-1">{percent}%</div>
-      </div>
+      {(() => {
+        const copy = resultCopy(percent, level);
+        return (
+          <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-6 sm:p-8 text-center">
+            <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-1">
+              Zakończone · {QUIZ_LEVELS[level].label} · {mode === 'timed' ? 'z czasem' : 'bez limitu'}
+              {mode === 'timed' && durationMs > 0 ? ` · ${fmtDuration(durationMs)}` : ''}
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3 inline-flex items-center gap-2">
+              {percent >= 70 && <Trophy className="w-7 h-7 text-amber-400" />}
+              {copy.headline}
+            </h2>
+            <div className="font-mono text-5xl sm:text-6xl font-black tracking-tighter bg-gradient-to-br from-white to-purple-400 bg-clip-text text-transparent leading-none">
+              {correct}<span className="text-gray-700 mx-1">/</span>{total}
+            </div>
+            <div className="font-mono text-sm text-gray-500 mt-1 mb-3">{percent}%</div>
+            <p className="text-sm sm:text-base text-gray-300 max-w-md mx-auto leading-relaxed">
+              {copy.sub}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Percentile gauge — duża grafika */}
       <PercentileGauge stats={stats} myPercent={percent} levelLabel={QUIZ_LEVELS[level].label} />
