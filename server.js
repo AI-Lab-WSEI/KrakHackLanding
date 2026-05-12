@@ -3527,15 +3527,17 @@ async function quizLeaderboard(level, mode, myAttemptId) {
 }
 
 // Pozycja gracza w całej kohorcie (poza top 10) — 1-indexed.
+// Wszystkie typowane explicite — bez tego Postgres nie umie wydedukować typu $4
+// (używany w IS NOT NULL + IS NOT DISTINCT FROM, brak innego pin-pointu).
 async function quizMyRank(level, mode, myPercent, myDurationMs, myCreatedAt) {
   const r = await pool.query(
     `SELECT 1 + COUNT(*)::int AS rank
      FROM quiz_attempts
-     WHERE level = $1 AND mode = $2
+     WHERE level = $1::varchar AND mode = $2::varchar
        AND (
-         percent > $3
-         OR (percent = $3 AND duration_ms IS NOT NULL AND $4 IS NOT NULL AND duration_ms < $4)
-         OR (percent = $3 AND duration_ms IS NOT DISTINCT FROM $4 AND created_at < $5)
+         percent > $3::int
+         OR (percent = $3::int AND duration_ms IS NOT NULL AND $4::int IS NOT NULL AND duration_ms < $4::int)
+         OR (percent = $3::int AND duration_ms IS NOT DISTINCT FROM $4::int AND created_at < $5::timestamptz)
        )`,
     [level, mode, myPercent, myDurationMs, myCreatedAt]
   );
