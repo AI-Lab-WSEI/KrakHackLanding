@@ -1,14 +1,14 @@
 // Quiz wiedzy o AI — /quiz.
 //
-// Otwarte dla wszystkich (bez logowania). Flow:
-//   welcome (wybór poziomu) → playing (timer + pytania, z interlude'ami) →
-//   result (wynik + percentyl kohortowy + bramka emailowa) → thanks.
-//
-// Wynik zapisuje się anonimowo zaraz po ostatnim pytaniu (/api/quiz/attempt),
-// dzięki czemu mamy kohortę do statystyk. Email + pełny raport per pytanie
-// idzie do bazy + Resend DOPIERO po jawnej zgodzie RODO (/api/quiz/send-results).
+// Nowy flow (v2): e-mail + RODO + nick + tryb (timed/untimed) zbieramy
+// UPFRONT na welcome. Po ostatnim pytaniu jeden POST /api/quiz/attempt:
+// - zapisuje quiz_attempt z pełnymi metadanymi
+// - upsertuje do lab_interests (CRM osób zainteresowanych Kołem)
+// - wysyła raport mailem (Resend)
+// - zwraca staty kohortowe + leaderboard + per-difficulty cohort avg
+// Result screen pokazuje 3 wykresy + leaderboard + banner "wysłane".
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -16,9 +16,9 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
+  Infinity as InfinityIcon,
   Mail,
   RotateCcw,
-  Send,
   Sparkles,
   Trophy,
   X,
@@ -33,6 +33,7 @@ import {
   totalQuestionsForLevel,
   type Difficulty,
   type LevelKey,
+  type Mode,
   type OptionLetter,
   type QuizQuestion,
 } from '@/app/pages/quiz/questions';
@@ -50,12 +51,40 @@ interface AnswerRecord {
   timedOut: boolean;
 }
 
+interface LeaderboardEntry {
+  rank: number;
+  displayName: string;
+  percent: number;
+  correct: number;
+  total: number;
+  durationMs: number | null;
+  isMe: boolean;
+  createdAt: string;
+}
+
+interface PerDifficulty {
+  mine: number;
+  cohortAvg: number;
+}
+
 interface AttemptStats {
   attemptId: string;
-  percentile: number;   // 0..100 — % graczy z gorszym/równym wynikiem
+  percentile: number;
   cohortSize: number;
   avgPercent: number;
-  distribution: number[]; // 10 binów po 10% (suma = cohortSize)
+  distribution: number[];
+  perDifficulty: Partial<Record<Difficulty, PerDifficulty>>;
+  leaderboard: LeaderboardEntry[];
+  myRank: number;
+  emailed: boolean;
+}
+
+interface FormState {
+  email: string;
+  displayName: string;
+  rodo: boolean;
+  newsletter: boolean;
+  mode: Mode;
 }
 
 type Screen =
@@ -63,6 +92,8 @@ type Screen =
   | {
       kind: 'playing' | 'interlude';
       level: LevelKey;
+      mode: Mode;
+      form: FormState;
       questions: QuizQuestion[];
       index: number;
       answers: AnswerRecord[];
@@ -71,26 +102,21 @@ type Screen =
   | {
       kind: 'result';
       level: LevelKey;
+      mode: Mode;
+      form: FormState;
       questions: QuizQuestion[];
       answers: AnswerRecord[];
       durationMs: number;
       stats: AttemptStats | null;
       statsError: string | null;
-    }
-  | { kind: 'thanks'; email: string };
+    };
 
-const STORAGE_KEY = 'aipl-quiz-email';
+const STORAGE_KEY = 'aipl-quiz-form-v2';
 const INTERLUDE_MS = 1100;
 const FEEDBACK_MS = 900;
 
-const PRAISE_CORRECT = [
-  'Świetnie!', 'Trafione!', 'Brawo!', 'Mistrzostwo!',
-  'Doskonale!', 'Pięknie!', 'Czysta robota!', 'Tak jest!',
-];
-const PRAISE_WRONG = [
-  'Spokojnie, idziemy dalej.', 'Bywa. Następne!', 'Trudne pytanie.',
-  'Nie poddawaj się.', 'Każdy się uczy.',
-];
+const PRAISE_CORRECT = ['Świetnie!', 'Trafione!', 'Brawo!', 'Mistrzostwo!', 'Doskonale!', 'Pięknie!', 'Czysta robota!', 'Tak jest!'];
+const PRAISE_WRONG = ['Spokojnie, idziemy dalej.', 'Bywa. Następne!', 'Trudne pytanie.', 'Nie poddawaj się.', 'Każdy się uczy.'];
 
 function pickFrom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -113,36 +139,91 @@ function apiBase(): string {
   return import.meta.env.DEV ? 'http://localhost:3000' : '';
 }
 
+function fmtDuration(ms: number | null | undefined): string {
+  if (!ms || ms <= 0) return '—';
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return m > 0 ? `${m}m ${rem}s` : `${rem}s`;
+}
+
+const DEFAULT_FORM: FormState = {
+  email: '',
+  displayName: '',
+  rodo: false,
+  newsletter: false,
+  mode: 'timed',
+};
+
+function loadFormFromStorage(): FormState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_FORM;
+    const parsed = JSON.parse(raw) as Partial<FormState>;
+    return {
+      ...DEFAULT_FORM,
+      ...parsed,
+      rodo: !!parsed.rodo,
+      newsletter: !!parsed.newsletter,
+      mode: parsed.mode === 'untimed' ? 'untimed' : 'timed',
+    };
+  } catch {
+    return DEFAULT_FORM;
+  }
+}
+
+function persistForm(form: FormState): void {
+  try {
+    // Nie zapisujemy zgód — niech użytkownik świadomie zaznaczy za każdym razem.
+    const { email, displayName, mode } = form;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ email, displayName, mode }));
+  } catch {
+    /* ignore */
+  }
+}
+
 // ───────────────────────────── page ─────────────────────────────
 
 export function QuizPage() {
+  const [form, setForm] = useState<FormState>(() => loadFormFromStorage());
   const [screen, setScreen] = useState<Screen>({ kind: 'welcome' });
 
-  const startLevel = useCallback((level: LevelKey) => {
-    const questions = buildQuizForLevel(level);
-    setScreen({
-      kind: 'playing',
-      level,
-      questions,
-      index: 0,
-      answers: [],
-      startedAt: Date.now(),
+  const updateForm = useCallback((patch: Partial<FormState>) => {
+    setForm((prev) => {
+      const next = { ...prev, ...patch };
+      persistForm(next);
+      return next;
     });
   }, []);
 
-  const onAnswerComplete = useCallback(
-    async (answers: AnswerRecord[], questions: QuizQuestion[], level: LevelKey, startedAt: number) => {
-      const durationMs = Date.now() - startedAt;
-      // Skok do ekranu wyniku natychmiast (z null statsami) — równolegle pollujemy /attempt.
+  const startLevel = useCallback(
+    (level: LevelKey) => {
+      const questions = buildQuizForLevel(level);
       setScreen({
-        kind: 'result',
+        kind: 'playing',
         level,
+        mode: form.mode,
+        form,
         questions,
-        answers,
-        durationMs,
-        stats: null,
-        statsError: null,
+        index: 0,
+        answers: [],
+        startedAt: Date.now(),
       });
+    },
+    [form],
+  );
+
+  const onAnswerComplete = useCallback(
+    async (
+      answers: AnswerRecord[],
+      questions: QuizQuestion[],
+      level: LevelKey,
+      mode: Mode,
+      submittedForm: FormState,
+      startedAt: number,
+    ) => {
+      const durationMs = Date.now() - startedAt;
+      setScreen({ kind: 'result', level, mode, form: submittedForm, questions, answers, durationMs, stats: null, statsError: null });
 
       const correct = answers.filter((a) => a.isCorrect).length;
       const total = answers.length;
@@ -157,17 +238,27 @@ export function QuizPage() {
         const res = await fetch(`${apiBase()}/api/quiz/attempt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ level, correct, total, percent, breakdown, durationMs }),
+          body: JSON.stringify({
+            level, mode,
+            email: submittedForm.email,
+            displayName: submittedForm.displayName || null,
+            consents: { rodo: submittedForm.rodo, newsletter: submittedForm.newsletter },
+            correct, total, percent, breakdown,
+            answers,
+            durationMs,
+          }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          throw new Error(`HTTP ${res.status} ${body.slice(0, 120)}`);
+        }
         const stats = (await res.json()) as AttemptStats;
-        setScreen((s) =>
-          s.kind === 'result' ? { ...s, stats, statsError: null } : s,
-        );
-      } catch {
+        setScreen((s) => (s.kind === 'result' ? { ...s, stats, statsError: null } : s));
+      } catch (err) {
+        console.error('[quiz] /attempt failed', err);
         setScreen((s) =>
           s.kind === 'result'
-            ? { ...s, stats: null, statsError: 'Statystyki niedostępne — wynik bez porównania kohortowego.' }
+            ? { ...s, stats: null, statsError: 'Nie udało się policzyć kohorty — wynik widzisz mimo to.' }
             : s,
         );
       }
@@ -197,26 +288,18 @@ export function QuizPage() {
       <main className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
         <AnimatePresence mode="wait">
           {screen.kind === 'welcome' && (
-            <Welcome key="welcome" onPick={startLevel} />
+            <Welcome key="welcome" form={form} updateForm={updateForm} onPick={startLevel} />
           )}
           {(screen.kind === 'playing' || screen.kind === 'interlude') && (
             <Playing
-              key={`play-${screen.level}-${screen.index}-${screen.kind}`}
+              key={`play-${screen.level}-${screen.mode}-${screen.index}-${screen.kind}`}
               screen={screen}
               setScreen={setScreen}
               onFinish={onAnswerComplete}
             />
           )}
           {screen.kind === 'result' && (
-            <ResultPanel
-              key="result"
-              screen={screen}
-              onReplay={replay}
-              onSent={(email) => setScreen({ kind: 'thanks', email })}
-            />
-          )}
-          {screen.kind === 'thanks' && (
-            <Thanks key="thanks" email={screen.email} onReplay={replay} />
+            <ResultPanel key="result" screen={screen} onReplay={replay} />
           )}
         </AnimatePresence>
       </main>
@@ -226,7 +309,27 @@ export function QuizPage() {
 
 // ───────────────────────────── welcome ─────────────────────────────
 
-function Welcome({ onPick }: { onPick: (level: LevelKey) => void }) {
+function Welcome({
+  form,
+  updateForm,
+  onPick,
+}: {
+  form: FormState;
+  updateForm: (patch: Partial<FormState>) => void;
+  onPick: (level: LevelKey) => void;
+}) {
+  const [showErrors, setShowErrors] = useState(false);
+  const emailValid = isValidEmail(form.email);
+  const canStart = emailValid && form.rodo;
+
+  const tryStart = (level: LevelKey) => {
+    if (!canStart) {
+      setShowErrors(true);
+      return;
+    }
+    onPick(level);
+  };
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 8 }}
@@ -234,7 +337,7 @@ function Welcome({ onPick }: { onPick: (level: LevelKey) => void }) {
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="text-center mb-8 sm:mb-10">
+      <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] uppercase tracking-widest text-gray-300 mb-5">
           <Sparkles className="w-3 h-3" />
           Quiz dnia
@@ -244,11 +347,124 @@ function Welcome({ onPick }: { onPick: (level: LevelKey) => void }) {
           O <span className="bg-gradient-to-r from-purple-400 to-cyan-300 bg-clip-text text-transparent">AI</span>
         </h1>
         <p className="text-gray-400 max-w-md mx-auto leading-relaxed text-sm sm:text-base">
-          10 pytań · trzy poziomy do wyboru. Zagraj anonimowo — wynik
-          zobaczysz od razu, pełny raport możesz dostać na mail.
+          10 pytań · trzy poziomy do wyboru. Po quizie zobaczysz wynik,
+          porównanie z innymi i leaderboard. Pełny raport poleci na maila.
         </p>
       </div>
 
+      {/* Formularz upfront */}
+      <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-5 sm:p-6 mb-6 flex flex-col gap-4">
+        <div>
+          <label htmlFor="quiz-email" className="block text-[11px] uppercase tracking-widest text-gray-400 mb-1.5">
+            Twój e-mail <span className="text-red-400">*</span>
+          </label>
+          <input
+            id="quiz-email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            placeholder="ty@example.com"
+            value={form.email}
+            onChange={(e) => updateForm({ email: e.target.value })}
+            className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/30 text-sm transition-colors"
+          />
+          {showErrors && !emailValid && (
+            <p className="text-xs text-red-400 mt-1.5">Podaj prawidłowy e-mail — wynik wyślemy na ten adres.</p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="quiz-name" className="block text-[11px] uppercase tracking-widest text-gray-400 mb-1.5">
+            Nick na leaderboard (opcjonalnie)
+          </label>
+          <input
+            id="quiz-name"
+            type="text"
+            maxLength={40}
+            placeholder="np. michał"
+            value={form.displayName}
+            onChange={(e) => updateForm({ displayName: e.target.value })}
+            className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/30 text-sm transition-colors"
+          />
+        </div>
+
+        {/* Mode toggle */}
+        <div>
+          <div className="text-[11px] uppercase tracking-widest text-gray-400 mb-1.5">Tryb</div>
+          <div className="inline-flex w-full sm:w-auto gap-1 p-1 rounded-xl bg-black/40 border border-white/10">
+            <button
+              type="button"
+              onClick={() => updateForm({ mode: 'timed' })}
+              className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                form.mode === 'timed'
+                  ? 'bg-purple-500 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Z czasem
+            </button>
+            <button
+              type="button"
+              onClick={() => updateForm({ mode: 'untimed' })}
+              className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                form.mode === 'untimed'
+                  ? 'bg-purple-500 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <InfinityIcon className="w-3.5 h-3.5" />
+              Bez limitu
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-500 mt-1.5">
+            {form.mode === 'timed'
+              ? 'Timer per pytanie: 30s / 40s / 60s w zależności od trudności. Szybsze gry = wyżej na leaderboard.'
+              : 'Bez timera — odpowiadaj w swoim tempie. Leaderboard liczony osobno dla tego trybu.'}
+          </p>
+        </div>
+
+        {/* Consents */}
+        <div className="flex flex-col gap-1.5">
+          <label className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/[0.03] cursor-pointer transition-colors">
+            <input
+              type="checkbox"
+              checked={form.rodo}
+              onChange={(e) => updateForm({ rodo: e.target.checked })}
+              className="mt-1 w-4 h-4 accent-purple-500"
+            />
+            <span className="text-sm">
+              <strong className="block text-white font-medium">
+                Zgoda na przetwarzanie e-maila i kontakt <span className="text-red-400">*</span>
+              </strong>
+              <span className="block text-xs text-gray-400 leading-relaxed mt-0.5">
+                Twój adres trafia do AI Possibilities Lab — żeby wysłać raport i ewentualnie odezwać
+                się w sprawie wydarzeń koła. Zgodę cofniesz pisząc na lab@possibilitieslab.org.
+              </span>
+            </span>
+          </label>
+          {showErrors && !form.rodo && (
+            <p className="text-xs text-red-400 px-3 -mt-1">Zaznacz zgodę, żebyśmy mogli wysłać raport.</p>
+          )}
+          <label className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/[0.03] cursor-pointer transition-colors">
+            <input
+              type="checkbox"
+              checked={form.newsletter}
+              onChange={(e) => updateForm({ newsletter: e.target.checked })}
+              className="mt-1 w-4 h-4 accent-purple-500"
+            />
+            <span className="text-sm">
+              <strong className="block text-white font-medium">Zapisz mnie do newslettera (opcjonalnie)</strong>
+              <span className="block text-xs text-gray-400 leading-relaxed mt-0.5">
+                Rzadki, sensowny e-mail o eventach, projektach koła i nowych quizach.
+              </span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      {/* Level picker */}
+      <div className="text-[11px] uppercase tracking-widest text-gray-400 mb-2 px-1">Wybierz poziom</div>
       <div className="flex flex-col gap-3">
         {(['easy', 'mid', 'hard'] as const).map((key) => {
           const lvl = QUIZ_LEVELS[key];
@@ -258,9 +474,8 @@ function Welcome({ onPick }: { onPick: (level: LevelKey) => void }) {
             <button
               key={key}
               type="button"
-              onClick={() => onPick(key)}
-              className="group grid grid-cols-[1fr_auto] items-center gap-4 sm:gap-6 p-5 sm:p-6 rounded-2xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] hover:border-white/20 transition-all text-left"
-              style={{ ['--accent' as string]: lvl.color }}
+              onClick={() => tryStart(key)}
+              className="group grid grid-cols-[1fr_auto] items-center gap-4 sm:gap-6 p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] hover:border-white/20 transition-all text-left"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2.5 mb-1.5">
@@ -274,7 +489,7 @@ function Welcome({ onPick }: { onPick: (level: LevelKey) => void }) {
               </div>
               <div className="text-right">
                 <div className="font-mono text-xs text-gray-500 mb-1">
-                  {total} pytań · ~{mins} min
+                  {total} pytań{form.mode === 'timed' ? ` · ~${mins} min` : ''}
                 </div>
                 <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-gray-500 group-hover:text-white transition-colors">
                   Start
@@ -286,9 +501,9 @@ function Welcome({ onPick }: { onPick: (level: LevelKey) => void }) {
         })}
       </div>
 
-      <p className="text-xs text-gray-500 text-center mt-8 max-w-md mx-auto leading-relaxed">
-        Wynik orientacyjny zobaczysz od razu, anonimowo. Pełny raport z
-        rozpisaniem każdego pytania dostaniesz na maila po wyrażeniu zgody.
+      <p className="text-xs text-gray-500 text-center mt-6 max-w-md mx-auto leading-relaxed">
+        Po quizie zobaczysz tu szczegółowy wynik z porównaniem do innych graczy,
+        a pełny raport per pytanie poleci na Twoją skrzynkę.
       </p>
     </motion.section>
   );
@@ -334,7 +549,7 @@ function Playing({
 }: {
   screen: PlayingScreen;
   setScreen: (s: Screen) => void;
-  onFinish: (answers: AnswerRecord[], questions: QuizQuestion[], level: LevelKey, startedAt: number) => void;
+  onFinish: (a: AnswerRecord[], q: QuizQuestion[], l: LevelKey, m: Mode, f: FormState, startedAt: number) => void;
 }) {
   if (screen.kind === 'interlude') {
     const correctSoFar = screen.answers.filter((a) => a.isCorrect).length;
@@ -349,7 +564,7 @@ function Playing({
         const nextIdx = screen.index + 1;
         const total = screen.questions.length;
         if (nextIdx >= total) {
-          void onFinish(answers, screen.questions, screen.level, screen.startedAt);
+          onFinish(answers, screen.questions, screen.level, screen.mode, screen.form, screen.startedAt);
           return;
         }
         if (isMilestone(nextIdx, total)) {
@@ -382,7 +597,7 @@ function Interlude({ emoji, title, sub }: InterludeBeat) {
   );
 }
 
-// ───────── single question — timer ring + locking options ─────────
+// ─────── single question — mode-aware timer ───────
 
 function Question({
   screen,
@@ -393,15 +608,15 @@ function Question({
 }) {
   const q = screen.questions[screen.index];
   const total = screen.questions.length;
+  const timed = screen.mode === 'timed';
   const [picked, setPicked] = useState<OptionLetter | null>(null);
   const [timedOut, setTimedOut] = useState(false);
-  const [remaining, setRemaining] = useState(q.seconds);
+  const [remaining, setRemaining] = useState(timed ? q.seconds : Infinity);
   const lockedRef = useRef(false);
   const advancedRef = useRef(false);
 
-  // Tick timer (1 Hz) — resetuje się z nowym pytaniem dzięki key= w QuizPage.
   useEffect(() => {
-    if (lockedRef.current) return;
+    if (!timed || lockedRef.current) return;
     if (remaining <= 0) {
       lockedRef.current = true;
       setTimedOut(true);
@@ -409,26 +624,28 @@ function Question({
     }
     const t = setTimeout(() => setRemaining((r) => r - 1), 1000);
     return () => clearTimeout(t);
-  }, [remaining]);
+  }, [remaining, timed]);
 
-  // Auto-advance po wyborze odpowiedzi lub timeoucie.
   useEffect(() => {
     if (advancedRef.current) return;
     const isResolved = picked !== null || timedOut;
     if (!isResolved) return;
     advancedRef.current = true;
     const isCorrect = !timedOut && picked === q.correct;
-    const answer: AnswerRecord = {
-      id: q.id,
-      difficulty: q.difficulty,
-      question: q.q,
-      options: q.options,
-      picked,
-      correct: q.correct,
-      isCorrect,
-      timedOut,
-    };
-    const t = setTimeout(() => onResolve(answer), FEEDBACK_MS);
+    const t = setTimeout(
+      () =>
+        onResolve({
+          id: q.id,
+          difficulty: q.difficulty,
+          question: q.q,
+          options: q.options,
+          picked,
+          correct: q.correct,
+          isCorrect,
+          timedOut,
+        }),
+      FEEDBACK_MS,
+    );
     return () => clearTimeout(t);
   }, [picked, timedOut, q, onResolve]);
 
@@ -439,10 +656,11 @@ function Question({
   };
 
   const progressPct = Math.round((screen.index / total) * 100);
-  const timerPct = q.seconds > 0 ? remaining / q.seconds : 0;
+  const timerPct = timed && q.seconds > 0 ? remaining / q.seconds : 1;
   const ringOffset = 100 * (1 - timerPct);
-  const ringClass =
-    remaining <= q.seconds * 0.25
+  const ringClass = !timed
+    ? 'stroke-purple-400/40'
+    : remaining <= q.seconds * 0.25
       ? 'stroke-red-500'
       : remaining <= q.seconds * 0.5
         ? 'stroke-amber-400'
@@ -457,7 +675,6 @@ function Question({
       exit={{ opacity: 0, y: -6 }}
       transition={{ duration: 0.25 }}
     >
-      {/* topbar */}
       <div className="flex items-center gap-4 mb-5">
         <div className="flex-1 min-w-0">
           <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
@@ -496,16 +713,15 @@ function Question({
               strokeWidth="3"
               strokeLinecap="round"
               className={`${ringClass} transition-[stroke-dashoffset] duration-700 ease-linear`}
-              style={{ strokeDasharray: 100, strokeDashoffset: ringOffset }}
+              style={{ strokeDasharray: 100, strokeDashoffset: timed ? ringOffset : 0 }}
             />
           </svg>
           <span className="absolute inset-0 flex items-center justify-center font-mono text-sm font-semibold">
-            {remaining}
+            {timed ? remaining : <InfinityIcon className="w-4 h-4" />}
           </span>
         </div>
       </div>
 
-      {/* card */}
       <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-5 sm:p-7">
         <h2 className="text-lg sm:text-xl font-bold leading-snug mb-5">{q.q}</h2>
         <ul className="flex flex-col gap-2">
@@ -581,20 +797,23 @@ function Question({
 
 type ResultScreen = Extract<Screen, { kind: 'result' }>;
 
-function ResultPanel({
-  screen,
-  onReplay,
-  onSent,
-}: {
-  screen: ResultScreen;
-  onReplay: () => void;
-  onSent: (email: string) => void;
-}) {
-  const { level, answers, durationMs, stats, statsError } = screen;
+function ResultPanel({ screen, onReplay }: { screen: ResultScreen; onReplay: () => void }) {
+  const { level, mode, form, answers, stats, statsError, durationMs } = screen;
   const correct = answers.filter((a) => a.isCorrect).length;
   const total = answers.length;
   const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
-  const breakdownDiffs: Difficulty[] = ['easy', 'mid', 'expert'];
+
+  // Per-difficulty mine vs cohort (cohort comes from server stats if loaded)
+  const perDifficultyMine = useMemo(() => {
+    const out: Partial<Record<Difficulty, number>> = {};
+    (['easy', 'mid', 'expert'] as const).forEach((d) => {
+      const set = answers.filter((a) => a.difficulty === d);
+      if (set.length === 0) return;
+      const right = set.filter((a) => a.isCorrect).length;
+      out[d] = Math.round((right / set.length) * 100);
+    });
+    return out;
+  }, [answers]);
 
   return (
     <motion.section
@@ -604,10 +823,14 @@ function ResultPanel({
       transition={{ duration: 0.3 }}
       className="flex flex-col gap-5"
     >
+      {/* Email banner */}
+      <EmailSentBanner email={form.email} emailed={stats?.emailed ?? null} statsError={statsError} />
+
       {/* Score header */}
       <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-6 sm:p-8 text-center">
         <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-1">
-          Zakończone · poziom {QUIZ_LEVELS[level].label}
+          Zakończone · {QUIZ_LEVELS[level].label} · {mode === 'timed' ? 'z czasem' : 'bez limitu'}
+          {mode === 'timed' && durationMs > 0 ? ` · ${fmtDuration(durationMs)}` : ''}
         </div>
         <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4 inline-flex items-center gap-2">
           {percent >= 70 && <Trophy className="w-7 h-7 text-amber-400" />}
@@ -619,62 +842,30 @@ function ResultPanel({
         <div className="font-mono text-sm text-gray-500 mt-1">{percent}%</div>
       </div>
 
-      {/* Cohort stats — the analytics panel */}
-      <CohortPanel stats={stats} error={statsError} myPercent={percent} levelLabel={QUIZ_LEVELS[level].label} />
+      {/* Percentile gauge — duża grafika */}
+      <PercentileGauge stats={stats} myPercent={percent} levelLabel={QUIZ_LEVELS[level].label} />
 
-      {/* Per-difficulty bars */}
-      <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-5">
-        <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-3">
-          Rozbicie wg trudności
-        </div>
-        <div className="flex flex-col gap-3">
-          {breakdownDiffs.map((d) => {
-            const set = answers.filter((a) => a.difficulty === d);
-            const right = set.filter((a) => a.isCorrect).length;
-            const pct = set.length > 0 ? Math.round((right / set.length) * 100) : 0;
-            if (set.length === 0) return null;
-            return (
-              <div key={d} className="grid grid-cols-[80px_1fr_60px] items-center gap-3">
-                <div className="text-xs text-gray-400">{DIFFICULTY_LABEL[d]}</div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/10">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: DIFFICULTY_COLOR[d] }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                  />
-                </div>
-                <div className="font-mono text-[11px] text-gray-500 text-right">
-                  {right}/{set.length}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Distribution histogram */}
+      <DistributionChart stats={stats} myPercent={percent} />
 
-      {/* Email gate */}
-      <EmailGate
-        level={level}
-        answers={answers}
-        attemptId={stats?.attemptId ?? null}
-        durationMs={durationMs}
-        onSent={onSent}
-      />
+      {/* Per-difficulty: mine vs cohort avg */}
+      <DifficultyComparisonChart mine={perDifficultyMine} stats={stats} />
+
+      {/* Leaderboard */}
+      <LeaderboardPanel stats={stats} mode={mode} />
 
       <div className="flex justify-center gap-3 pt-2">
         <button
           type="button"
           onClick={onReplay}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold uppercase tracking-widest text-xs transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 font-bold uppercase tracking-widest text-xs transition-colors"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           Zagraj ponownie
         </button>
         <Link
           to="/"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm text-gray-400 hover:text-white transition-colors uppercase tracking-widest text-xs"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-gray-400 hover:text-white transition-colors uppercase tracking-widest text-xs"
         >
           Strona główna
         </Link>
@@ -683,39 +874,53 @@ function ResultPanel({
   );
 }
 
-// ─────────── cohort analytics panel ───────────
-
-function CohortPanel({
-  stats,
-  error,
-  myPercent,
-  levelLabel,
-}: {
-  stats: AttemptStats | null;
-  error: string | null;
-  myPercent: number;
-  levelLabel: string;
-}) {
-  if (error) {
+function EmailSentBanner({ email, emailed, statsError }: { email: string; emailed: boolean | null; statsError: string | null }) {
+  if (statsError) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-sm text-gray-500">
-        {error}
+      <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-3 text-sm text-amber-200">
+        <Clock className="w-4 h-4 flex-shrink-0" />
+        <span>{statsError}</span>
       </div>
     );
   }
+  if (emailed === null) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3 text-sm text-gray-400">
+        <Mail className="w-4 h-4 animate-pulse" />
+        <span>Wysyłamy raport na <strong className="text-white">{email}</strong>…</span>
+      </div>
+    );
+  }
+  if (emailed) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/[0.05] p-3 text-sm">
+        <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+        <span>Raport wysłany na <strong className="text-white">{email}</strong>. Zerknij do skrzynki (czasem trafia do spamu).</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-3 text-sm text-amber-200">
+      <Mail className="w-4 h-4 flex-shrink-0" />
+      <span>Wynik mamy zapisany, ale mailing chwilowo nie odpalił — odezwiemy się ręcznie.</span>
+    </div>
+  );
+}
+
+// ─────── chart: big percentile gauge (arc 270°) ───────
+
+function PercentileGauge({ stats, myPercent, levelLabel }: { stats: AttemptStats | null; myPercent: number; levelLabel: string }) {
   if (!stats) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-        <div className="text-[11px] uppercase tracking-widest text-gray-500 mb-2">
-          Liczę kohortę…
-        </div>
-        <div className="h-16 animate-pulse bg-white/[0.03] rounded-lg" />
-      </div>
+      <div className="rounded-2xl border border-purple-500/25 bg-gradient-to-br from-purple-500/[0.08] to-cyan-500/[0.04] p-6 animate-pulse h-44" />
     );
   }
-
-  const maxBin = Math.max(1, ...stats.distribution);
-  const myBin = Math.min(9, Math.floor(myPercent / 10));
+  const pct = stats.percentile;
+  // 270° arc (from -135° do +135°). r=70, c=2πr.
+  const r = 70;
+  const c = 2 * Math.PI * r;
+  const arcLen = c * 0.75; // 270/360
+  const filled = (pct / 100) * arcLen;
 
   return (
     <motion.div
@@ -724,269 +929,212 @@ function CohortPanel({
       transition={{ duration: 0.4 }}
       className="rounded-2xl border border-purple-500/25 bg-gradient-to-br from-purple-500/[0.08] to-cyan-500/[0.04] p-5 sm:p-6"
     >
-      <div className="flex items-baseline justify-between gap-3 mb-4 flex-wrap">
-        <div>
-          <div className="text-[11px] uppercase tracking-widest text-purple-300/70 mb-0.5">
-            Twoja pozycja w kohorcie
-          </div>
-          <div className="text-2xl sm:text-3xl font-black tracking-tight">
-            Lepszy niż <span className="text-purple-300">{stats.percentile}%</span> graczy
-          </div>
-          <div className="text-xs text-gray-400 mt-1">
-            na poziomie <span className="text-white">{levelLabel}</span> ·{' '}
-            <span className="font-mono">{stats.cohortSize}</span> prób ·
-            śr. <span className="font-mono">{stats.avgPercent}%</span>
+      <div className="text-[11px] uppercase tracking-widest text-purple-300/70 mb-1">Twoja pozycja w kohorcie</div>
+      <div className="grid sm:grid-cols-[180px_1fr] gap-5 items-center">
+        <div className="relative w-44 h-44 mx-auto sm:mx-0">
+          <svg viewBox="0 0 200 200" className="w-full h-full -rotate-[225deg]">
+            <circle cx="100" cy="100" r={r} fill="none" strokeWidth="14" className="stroke-white/10"
+                    strokeDasharray={`${arcLen} ${c}`} strokeLinecap="round" />
+            <motion.circle
+              cx="100" cy="100" r={r} fill="none" strokeWidth="14"
+              className="stroke-purple-400"
+              strokeDasharray={`${filled} ${c}`}
+              strokeLinecap="round"
+              initial={{ strokeDasharray: `0 ${c}` }}
+              animate={{ strokeDasharray: `${filled} ${c}` }}
+              transition={{ duration: 1.1, ease: 'easeOut' }}
+              style={{ filter: 'drop-shadow(0 0 8px rgba(167,139,250,0.6))' }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="font-mono text-4xl font-black bg-gradient-to-br from-white to-purple-300 bg-clip-text text-transparent leading-none">
+              {pct}%
+            </div>
+            <div className="text-[10px] uppercase tracking-widest text-gray-500 mt-1">percentyl</div>
           </div>
         </div>
+        <div className="text-center sm:text-left">
+          <div className="text-2xl sm:text-3xl font-black tracking-tight mb-2">
+            Lepszy niż <span className="text-purple-300">{pct}%</span> graczy
+          </div>
+          <div className="text-sm text-gray-400 leading-relaxed">
+            na poziomie <strong className="text-white">{levelLabel}</strong>.
+            Kohorta: <span className="font-mono text-white">{stats.cohortSize}</span> prób ·
+            średnia <span className="font-mono text-white">{stats.avgPercent}%</span> ·
+            Twój wynik <span className="font-mono text-white">{myPercent}%</span>.
+          </div>
+          {stats.myRank > 0 && (
+            <div className="text-xs text-gray-500 mt-2">
+              Miejsce w rankingu: <strong className="text-white font-mono">#{stats.myRank}</strong>
+              {stats.cohortSize > 0 ? ` z ${stats.cohortSize}` : ''}
+            </div>
+          )}
+        </div>
       </div>
+    </motion.div>
+  );
+}
 
-      {/* Distribution mini-chart */}
-      <div className="flex items-end gap-1 h-20 mb-2">
+// ─────── chart: 10-bin distribution with my bucket highlighted ───────
+
+function DistributionChart({ stats, myPercent }: { stats: AttemptStats | null; myPercent: number }) {
+  if (!stats) {
+    return <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 animate-pulse h-32" />;
+  }
+  const maxBin = Math.max(1, ...stats.distribution);
+  const myBin = Math.min(9, Math.floor(myPercent / 10));
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <div className="flex items-baseline justify-between mb-3">
+        <div className="text-[11px] uppercase tracking-widest text-gray-400">Rozkład wyników kohorty</div>
+        <div className="text-[11px] font-mono text-gray-500">{stats.cohortSize} prób</div>
+      </div>
+      <div className="flex items-end gap-1 h-28 mb-2">
         {stats.distribution.map((count, i) => {
           const h = (count / maxBin) * 100;
           const isMine = i === myBin;
           return (
-            <div key={i} className="flex-1 flex flex-col justify-end">
+            <div key={i} className="flex-1 flex flex-col justify-end relative">
               <motion.div
                 initial={{ height: 0 }}
                 animate={{ height: `${h}%` }}
                 transition={{ duration: 0.6, delay: i * 0.04, ease: 'easeOut' }}
-                className={`rounded-t ${isMine ? 'bg-purple-400' : 'bg-white/15'}`}
+                className={`rounded-t ${isMine ? 'bg-purple-400 shadow-[0_0_12px_rgba(167,139,250,0.5)]' : 'bg-white/15'}`}
                 style={{ minHeight: count > 0 ? 2 : 0 }}
                 title={`${i * 10}–${i * 10 + 10}%: ${count} prób`}
               />
+              {isMine && count > 0 && (
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-mono text-purple-300 whitespace-nowrap">
+                  Ty
+                </div>
+              )}
             </div>
           );
         })}
       </div>
       <div className="flex justify-between text-[10px] font-mono text-gray-500">
-        <span>0%</span>
-        <span>50%</span>
-        <span>100%</span>
+        <span>0%</span><span>20%</span><span>40%</span><span>60%</span><span>80%</span><span>100%</span>
       </div>
-
-      <p className="text-xs text-gray-400 mt-3 leading-relaxed">
-        Każda twoja gra zostawia anonimowy ślad — Ty widzisz, gdzie jesteś;
-        my widzimy, gdzie są <em>luki w wiedzy o AI</em> w naszej społeczności,
-        i wiemy, co eksponować na warsztatach.
-      </p>
-    </motion.div>
+    </div>
   );
 }
 
-// ─────────── email gate ───────────
+// ─────── chart: per-difficulty grouped bars (mine vs cohort avg) ───────
 
-function EmailGate({
-  level,
-  answers,
-  attemptId,
-  durationMs,
-  onSent,
+function DifficultyComparisonChart({
+  mine,
+  stats,
 }: {
-  level: LevelKey;
-  answers: AnswerRecord[];
-  attemptId: string | null;
-  durationMs: number;
-  onSent: (email: string) => void;
+  mine: Partial<Record<Difficulty, number>>;
+  stats: AttemptStats | null;
 }) {
-  const [email, setEmail] = useState<string>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) ?? '';
-    } catch {
-      return '';
-    }
-  });
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [rodo, setRodo] = useState(false);
-  const [newsletter, setNewsletter] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
+  const diffs: Difficulty[] = ['easy', 'mid', 'expert'];
+  const rows = diffs
+    .map((d) => {
+      const myV = mine[d];
+      if (myV === undefined) return null;
+      const cohortV = stats?.perDifficulty?.[d]?.cohortAvg ?? null;
+      return { d, mine: myV, cohort: cohortV };
+    })
+    .filter((r): r is { d: Difficulty; mine: number; cohort: number | null } => r !== null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isValidEmail(email)) {
-      setEmailError('Podaj prawidłowy adres e-mail.');
-      return;
-    }
-    setEmailError(null);
-    if (!rodo) {
-      setSendError('Zaznacz zgodę na przetwarzanie e-maila.');
-      return;
-    }
-    setSendError(null);
-    setSending(true);
-    try {
-      localStorage.setItem(STORAGE_KEY, email);
-    } catch {
-      /* ignore */
-    }
-
-    const correct = answers.filter((a) => a.isCorrect).length;
-    const total = answers.length;
-    const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
-    const breakdown = (['easy', 'mid', 'expert'] as const).map((d) => ({
-      difficulty: d,
-      correct: answers.filter((a) => a.difficulty === d && a.isCorrect).length,
-      total: answers.filter((a) => a.difficulty === d).length,
-    }));
-
-    try {
-      const res = await fetch(`${apiBase()}/api/quiz/send-results`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          attemptId,
-          email,
-          consents: { rodo, newsletter },
-          level,
-          score: { correct, total, percent },
-          breakdown,
-          answers,
-          durationMs,
-          completedAt: new Date().toISOString(),
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status} ${body.slice(0, 120)}`);
-      }
-      onSent(email);
-    } catch (err) {
-      console.error('[quiz] send failed', err);
-      setSendError('Nie udało się wysłać raportu. Spróbuj ponownie za chwilę.');
-      setSending(false);
-    }
-  };
+  if (rows.length === 0) return null;
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-2xl bg-white/[0.03] border border-white/10 p-5 sm:p-6 flex flex-col gap-4"
-      noValidate
-    >
-      <div>
-        <h3 className="text-lg font-bold mb-1 inline-flex items-center gap-2">
-          <Mail className="w-4 h-4 text-purple-300" />
-          Chcesz pełny raport na maila?
-        </h3>
-        <p className="text-sm text-gray-400 leading-relaxed">
-          Dostaniesz rozpisane <strong className="text-white">wszystkie pytania</strong>:
-          które trafiłeś, w czym byłeś blisko — z poprawnymi odpowiedziami, do nauki.
-        </p>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <div className="text-[11px] uppercase tracking-widest text-gray-400 mb-3">
+        Ty vs średnia kohorty — wg trudności
       </div>
-
-      <div>
-        <label htmlFor="quiz-email" className="block text-[11px] uppercase tracking-widest text-gray-400 mb-1.5">
-          Twój e-mail
-        </label>
-        <input
-          id="quiz-email"
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          placeholder="ty@example.com"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setEmailError(null);
-          }}
-          className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/30 text-sm transition-colors"
-        />
-        {emailError && <p className="text-xs text-red-400 mt-1.5">{emailError}</p>}
+      <div className="flex flex-col gap-3">
+        {rows.map(({ d, mine: myV, cohort }) => {
+          const c = DIFFICULTY_COLOR[d];
+          return (
+            <div key={d}>
+              <div className="flex items-baseline justify-between mb-1 text-xs">
+                <span className="text-gray-300">{DIFFICULTY_LABEL[d]}</span>
+                <span className="font-mono text-gray-500">
+                  <span className="text-white">{myV}%</span>
+                  {cohort !== null && <> · śr. {cohort}%</>}
+                </span>
+              </div>
+              <div className="relative h-3 bg-white/5 rounded-full overflow-hidden border border-white/10">
+                <motion.div
+                  className="absolute left-0 top-0 h-full rounded-full"
+                  style={{ background: c }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${myV}%` }}
+                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                />
+                {cohort !== null && (
+                  <div
+                    className="absolute top-0 h-full w-0.5 bg-white/60"
+                    style={{ left: `${cohort}%`, boxShadow: '0 0 4px rgba(255,255,255,0.5)' }}
+                    title={`Średnia kohorty: ${cohort}%`}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
-
-      <div className="flex flex-col gap-2">
-        <label className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/[0.03] cursor-pointer transition-colors">
-          <input
-            type="checkbox"
-            checked={rodo}
-            onChange={(e) => setRodo(e.target.checked)}
-            className="mt-1 w-4 h-4 accent-purple-500"
-          />
-          <span className="text-sm">
-            <strong className="block text-white font-medium">
-              Zgoda na przetwarzanie e-maila i kontakt
-            </strong>
-            <span className="block text-xs text-gray-400 leading-relaxed mt-0.5">
-              Twój adres trafia tylko do AI Possibilities Lab — wyłącznie żeby wysłać raport
-              i ewentualnie skontaktować się w sprawie wydarzeń koła. W każdej chwili możesz
-              wycofać zgodę pisząc na lab@possibilitieslab.org.
-            </span>
-          </span>
-        </label>
-        <label className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/[0.03] cursor-pointer transition-colors">
-          <input
-            type="checkbox"
-            checked={newsletter}
-            onChange={(e) => setNewsletter(e.target.checked)}
-            className="mt-1 w-4 h-4 accent-purple-500"
-          />
-          <span className="text-sm">
-            <strong className="block text-white font-medium">
-              Zapisz mnie do newslettera (opcjonalnie)
-            </strong>
-            <span className="block text-xs text-gray-400 leading-relaxed mt-0.5">
-              Rzadki, sensowny e-mail o eventach, projektach koła i nowych quizach.
-            </span>
-          </span>
-        </label>
-      </div>
-
-      <button
-        type="submit"
-        disabled={sending}
-        className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-purple-500 hover:bg-purple-400 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm uppercase tracking-widest transition-colors"
-      >
-        {sending ? (
-          'Wysyłam…'
-        ) : (
-          <>
-            <Send className="w-4 h-4" />
-            Wyślij pełny raport
-          </>
-        )}
-      </button>
-      {sendError && <p className="text-xs text-red-400">{sendError}</p>}
-    </form>
-  );
-}
-
-// ───────────────────────────── thanks ─────────────────────────────
-
-function Thanks({ email, onReplay }: { email: string; onReplay: () => void }) {
-  return (
-    <motion.section
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-      className="text-center py-12"
-    >
-      <div className="inline-flex w-20 h-20 rounded-full bg-green-500/15 border border-green-500/40 items-center justify-center mb-6 shadow-[0_0_30px_rgba(34,197,94,0.25)]">
-        <CheckCircle2 className="w-10 h-10 text-green-400" />
-      </div>
-      <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">WYSŁANE!</h2>
-      <p className="text-gray-400 max-w-md mx-auto text-sm leading-relaxed">
-        Pełny raport poleciał na <strong className="text-white">{email}</strong>.
-        Jeśli nie zobaczysz go w ciągu kilku minut — zerknij do spamu.
+      <p className="text-[11px] text-gray-500 mt-3">
+        Słupek = Twój wynik. Pionowa kreska = średnia kohorty na tym poziomie trudności.
       </p>
-      <div className="flex justify-center gap-3 mt-8">
-        <button
-          type="button"
-          onClick={onReplay}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold uppercase tracking-widest text-xs transition-colors"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          Zagraj ponownie
-        </button>
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm text-gray-400 hover:text-white transition-colors uppercase tracking-widest text-xs"
-        >
-          Strona główna
-        </Link>
-      </div>
-    </motion.section>
+    </div>
   );
 }
 
+// ─────── leaderboard top 10 ───────
+
+function LeaderboardPanel({ stats, mode }: { stats: AttemptStats | null; mode: Mode }) {
+  if (!stats || stats.leaderboard.length === 0) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <div className="flex items-baseline justify-between mb-3">
+          <div className="text-[11px] uppercase tracking-widest text-gray-400 inline-flex items-center gap-1.5">
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            Leaderboard
+          </div>
+          <div className="text-[11px] font-mono text-gray-500">tryb: {mode === 'timed' ? 'z czasem' : 'bez limitu'}</div>
+        </div>
+        <p className="text-sm text-gray-500">Bądź pierwszy — leaderboard jest jeszcze pusty na tym poziomie.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <div className="flex items-baseline justify-between mb-3">
+        <div className="text-[11px] uppercase tracking-widest text-gray-400 inline-flex items-center gap-1.5">
+          <Trophy className="w-3.5 h-3.5 text-amber-400" />
+          Top 10
+        </div>
+        <div className="text-[11px] font-mono text-gray-500">tryb: {mode === 'timed' ? 'z czasem' : 'bez limitu'}</div>
+      </div>
+      <div className="flex flex-col gap-1">
+        {stats.leaderboard.map((e) => (
+          <div
+            key={`${e.rank}-${e.createdAt}`}
+            className={`grid grid-cols-[28px_1fr_auto] sm:grid-cols-[28px_1fr_auto_auto] items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+              e.isMe ? 'bg-purple-500/15 border border-purple-500/30' : 'border border-transparent hover:bg-white/[0.02]'
+            }`}
+          >
+            <span
+              className={`font-mono text-xs ${
+                e.rank === 1 ? 'text-amber-400' : e.rank === 2 ? 'text-gray-300' : e.rank === 3 ? 'text-amber-700' : 'text-gray-500'
+              }`}
+            >
+              #{e.rank}
+            </span>
+            <span className="truncate">
+              {e.displayName}
+              {e.isMe && <span className="ml-2 text-[10px] uppercase tracking-widest text-purple-300">Ty</span>}
+            </span>
+            <span className="font-mono text-xs text-white">{e.correct}/{e.total} · {e.percent}%</span>
+            <span className="hidden sm:inline font-mono text-xs text-gray-500">{fmtDuration(e.durationMs)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

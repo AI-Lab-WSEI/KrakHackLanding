@@ -4,6 +4,7 @@
 export type Difficulty = 'easy' | 'mid' | 'expert';
 export type LevelKey = 'easy' | 'mid' | 'hard';
 export type OptionLetter = 'A' | 'B' | 'C' | 'D';
+export type Mode = 'timed' | 'untimed';
 
 export interface Question {
   id: string;
@@ -29,10 +30,11 @@ export interface QuizLevel {
 
 // Per-difficulty timing — każde pytanie używa timera swojej trudności,
 // niezależnie od wybranego poziomu (easy = szybko, expert = powoli).
+// Tylko w trybie 'timed' — w 'untimed' timer jest wyłączony całkowicie.
 export const DIFFICULTY_SECONDS: Record<Difficulty, number> = {
-  easy: 15,
-  mid: 20,
-  expert: 30,
+  easy: 30,
+  mid: 40,
+  expert: 60,
 };
 
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
