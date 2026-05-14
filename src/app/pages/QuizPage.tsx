@@ -180,8 +180,11 @@ function loadFormFromStorage(): FormState {
     return {
       ...DEFAULT_FORM,
       ...parsed,
-      rodo: !!parsed.rodo,
-      newsletter: !!parsed.newsletter,
+      // Email zawsze startuje pusty — UX request: nie podpowiadamy poprzedniego
+      // adresu, żeby każda osoba na tym urządzeniu wpisała własny.
+      email: '',
+      rodo: false,
+      newsletter: false,
       mode: parsed.mode === 'untimed' ? 'untimed' : 'timed',
     };
   } catch {
@@ -191,9 +194,9 @@ function loadFormFromStorage(): FormState {
 
 function persistForm(form: FormState): void {
   try {
-    // Nie zapisujemy zgód — niech użytkownik świadomie zaznaczy za każdym razem.
-    const { email, displayName, mode } = form;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ email, displayName, mode }));
+    // Email i zgody NIE są zapisywane — nick + tryb wystarczą jako preferencja.
+    const { displayName, mode } = form;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ displayName, mode }));
   } catch {
     /* ignore */
   }
@@ -888,12 +891,13 @@ function ResultPanel({ screen, onReplay }: { screen: ResultScreen; onReplay: () 
           <RotateCcw className="w-3.5 h-3.5" />
           Zagraj ponownie
         </button>
-        <Link
-          to="/"
+        <button
+          type="button"
+          onClick={onReplay}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-gray-400 hover:text-white transition-colors uppercase tracking-widest text-xs"
         >
-          Strona główna
-        </Link>
+          Wróć do wyboru poziomu
+        </button>
       </div>
     </motion.section>
   );

@@ -3456,12 +3456,17 @@ function validateQuizBreakdown(breakdown, totalExpected) {
 }
 
 async function quizCohortStats(level, mode, myPercent) {
+  // Percentile = "lepszy niż X% innych graczy" — porównujemy się WYŁĄCZNIE
+  // z innymi atempts, nie z samym sobą. Bieżąca próba jest już w tabeli, więc
+  // dzielnikiem jest COUNT(*) − 1 (liczba pozostałych). Gdy jesteś pierwszy
+  // (COUNT = 1), NULLIF zwraca NULL → COALESCE daje 100 ("pokonałeś wszystkich
+  // innych" = nie ma jeszcze nikogo innego).
   const agg = await pool.query(
     `SELECT
        COUNT(*)::int AS cohort_size,
        COALESCE(ROUND(AVG(percent)::numeric, 0), 0)::int AS avg_percent,
        COALESCE(ROUND(100.0 * SUM(CASE WHEN percent < $3 THEN 1 ELSE 0 END)
-                       / NULLIF(COUNT(*), 0), 0), 0)::int AS percentile
+                       / NULLIF(COUNT(*) - 1, 0), 0), 100)::int AS percentile
      FROM quiz_attempts WHERE level = $1 AND mode = $2`,
     [level, mode, myPercent]
   );
